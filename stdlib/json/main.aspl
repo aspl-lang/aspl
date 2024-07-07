@@ -1,0 +1,9 @@
+$if main{
+    assert decode(encode(null)) == null
+    assert decode(encode(101)) == 101
+    assert decode(encode(101f)) == 101f
+    assert decode(encode("Hello")) == "Hello"
+    assert decode(encode(list<any>[])) == list<any>[]
+    assert decode(encode(list<any>["42"])) == ["42"]
+    assert decode(encode(list<any>["42", "43", 0, -12, "Hello", null])) == list<any>["42", "43", 0, -12, "Hello", null]
+}

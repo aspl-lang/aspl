@@ -1,0 +1,14 @@
+import aspl.parser.ast
+
+[public]
+class ParseFileResult {
+    
+    [readpublic]
+    property list<Node> nodes
+
+    [public]
+    method construct(list<Node> nodes){
+        this.nodes = nodes
+    }
+
+}

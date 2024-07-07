@@ -1,0 +1,14 @@
+import aspl.parser.ast
+
+[public]
+class CompilationResult {
+
+    [readpublic]    
+    property list<byte> output
+
+    [public]
+    method construct(list<byte> output){
+        this.output = output
+    }
+
+}

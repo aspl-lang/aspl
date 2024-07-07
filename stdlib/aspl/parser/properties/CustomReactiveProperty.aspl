@@ -1,0 +1,48 @@
+import aspl.parser.utils
+import aspl.parser.ast
+import aspl.parser.attributes
+
+[public]
+class CustomReactiveProperty extends Property{
+
+    [public]
+    property list<Node>? getCode
+    [public]
+    property list<Node>? setCode
+    [readpublic]
+    property Location location
+    [readpublic]
+    property Location headerEndLocation
+
+    [public]
+    method construct(Type type, string name, Types types, list<AttributeInstance> attributes, list<Node>? getCode, list<Node>? setCode, Location location, Location headerEndLocation){
+        parent(Property).construct(type, name, types, attributes)
+        this.fullyInitialized = true
+        if(getCode == null){
+            if(setCode == null){
+                this.fullyInitialized = false
+            }
+        }
+        this.getCode = getCode
+        this.setCode = setCode
+        this.location = location
+        this.headerEndLocation = headerEndLocation
+
+        foreach(attributes as attribute){
+            // Caching these for performance reasons
+            if(attribute.attribute.identifier == "static"){
+                this.isStatic = true
+            }elseif(attribute.attribute.identifier == "public"){
+                this.isPublic = true
+            }elseif(attribute.attribute.identifier == "readpublic"){
+                this.isReadPublic = true
+            }
+        }
+    }
+
+    [public]
+    method withType(Type type) returns Property{
+        return new self(type, this.name, this.types, this.attributes, this.getCode, this.setCode, this.location, this.headerEndLocation)
+    }
+
+}

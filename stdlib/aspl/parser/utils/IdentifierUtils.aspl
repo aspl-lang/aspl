@@ -1,0 +1,117 @@
+import aspl.parser
+import aspl.parser.functions
+
+[public]
+[static]
+class IdentifierUtils {
+
+    [static]
+    [threadlocal]
+    property map<string, string> aliases = {"bool" => "boolean", "int" => "integer"}
+
+    [public]
+    [static]
+    method handleTypeIdentifier(string identifier, Parser? parser = null) returns string{
+        var handledIdentifier = self:lowerNamespaceInIdentifier(identifier)
+        if(parser != null){
+            if(Parser(parser).importTable.canResolveAbbreviation(Parser(parser), handledIdentifier)){
+                handledIdentifier = Parser(parser).importTable.resolveAbbreviation(Parser(parser), handledIdentifier).toString()
+            }
+        }
+        if(handledIdentifier.contains("<")){
+            var genericTypeIdentifier = handledIdentifier.split("<")[0]
+            var genericType = Type:fromString(genericTypeIdentifier, parser)
+            var list<string> types = Type:getGenericTypesIdentifiers(handledIdentifier)
+            handledIdentifier = self:handleTypeIdentifier(genericTypeIdentifier, parser)
+            if(parser != null){
+                if(!handledIdentifier.contains(".")){
+                    if(Type:existsByName(parser, self:relativeToAbsoluteIdentifier(Parser(parser), handledIdentifier))){
+                        handledIdentifier = self:relativeToAbsoluteIdentifier(Parser(parser), handledIdentifier)
+                    }
+                }
+            }
+            handledIdentifier += "<"
+            var i = 0
+            foreach(types as type){
+                if(type.startsWith("returns ")){
+                    type = type.after("returns ".length - 1)
+                    handledIdentifier += "returns "
+                }
+                if(type.contains("|")){
+                    var list<string> subTypes = Types:getPartsOfMultiType(type)
+                    var j = 0
+                    foreach(subTypes as subType){
+                        subType = subType.trim()
+                        handledIdentifier += self:handleTypeIdentifier(subType, parser)
+                        if(j < subTypes.length - 1){
+                            handledIdentifier += "|"
+                        }
+                        j++
+                    }
+                }else{
+                    handledIdentifier += self:handleTypeIdentifier(type, parser)
+                }
+                if(i < types.length - 1){
+                    handledIdentifier += ", "
+                }
+                i++
+            }
+            handledIdentifier += ">"
+        }
+        if(parser != null){
+            if(!handledIdentifier.contains(".")){
+                if(Type:existsByName(parser, self:relativeToAbsoluteIdentifier(Parser(parser), handledIdentifier))){
+                    handledIdentifier = self:relativeToAbsoluteIdentifier(Parser(parser), handledIdentifier)
+                }
+            }
+        }
+        if(self:aliases.containsKey(handledIdentifier)){ // TODO: This probably won't work on generics
+            return self:aliases[handledIdentifier]
+        }
+        return handledIdentifier
+    }
+
+    [public]
+    [static]
+    method handleFunctionIdentifier(Parser parser, string identifier) returns string{
+        var id = self:lowerNamespaceInIdentifier(identifier)
+        if(Function:exists(id)){
+            return id
+        }
+        if(!id.contains(".")){
+            return parser.currentNamespace + "." + id
+        }
+        if(!Function:exists(id)){
+            if(Function:exists(parser.module.id + "." + id)){
+                return parser.module.id + "." + id
+            }
+        }
+        return id
+    }
+    
+    [public]
+    [static]
+    method lowerNamespaceInIdentifier(string identifier) returns string{
+        var last = 0
+        var current = 0
+        foreach(identifier as c){
+            if(c == "<"){
+                break // do not lower the namespaces inside the generic; this is handled in handleTypeIdentifier
+            }elseif(c == "."){
+                last = current
+            }
+            current++
+        }
+        if(last == 0){
+            return identifier
+        }
+        return identifier.before(last).toLower() + "." + identifier.after(last)
+    }
+
+    [public]
+    [static]
+    method relativeToAbsoluteIdentifier(Parser parser, string identifier) returns string{
+        return parser.currentNamespace + "." + identifier
+    }
+
+}

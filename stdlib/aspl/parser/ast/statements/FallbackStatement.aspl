@@ -1,0 +1,16 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class FallbackStatement extends Statement{
+
+	[readpublic]
+	property Expression value
+	
+	method construct(Expression value, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+	}
+	
+}

@@ -1,0 +1,15 @@
+[public]
+class CommandResult {
+    
+    [readpublic]
+    property int exitCode
+    [readpublic]
+    property string output
+
+    [public]
+    method construct(int exitCode, string output) {
+        this.exitCode = exitCode
+        this.output = output
+    }
+
+}

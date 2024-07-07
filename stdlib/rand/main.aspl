@@ -1,0 +1,34 @@
+[public]
+function brange(byte min, byte max) returns byte{
+	return byte(implement("random.range.byte", min, max))
+}
+
+[public]
+function irange(int min, int max) returns int{
+	return int(implement("random.range.int", min, max))
+}
+
+[public]
+function lrange(long min, long max) returns long{
+	return long(implement("random.range.long", min, max))
+}
+
+[public]
+function frange(float min, float max) returns float{
+	return float(implement("random.range.float", min, max))
+}
+
+[public]
+function drange(double min, double max) returns double{
+	return double(implement("random.range.double", min, max))
+}
+
+[public]
+function byte() returns byte{
+	return brange(0b, 255b)
+}
+
+[public]
+function float() returns float{
+	return frange(0f, 1f)
+}

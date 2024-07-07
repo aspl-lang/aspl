@@ -1,0 +1,13 @@
+var m = {"Hello" => "World", "Foo" => "Bar"}
+var map<string, string> x = m
+assert x.length == 2
+x.remove("Hello")
+assert m.length == 1
+assert x.length == 1
+assert x["Foo"] == "Bar"
+m["AS"] = "PL"
+assert m["AS"] == "PL"
+assert m["AS"] != x["Foo"]
+x["AS"] = "..."
+assert m["AS"] == "..."
+print(x)

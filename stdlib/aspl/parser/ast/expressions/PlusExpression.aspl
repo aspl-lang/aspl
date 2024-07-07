@@ -1,0 +1,156 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class PlusExpression extends BinaryOperator {
+
+    [public]
+    method construct(Expression left, Expression right, Location? location){
+        parent(BinaryOperator).construct(left, right, location)
+    }
+
+    [public]
+    method getType() returns Types{
+        if(Type:matches(new Types([Type:fromString("string")]), this.left.getType())){
+            return new Types([Type:fromString("string")])
+        }elseif(Type:matches(new Types([Type:fromString("string")]), this.right.getType())){
+            return new Types([Type:fromString("string")])
+        }else{
+            if(Type:matches(new Types([Type:fromString("byte")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return new Types([Type:fromString("byte")])
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return new Types([Type:fromString("integer")])
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return new Types([Type:fromString("long")])
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }
+            }elseif(Type:matches(new Types([Type:fromString("integer")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return new Types([Type:fromString("integer")])
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return new Types([Type:fromString("integer")])
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return new Types([Type:fromString("long")])
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }
+            }elseif(Type:matches(new Types([Type:fromString("long")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return new Types([Type:fromString("long")])
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return new Types([Type:fromString("long")])
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return new Types([Type:fromString("long")])
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }
+            }elseif(Type:matches(new Types([Type:fromString("float")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return new Types([Type:fromString("float")])
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }
+            }elseif(Type:matches(new Types([Type:fromString("double")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return new Types([Type:fromString("double")])
+                }
+            }
+            aspl.parser.utils.fatal_error("Incompatible types for + operator", this.location)
+        }
+    }
+
+    [public]
+    method getConstantValue() returns any{
+        if(Type:matches(new Types([Type:fromString("string")]), this.left.getType())){
+            return string(this.left.getConstantValue()) + string(this.right.getConstantValue())
+        }elseif(Type:matches(new Types([Type:fromString("string")]), this.right.getType())){
+            return string(this.left.getConstantValue()) + string(this.right.getConstantValue())
+        }else{
+            if(Type:matches(new Types([Type:fromString("byte")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return byte(this.left.getConstantValue()) + byte(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return byte(this.left.getConstantValue()) + int(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return byte(this.left.getConstantValue()) + long(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return byte(this.left.getConstantValue()) + float(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return byte(this.left.getConstantValue()) + double(this.right.getConstantValue())
+                }
+            }elseif(Type:matches(new Types([Type:fromString("integer")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return int(this.left.getConstantValue()) + byte(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return int(this.left.getConstantValue()) + int(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return int(this.left.getConstantValue()) + long(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return int(this.left.getConstantValue()) + float(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return int(this.left.getConstantValue()) + double(this.right.getConstantValue())
+                }
+            }elseif(Type:matches(new Types([Type:fromString("long")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return long(this.left.getConstantValue()) + byte(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return long(this.left.getConstantValue()) + int(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return long(this.left.getConstantValue()) + long(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return long(this.left.getConstantValue()) + float(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return long(this.left.getConstantValue()) + double(this.right.getConstantValue())
+                }
+            }elseif(Type:matches(new Types([Type:fromString("float")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return float(this.left.getConstantValue()) + byte(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return float(this.left.getConstantValue()) + int(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return float(this.left.getConstantValue()) + long(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return float(this.left.getConstantValue()) + float(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return float(this.left.getConstantValue()) + double(this.right.getConstantValue())
+                }
+            }elseif(Type:matches(new Types([Type:fromString("double")]), this.left.getType())){
+                if(Type:matches(new Types([Type:fromString("byte")]), this.right.getType())){
+                    return double(this.left.getConstantValue()) + byte(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("integer")]), this.right.getType())){
+                    return double(this.left.getConstantValue()) + int(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("long")]), this.right.getType())){
+                    return double(this.left.getConstantValue()) + long(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("float")]), this.right.getType())){
+                    return double(this.left.getConstantValue()) + float(this.right.getConstantValue())
+                }elseif(Type:matches(new Types([Type:fromString("double")]), this.right.getType())){
+                    return double(this.left.getConstantValue()) + double(this.right.getConstantValue())
+                }
+            }
+            aspl.parser.utils.fatal_error("Incompatible types for + operator", this.location)
+        }
+    }
+
+}

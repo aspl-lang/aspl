@@ -1,0 +1,22 @@
+import math
+
+[public]
+class Rectangle{
+
+	[readpublic]
+    property Point position
+	[readpublic]
+    property Size size
+	
+	[public]
+	method construct(Point position, Size size){
+		this.position = position
+		this.size = size
+	}
+
+	[public]
+    method containsPoint(Point point) returns bool{
+		return point.x >= position.x && point.x <= position.x + size.width && point.y >= position.y && point.y <= position.y + size.height
+	}
+
+}

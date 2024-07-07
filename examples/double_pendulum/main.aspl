@@ -1,0 +1,33 @@
+import graphics
+import math
+import math.geometry
+import rand
+
+var double length1 = 100
+var double length2 = 100
+var double mass1 = 8
+var double mass2 = 6
+
+var pendulum1 = new Pendulum(math.pi() / 2, length1, mass1)
+var pendulum2 = new Pendulum(math.pi() * rand.drange(0, 1), length2, mass2)
+var window = new Window("Double Pendulum Example", 500, 300)
+window.onPaint = callback(Canvas canvas){
+    length1 = canvas.height / 3d
+    length2 = canvas.height / 3d
+
+    canvas.fill(Color:fromRGB(220, 220, 220), false)
+    pendulum1.update1()
+    pendulum2.update2(pendulum1.angle, pendulum1.angVel, length1, mass1)
+
+    var x1 = int(length1 * math.sin(pendulum1.angle))
+    var y1 = int(length1 * math.cos(pendulum1.angle))
+    var x2 = int(x1 + length2 * math.sin(pendulum2.angle))
+    var y2 = int(y1 + length2 * math.cos(pendulum2.angle))
+
+    canvas.drawLine(canvas.width / 2, canvas.height / 6, canvas.width / 2 + x1, canvas.height / 6 + y1, Color:fromRGB(0, 0, 0))
+    canvas.drawLine(canvas.width / 2 + x1, canvas.height / 6 + y1, canvas.width / 2 + x2, canvas.height / 6 + y2, Color:fromRGB(0, 0, 0))
+    canvas.fillCircle(new Ellipse(new Point(canvas.width / 2f, canvas.height / 6f), new Size(float(10), float(10))), Color:fromRGB(0, 200, 0))
+    canvas.fillCircle(new Ellipse(new Point(canvas.width / 2f + x1, canvas.height / 6f + y1), new Size(float(mass1), float(mass1))), Color:fromRGB(200, 0, 0), false)
+    canvas.fillCircle(new Ellipse(new Point(canvas.width / 2f + x2, canvas.height / 6f + y2), new Size(float(mass2), float(mass2))), Color:fromRGB(0, 0, 200), false)
+}
+window.show()

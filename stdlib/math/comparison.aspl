@@ -1,0 +1,15 @@
+[public]
+function min(double a, double b) returns double{
+	if(a < b){
+		return a
+	}
+	return b
+}
+
+[public]
+function max(double a, double b) returns double{
+	if(a > b){
+		return a
+	}
+	return b
+}

@@ -1,0 +1,247 @@
+import aspl.parser.utils
+import regex
+import io
+$if twail{
+	import chars
+}$else{
+	import encoding.utf8
+}
+import encoding.hex
+
+[public]
+class Lexer{
+
+	[public]
+	[static]
+	[threadlocal]
+	property map<string, TokenList> cache = map<string, TokenList>{}
+
+	[readpublic]
+	property string contents
+	[readpublic]
+	property string file
+	[readpublic]
+	property int line = 1
+	[readpublic]
+	property int lineStartPosition = 0
+	[readpublic]
+	property int position = 0
+	[public]
+	property int column{
+		get{
+			return position - lineStartPosition + 1
+		}
+	}
+
+	[readpublic]
+	property list<Token> commentCache
+
+	method construct(string file){
+		this.file = file
+		contents = io.read_file(file)
+	}
+	
+	[public]
+	method lex() returns list<Token>{
+		var list<Token> tokens = list<Token>[]
+		while(true){
+			var Token? token = lexToken()
+			if(token == null){
+				break
+			}
+			if((Token(token).type == TokenType.CommentSingleline) || (Token(token).type == TokenType.CommentMultiline)){
+				commentCache.add(Token(token))
+			}else{
+				Token(token).comments = commentCache.cloneShallow()
+				commentCache.clear()
+				tokens.add(Token(token))
+			}
+		}
+		return tokens
+	}
+	
+	[public]
+	method forward(int amount){
+		contents = contents.after(amount - 1)
+		position += amount
+	}
+
+	[public]
+	method newline(){
+		line++
+		lineStartPosition = position
+	}
+	
+	[public]
+	method lexToken() returns Token?{
+		while(true){
+			if(contents.length == 0){
+				return null
+			}
+			if(contents[0] == " "){
+				forward(1)
+				continue
+			}
+			if(contents.startsWith("\r\n")){
+				forward(2)
+				newline()
+				continue
+			}
+			if(contents[0] == "\r"){
+				forward(1)
+				newline()
+				continue
+			}
+			if(contents[0] == "\n"){
+				forward(1)
+				newline()
+				continue
+			}
+			if(contents[0] == "\t"){
+				forward(1)
+				continue
+			}
+			break
+		}
+		if(contents.startsWith("/*")){
+			var beginLine = line
+			var beginColumn = column
+			var depth = 1
+			var pos = 2 // for the /*
+			position += 2
+			while(pos < contents.length){
+				if(contents[pos] == "/" && (contents.length > pos + 1 && contents[pos + 1] == "*")){
+					depth++
+					pos += 2
+					position += 2
+				}elseif(contents[pos] == "*" && (contents.length > pos + 1 && contents[pos + 1] == "/")){
+					depth--
+					pos += 2
+					position += 2
+					if(depth == 0){
+						var t = new Token(TokenType.CommentMultiline, contents.before(pos + 1), new Location(this.file, beginLine, line, beginColumn, column))
+						contents = contents.after(pos - 1)
+						return t
+					}
+				}elseif(contents[pos] == "\r" && (contents.length > pos + 1 && contents[pos + 1] == "\n")){
+					newline()
+					pos += 2
+					position += 2
+				}elseif(contents[pos] == "\n"){
+					newline()
+					pos++
+					position++
+				}else{
+					pos++
+					position++
+				}
+			}
+			aspl.parser.utils.syntax_error("Unterminated comment", new Location(this.file, line, line, column, column))
+		}
+		if(contents[0] == "\""){
+			forward("\"".length)
+			var string s = ""
+			var string literalS = ""
+			var beginLine = line
+			var beginColumn = column
+			while(true){
+				if(contents[0] == "\""){
+					forward(1)
+					return new StringToken(TokenType.String, s, literalS, new Location(this.file, beginLine, line, beginColumn, column))
+				}elseif(contents[0] == "\\"){
+					if(contents.length > 1){
+						if(contents[1] == "\""){
+							s += "\""
+							literalS += "\\\""
+							forward(2)
+						}elseif(contents[1] == "\\"){
+							s += "\\"
+							literalS += "\\\\"
+							forward(2)
+						}elseif(contents[1] == "n"){
+							s += "\n"
+							literalS += "\\n"
+							forward(2)
+						}elseif(contents[1] == "r"){
+							if(contents.length > 2 && contents[2] == "\n"){
+								s += "\r\n"
+								literalS += "\\r\\n"
+								forward(3)
+							}else{
+								s += "\r"
+								literalS += "\\r"
+								forward(2)
+							}
+						}elseif(contents[1] == "t"){
+							s += "\t"
+							literalS += "\\t"
+							forward(2)
+						}elseif(contents[1] == "f"){
+							s += "\f"
+							literalS += "\\f"
+							forward(2)
+						}elseif(contents[1] == "v"){
+							s += "\v"
+							literalS += "\\v"
+							forward(2)
+						}elseif(contents[1] == "0"){
+							s += "\0"
+							literalS += "\\0"
+							forward(2)
+						}elseif(contents[1] == "u"){
+							forward(2)
+							var string hex = contents.before(4)
+							$if twail{ // TODO: Unify this
+								s += chars.int_to_char(encoding.hex.encode(hex))
+							}$else{
+								s += encoding.utf8.decode_char(encoding.hex.encode(hex))
+							}
+							literalS += "\\u" + hex
+							forward(4)
+						}else{
+							aspl.parser.utils.syntax_error("Invalid escape sequence", new Location(this.file, line, line, column, column))
+						}
+					}else{
+						aspl.parser.utils.syntax_error("Unexpected escape sequence", new Location(this.file, line, line, column, column))
+					}
+				}elseif(contents[0] == "\r" && contents.length > 1 && contents[1] == "\n"){
+					s += "\r\n"
+					literalS += "\\r\\n"
+					forward(2)
+					newline()
+				}elseif(contents[0] == "\n"){
+					s += "\n"
+					literalS += "\\n"
+					forward(1)
+					newline()
+				}else{
+					s += contents[0]
+					literalS += contents[0]
+					forward(1)
+				}
+			}
+		}
+		foreach(Token:patterns as token => pattern){
+			var bool success = false
+			var string match = ""
+			if(pattern oftype RegularTokenPattern){
+				if(contents.startsWith(pattern.pattern)){
+					success = true
+					match = pattern.pattern
+				}
+			}elseif(pattern oftype RegexTokenPattern){
+				var m = regex.match_string(pattern.pattern, contents)
+				if(m != null){
+					success = true
+					match = Match(m).value
+				}
+			}
+			if(success){
+				forward(match.length)
+				return new Token(token, match, new Location(this.file, line, line, column - match.length, column))
+			}
+		}
+		aspl.parser.utils.syntax_error("Lexer: invalid token", new Location(this.file, line, line, column, column))
+	}
+
+}

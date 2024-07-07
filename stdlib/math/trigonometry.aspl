@@ -1,0 +1,29 @@
+[public]
+function sin(double x) returns double{
+	return double(implement("math.sin", x))
+}
+
+[public]
+function asin(double x) returns double{
+	return double(implement("math.asin", x))
+}
+
+[public]
+function cos(double x) returns double{
+	return double(implement("math.cos", x))
+}
+
+[public]
+function acos(double x) returns double{
+	return double(implement("math.acos", x))
+}
+
+[public]
+function tan(double x) returns double{
+	return double(implement("math.tan", x))
+}
+
+[public]
+function atan(double x) returns double{
+	return double(implement("math.atan", x))
+}

@@ -1,0 +1,5 @@
+// This class represents a no operation instruction
+// It should be automatically filtered out by the parser before being passed to e.g. the compiler
+[public]
+class NopStatement extends Statement {
+}

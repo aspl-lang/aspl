@@ -1,0 +1,572 @@
+import os
+import console
+import aspl.parser
+import aspl.compiler
+import aspl.compiler.utils
+import io
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.functions
+import aspl.parser.properties
+import aspl.parser.methods
+import aspl.parser.utils
+import cli.utils
+
+if(os.args().length < 2){
+    display_help()
+    exit(2)
+}
+
+var i = 1 // starting at 1 because 0 is the executable
+if(os.args()[1].startsWith("-")){
+    while(i < os.args().length && os.args()[i].startsWith("-")){
+        var option = os.args()[i]
+        if(option == "-define" || option == "-d"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-define` option requires an argument"))
+                exit(2)
+            }
+            aspl.parser.Options:customConditionalCompilationSymbols.add(os.args()[i])
+        }elseif(option == "-keeptemp"){
+            Options:keepTemporary = true
+        }elseif(option == "-os"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-os` option requires an argument"))
+                exit(2)
+            }
+            Options:targetOs = os.args()[i]
+        }elseif(option == "-architecture" || option == "-arch"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-architecture` option requires an argument"))
+                exit(2)
+            }
+            if(os.architecture_from_string(os.args()[i]) == null){
+                print(console.red("aspl: unknown architecture: " + os.args()[i]))
+                exit(2)
+            }
+            Options:targetArchitecture = Architecture(os.architecture_from_string(os.args()[i]))
+        }elseif(option == "-output" || option == "-o"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-output` option requires an argument"))
+                exit(2)
+            }
+            Options:outputFile = os.args()[i]
+        }elseif(option == "-production" || option == "-prod" || option == "-release"){
+            Options:production = true
+        }elseif(option == "-gui"){
+            Options:guiApp = true
+        }elseif(option == "-backend"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-backend` option requires an argument"))
+                exit(2)
+            }
+            Options:backend = os.args()[i]
+            if(!["ail", "c"].contains(Options:backend)){
+                if(Options:backend == "twail"){
+                    aspl.parser.utils.notice("The `twail` backend is deprecated and should only be used if it is actually needed.")
+                }else{
+                    print(console.red("aspl: unknown backend `" + Options:backend + "`"))
+                    exit(2)
+                }
+            }
+        }elseif(option == "-cc"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-cc` option requires an argument"))
+                exit(2)
+            }
+            // TODO: Check if the compiler exists
+            Options:cCompiler = os.args()[i]
+            if(Options:cCompiler == "zigcc"){
+                Options:cCompiler = "zig cc"
+            }
+        }elseif(option == "-useDynamicCTemplate"){
+            Options:useDynamicCTemplate = true
+        }elseif(option == "-showcc"){
+            Options:showCCommand = true
+        }elseif(option == "-heapBased"){
+            Options:heapBased = true
+        }elseif(option == "-stacksize" || option == "-stack"){
+            i++
+            if(i >= os.args().length){
+                print(console.red("aspl: `-stacksize` option requires an argument"))
+                exit(2)
+            }
+            Options:stackSize = int(os.args()[i])
+        }elseif(option == "-ssl"){
+            Options:useSsl = true
+        }elseif(option == "-enableErrorHandling"){
+            Options:enableErrorHandling = true
+        }elseif(option == "-noCachedTemplate"){
+            Options:noCachedTemplate = true
+        }else{
+            print(console.red("aspl: unknown option `" + option + "`"))
+            exit(2)
+        }
+        i++
+    }
+    if(Options:useSsl){
+        if(Options:backend != "c"){
+            print(console.red("aspl: `-ssl` option can only be used with the C backend"))
+            exit(2)
+        }
+        if(Options:targetOs == "windows"){
+            print(console.red("aspl: `-ssl` option is not supported (and also not required) for Windows"))
+            exit(2)
+        }
+        if(Options:targetOs == "macos"){
+            print(console.red("aspl: `-ssl` option is not yet supported for macOS"))
+            exit(2)
+        }
+    }
+}
+
+if(os.args().length < i + 1){
+    display_help()
+    exit(2)
+}
+
+var subcommand = os.args()[i]
+if(subcommand == "compile" || subcommand == "build"){
+    i++
+    if(os.args().length < i + 1){
+        print(console.red("aspl compile: missing source file or directory"))
+        exit(2)
+    }
+    aspl.compiler.compile(os.args()[i])
+}elseif(subcommand == "run"){
+    i++
+    if(os.args().length < i + 1){
+        print(console.red("aspl run: missing source file or directory"))
+        exit(2)
+    }
+    Options:outputFile = ".aspl_run" // TODO: Use a random name
+    var outputFile = Options:outputFile
+    if(Options:targetOs == "windows"){
+        outputFile += ".exe"
+    }
+    outputFile = io.abs(outputFile)
+    aspl.compiler.compile(os.args()[i])
+    print(os.execute(outputFile).output, false)
+    io.delete_file(outputFile)
+}elseif(subcommand == "test-all"){
+    test_all()
+}elseif(subcommand == "format"){
+    print(console.yellow("Coming soon..."))
+}elseif(subcommand == "document" || subcommand == "doc"){
+    i++
+    if(os.args().length < i + 1){
+        print(console.red("aspl document: missing source file or directory"))
+        exit(2)
+    }
+    var main = io.abs(os.args()[i])
+    var string mainDirectory = ""
+    if(io.exists_file(main)){
+        mainDirectory = io.full_directory_path(main)
+    }elseif(io.exists_directory(main)){
+        mainDirectory = main
+    }else{
+        aspl.parser.utils.fatal_error("Main is neither a valid file nor a valid directory: " + main)
+    }
+    Module:init(new Module(io.directory_name(mainDirectory), mainDirectory))
+    var result = aspl.parser.parse()
+    var outputMode = "markdown" // TODO: Add option to change this
+    var string output = ""
+    if(outputMode == "markdown"){
+        output += "# " + Module:mainModule.name + "\n"
+    }
+    foreach(result.nodes as node){
+        if(node oftype ClassDeclareStatement){
+            if(ClassDeclareStatement(node).c.type.toString().toLower().startsWith(Module:mainModule.id) && ClassDeclareStatement(node).c.isPublic){
+                if(outputMode == "markdown"){
+                    output += "## <sub>class</sub> " + ClassDeclareStatement(node).c.type.toString() + "\n"
+                    output += "Source: " + Location(ClassDeclareStatement(node).c.location).file + ":" + Location(ClassDeclareStatement(node).c.location).startLine + ":" + Location(ClassDeclareStatement(node).c.location).startColumn + "\n"
+
+                    var commentOutput = ""
+                    foreach(ClassDeclareStatement(node).comments as comment){
+                        if(comment.value.startsWith("// " + ClassDeclareStatement(node).c.type.toString())){
+                            commentOutput += "> " + comment.value.after("// ".length - 1) + "\n"
+                        }
+                    }
+                    if(commentOutput != ""){
+                        output += "\n"
+                        output += commentOutput
+                        output += "\n"
+                    }
+
+                    foreach(list<Node>(ClassDeclareStatement(node).c.code) as statement){
+                        if(statement oftype PropertyDeclareStatement && PropertyDeclareStatement(statement).p.isPublic){
+                            output += "### <sub>property</sub> " + PropertyDeclareStatement(statement).p.name + "\n"
+                            if(PropertyDeclareStatement(statement).p oftype CustomNormalProperty){
+                                output += "Source: " + Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).file + ":" + Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).startLine + ":" + Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).startColumn + "\n"
+                            }elseif(PropertyDeclareStatement(statement).p oftype CustomReactiveProperty){
+                                output += "Source: " + Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).file + ":" + Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).startLine + ":" + Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).startColumn + "\n"
+                            }
+
+                            var propertyCommentOutput = ""
+                            foreach(PropertyDeclareStatement(statement).comments as comment){
+                                if(comment.value.startsWith("// " + PropertyDeclareStatement(statement).p.name)){
+                                    propertyCommentOutput += "> " + comment.value.after("// ".length - 1) + "\n"
+                                }
+                            }
+                            if(propertyCommentOutput != ""){
+                                output += "\n"
+                                output += propertyCommentOutput
+                                output += "\n"
+                            }
+
+                            output += "```aspl\n"
+                            if(PropertyDeclareStatement(statement).p oftype CustomNormalProperty){
+                                var lines = io.read_file(Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).file).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                                var line = Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).startLine
+                                var code = ""
+                                while(line <= Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endLine){
+                                    var l = lines[line - 1]
+                                    if(line == Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endLine){
+                                        l = l.before(Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endColumn - 2)
+                                    }
+                                    // The start cutting has to be done after the end cutting because the start cutting can change the column indices
+                                    if(line == Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).startLine){
+                                        l = l.after(Location(CustomNormalProperty(PropertyDeclareStatement(statement).p).location).startColumn - 2)
+                                    }
+                                    code += l + "\n"
+                                    line++
+                                }
+                                output += code.trim()
+                            }elseif(PropertyDeclareStatement(statement).p oftype CustomReactiveProperty){
+                                var lines = io.read_file(Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).file).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                                var line = Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).startLine
+                                var code = ""
+                                while(line <= Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endLine){
+                                    var l = lines[line - 1]
+                                    if(line == Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endLine){
+                                        l = l.before(Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).headerEndLocation).endColumn - 2)
+                                    }
+                                    // The start cutting has to be done after the end cutting because the start cutting can change the column indices
+                                    if(line == Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).startLine){
+                                        l = l.after(Location(CustomReactiveProperty(PropertyDeclareStatement(statement).p).location).startColumn - 2)
+                                    }
+                                    code += l + "\n"
+                                    line++
+                                }
+                                output += code.trim()
+                            }
+                            output += "\n```\n"
+                        }
+                    }
+                    foreach(list<Node>(ClassDeclareStatement(node).c.code) as statement){
+                        if(statement oftype MethodDeclareStatement && MethodDeclareStatement(statement).m.isPublic){
+                            if(CustomMethod(MethodDeclareStatement(statement).m).location == null){
+                                continue // Automatically generated constructors should not be documented
+                            }
+                            output += "### <sub>method</sub> " + MethodDeclareStatement(statement).m.name + "\n"
+                            output += "Source: " + Location(CustomMethod(MethodDeclareStatement(statement).m).location).file + ":" + Location(CustomMethod(MethodDeclareStatement(statement).m).location).startLine + ":" + Location(CustomMethod(MethodDeclareStatement(statement).m).location).startColumn + "\n"
+
+                            var methodCommentOutput = ""
+                            foreach(MethodDeclareStatement(statement).comments as comment){
+                                if(comment.value.startsWith("// " + MethodDeclareStatement(statement).m.name)){
+                                    methodCommentOutput += "> " + comment.value.after("// ".length - 1) + "\n"
+                                }
+                            }
+                            if(methodCommentOutput != ""){
+                                output += "\n"
+                                output += methodCommentOutput
+                                output += "\n"
+                            }
+
+                            output += "```aspl\n"
+                            var lines = io.read_file(Location(CustomMethod(MethodDeclareStatement(statement).m).location).file).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                            var line = Location(CustomMethod(MethodDeclareStatement(statement).m).location).startLine
+                            var code = ""
+                            while(line <= Location(CustomMethod(MethodDeclareStatement(statement).m).headerEndLocation).endLine){
+                                var l = lines[line - 1]
+                                if(line == Location(CustomMethod(MethodDeclareStatement(statement).m).headerEndLocation).endLine){
+                                    l = l.before(Location(CustomMethod(MethodDeclareStatement(statement).m).headerEndLocation).endColumn - 2)
+                                }
+                                // The start cutting has to be done after the end cutting because the start cutting can change the column indices
+                                if(line == Location(CustomMethod(MethodDeclareStatement(statement).m).location).startLine){
+                                    l = l.after(Location(CustomMethod(MethodDeclareStatement(statement).m).location).startColumn - 2)
+                                }
+                                code += l + "\n"
+                                line++
+                            }
+                            output += code.trim()
+                            output += "\n```\n"
+                        }
+                    }
+
+                    output += "\n"
+                }
+            }
+        }
+    }
+    foreach(result.nodes as node){
+        if(node oftype EnumDeclareStatement){
+            if(EnumDeclareStatement(node).e.type.toString().toLower().startsWith(Module:mainModule.id) && EnumDeclareStatement(node).e.isPublic){
+                if(outputMode == "markdown"){
+                    output += "## <sub>enum</sub> " + EnumDeclareStatement(node).e.type.toString() + "\n"
+                    output += "Source: " + Location(EnumDeclareStatement(node).e.location).file + ":" + Location(EnumDeclareStatement(node).e.location).startLine + ":" + Location(EnumDeclareStatement(node).e.location).startColumn + "\n"
+
+                    output += "```aspl\n"
+                    var lines = io.read_file(Location(EnumDeclareStatement(node).e.location).file).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                    var line = Location(EnumDeclareStatement(node).e.location).startLine
+                    var code = ""
+                    while(line <= Location(EnumDeclareStatement(node).e.location).endLine){
+                        var l = lines[line - 1]
+                        if(line == Location(EnumDeclareStatement(node).e.location).endLine){
+                            l = l.before(Location(EnumDeclareStatement(node).e.location).endColumn - 1)
+                        }
+                        // The start cutting has to be done after the end cutting because the start cutting can change the column indices
+                        if(line == Location(EnumDeclareStatement(node).e.location).startLine){
+                            l = l.after(Location(EnumDeclareStatement(node).e.location).startColumn - 2)
+                        }
+                        code += l + "\n"
+                        line++
+                    }
+
+                    output += "\n```\n"
+
+                    var commentOutput = ""
+                    foreach(EnumDeclareStatement(node).comments as comment){
+                        if(comment.value.startsWith("// " + EnumDeclareStatement(node).e.type.toString())){
+                            commentOutput += "> " + comment.value.after("// ".length - 1) + "\n"
+                        }
+                    }
+                    if(commentOutput != ""){
+                        output += "\n"
+                        output += commentOutput
+                        output += "\n"
+                    }
+
+                    output += "\n"
+                }
+            }
+        }
+    }
+    foreach(result.nodes as node){
+        if(node oftype FunctionDeclareStatement){
+            if(FunctionDeclareStatement(node).func.identifier.toLower().startsWith(Module:mainModule.id) && FunctionDeclareStatement(node).func.isPublic){
+                if(outputMode == "markdown"){
+                    output += "## <sub>function</sub> " + FunctionDeclareStatement(node).func.identifier + "\n"
+                    output += "Source: " + Location(CustomFunction(FunctionDeclareStatement(node).func).location).file + ":" + Location(CustomFunction(FunctionDeclareStatement(node).func).location).startLine + ":" + Location(CustomFunction(FunctionDeclareStatement(node).func).location).startColumn + "\n"
+
+                    output += "```aspl\n"
+                    var lines = io.read_file(Location(CustomFunction(FunctionDeclareStatement(node).func).location).file).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                    var line = Location(CustomFunction(FunctionDeclareStatement(node).func).location).startLine
+                    var code = ""
+                    while(line <= Location(CustomFunction(FunctionDeclareStatement(node).func).headerEndLocation).endLine){
+                        var l = lines[line - 1]
+                        if(line == Location(CustomFunction(FunctionDeclareStatement(node).func).headerEndLocation).endLine){
+                            l = l.before(Location(CustomFunction(FunctionDeclareStatement(node).func).headerEndLocation).endColumn - 2)
+                        }
+                        // The start cutting has to be done after the end cutting because the start cutting can change the column indices
+                        if(line == Location(CustomFunction(FunctionDeclareStatement(node).func).location).startLine){
+                            l = l.after(Location(CustomFunction(FunctionDeclareStatement(node).func).location).startColumn - 2)
+                        }
+                        code += l + "\n"
+                        line++
+                    }
+                    output += code.trim()
+                    output += "\n```\n"
+
+                    var commentOutput = ""
+                    foreach(FunctionDeclareStatement(node).comments as comment){
+                        if(comment.value.startsWith("// " + FunctionDeclareStatement(node).func.identifier.split(".", 2)[1])){
+                            commentOutput += "> " + comment.value.after("// ".length - 1) + "\n"
+                        }
+                    }
+                    if(commentOutput != ""){
+                        output += "\n"
+                        output += commentOutput
+                        output += "\n"
+                    }
+
+                    output += "\n"
+                }
+            }
+        }
+    }
+    output = output.trim()
+    if(outputMode == "markdown"){
+        var file = Options:outputFile
+        if(file == null){
+            file = Module:mainModule.id
+        }
+        io.write_file(file + ".md", output)
+    }
+}elseif(subcommand == "install"){
+    i++
+    if(os.args().length < i + 1){
+        print(console.red("aspl install: missing module URL or local path"))
+        exit(2)
+    }
+    var module = os.args()[i]
+    var moduleParts = module.replace("\\", "/").split("/")
+    var moduleName = moduleParts[moduleParts.length - 1]
+    if(io.exists_file(module) || io.exists_directory(module)){
+        io.create_symlink(io.abs(module), ModuleUtils:getModulePath(moduleName))
+    }else{
+        os.execute("git clone " + module + " " + ModuleUtils:getModulePath(moduleName))
+    }
+}elseif(subcommand == "update"){
+    i++
+    if(os.args().length < i + 1){
+        if(!io.exists_directory(io.join_path([io.full_directory_path(io.get_executable_path()), ".git"]))){
+            print(console.red("aspl update: not in a git repository"))
+            exit(1)
+        }
+        os.execute("cmd /C cd " + io.full_directory_path(io.get_executable_path()) + " && git pull")
+        cli.utils.download_templates()
+        cli.utils.download_executable()
+    }else{
+        var module = os.args()[i]
+        var moduleParts = module.split("/")
+        var moduleName = moduleParts[moduleParts.length - 1]
+        os.execute("cmd /C cd " + ModuleUtils:getModulePath(moduleName) + " && git pull")
+    }
+}elseif(subcommand == "internal-update-1"){
+    $if windows{
+        io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl.exe"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated.exe"]))
+        os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated.exe"]), ["internal-update-2"])
+    }$else{
+        io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]))
+        os.execvp(io.join_path(["./", io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]), ["internal-update-2"])
+    }
+    exit(0)
+}elseif(subcommand == "internal-update-2"){
+    $if windows{
+        io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl.exe"]))
+        os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl.exe"]), ["internal-update-3"])
+    }$else{
+        io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl"]))
+        os.execvp(io.join_path(["./", io.full_directory_path(io.get_executable_path()), "aspl"]), ["internal-update-3"])
+    }
+    exit(0)
+}elseif(subcommand == "internal-update-3"){
+    $if windows{
+        io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated.exe"]))
+    }$else{
+        io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]))
+    }
+    print(console.green("aspl update: successfully updated ASPL to the latest version (" + cli.utils.get_current_version() + ")"))
+}elseif(subcommand == "version"){
+    print("aspl version: " + cli.utils.get_current_version() + " (Git SHA " + cli.utils.get_git_sha()+ ")")
+}elseif(subcommand == "build-minimal-template"){
+    io.create_directory("minimal_template")
+    io.write_file("minimal_template/main.aspl", "")
+    if(Options:targetOs != "windows"){
+        LinkUtils:libraries.add("dl")
+    }
+    Options:backend = "ail"
+    Options:outputFile = "Template"
+    Options:production = true
+    Options:noCachedTemplate = true
+    Options:internalTemplateType = "minimal"
+    Options:internalDoNotBundle = true
+    aspl.compiler.compile("minimal_template")
+    io.delete_file("minimal_template/main.aspl")
+    io.delete_directory("minimal_template")
+}elseif(subcommand == "build-full-template"){
+    io.create_directory("full_template")
+    io.write_file("full_template/main.aspl", "")
+    cli.utils.gather_implementation_calls()
+    if(Options:targetOs != "windows"){
+        LinkUtils:libraries.add("dl")
+    }
+    Options:backend = "ail"
+    Options:outputFile = "Template"
+    Options:production = true
+    Options:noCachedTemplate = true
+    Options:internalTemplateType = "full"
+    Options:internalDoNotBundle = true
+    aspl.compiler.compile("full_template")
+    io.delete_file("full_template/main.aspl")
+    io.delete_directory("full_template")
+}elseif(subcommand == "help"){
+    display_help()
+}else{
+    print(console.red("Unknown subcommand: " + subcommand))
+    display_help()
+    exit(2)
+}
+
+function display_help(){
+    print("Usage:\n\t$ aspl [options] <command> [arguments]")
+    print("Available commands:")
+    print("\taspl compile <source>         Compile and build a source file or directory")
+    print("\taspl run <source>             Compile and directly run a source file or directory")
+    print("\taspl test-all                 Compile and run all tests")
+    print("\taspl format <source>          Format a source file or directory")
+    print("\taspl document <source>        Document a source file or directory")
+    print("\taspl install <source>         Install a module from the internet or a local directory")
+    print("\taspl update [source]          Update a given module or ASPL itself")
+    print("\taspl help                     Display this help message")
+}
+
+function test_all(){
+    foreach(io.glob("tests/*") as test){
+        var testPath = test
+        if(!testPath.replace("\\", "/").startsWith("tests/")){ // TODO: glob() returns paths incosistently
+            testPath = io.join_path(["tests", test])
+        }
+        test = io.directory_name(testPath)
+        if(!io.exists_directory(testPath)){
+            print(console.red("Tests have to be directories; " + testPath + " is a file"))
+            exit(1)
+        }
+        if(test.endsWith("/")){
+            test = test.before(test.length - 1)
+        }
+        var files = io.glob(testPath + "/*")
+        var found = false
+        foreach(files as file){
+            if(file.endsWith(".aspl") || file.endsWith(".taspl")){
+                found = true
+            }
+        }
+        if(!found){
+            print(console.red("No tests found in " + testPath)) // TODO: Support nested test directories
+            exit(1)
+        }
+        os.chdir(testPath)
+        // Note: We're using separate threads here to prevent static properties from being shared between tests (they're marked as [threadlocal])
+        var compilationDone = false
+        callback(){
+            aspl.compiler.compile(".")
+            compilationDone = true
+        }.+()
+        while(!compilationDone){
+            time.millisleep(10)
+        }
+        if(run_test(test)){
+            print(console.gray("Test " + test + " passed..."))
+        }else{
+            print(console.red("Test " + test + " failed!"))
+            exit(1)
+        }
+        $if windows{
+            io.delete_file(test + ".exe")
+            if(io.exists_file(test + ".pdb")){
+                io.delete_file(test + ".pdb")
+            }
+        }$else{
+            io.delete_file(test)
+        }
+        os.chdir("..")
+        os.chdir("..")
+    }
+    print(console.green("All tests passed!"))
+}
+
+function run_test(string test) returns bool{
+    $if windows{
+        return os.system(test + ".exe") == 0
+    }$else{
+        return os.system("./" + test) == 0
+    }
+}

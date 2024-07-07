@@ -1,0 +1,44 @@
+import aspl.parser.ast.expressions
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.callbacks
+
+[public]
+[static]
+class ErrorUtils{
+
+    [public]
+    [static]
+    [threadlocal]
+    property bool hasCompilationErrors = false
+
+    [public]
+    [static]
+    method canExpressionThrow(Expression expression) returns bool{
+        if(expression oftype FunctionCallExpression){
+            return FunctionCallExpression(expression).func.canThrow
+        }elseif(expression oftype NonStaticMethodCallExpression){
+            return NonStaticMethodCallExpression(expression).m.canThrow
+        }elseif(expression oftype StaticMethodCallExpression){
+            return StaticMethodCallExpression(expression).m.canThrow
+        }
+        // TODO: Callbacks and maybe reactive properties
+        return false
+    }
+
+    [public]
+    [static]
+    method canCallableThrow(Function|Method|Callback|ReactivePropertyCallback? func) returns bool{
+        if(func == null){
+            return true
+        }elseif(func oftype Function){
+            return Function(func).canThrow
+        }elseif(func oftype Method){
+            return Method(func).canThrow
+        }
+        // TODO: Callbacks and maybe reactive properties
+        return false
+    }
+
+}

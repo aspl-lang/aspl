@@ -1,0 +1,5 @@
+assert int(1f) == 1
+assert int(1.0) == 1
+assert int(1) == 1
+assert string(1) == "1"
+assert int(string(1)) == 1

@@ -1,0 +1,19 @@
+import os
+
+function get_git_sha() returns string{
+    var wd = os.getwd()
+    os.chdir(io.full_directory_path(io.get_executable_path()))
+    var sha = os.execute("git rev-parse --short HEAD").output.trim()
+    os.chdir(wd)
+    return sha
+}
+
+function get_current_version() returns string{
+    var string nextRelease = "0.1"
+    var bool isDevelopementBuild = false
+    if(isDevelopementBuild){
+        return "v" + nextRelease + "-" + get_git_sha()
+    }else{
+        return "v" + nextRelease
+    }
+}

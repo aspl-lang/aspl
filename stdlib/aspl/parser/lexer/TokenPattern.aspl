@@ -1,0 +1,12 @@
+[public]
+[abstract]
+class TokenPattern{
+
+	[readpublic]
+	property string pattern
+
+	method construct(string pattern){
+		this.pattern = pattern
+	}
+
+}

@@ -1,0 +1,19 @@
+import aspl.parser.ast.literals
+
+class CallbackDeclaration {
+
+    [public]
+    [static]
+    property int _id
+    
+    [readpublic]
+    property CallbackLiteral literal
+    [readpublic]
+    property int id
+
+    method construct(CallbackLiteral literal){
+        this.literal = literal
+        this.id = self:_id++
+    }
+
+}

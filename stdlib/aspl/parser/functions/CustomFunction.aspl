@@ -1,0 +1,37 @@
+import aspl.parser
+import aspl.parser.utils
+import aspl.parser.ast
+import aspl.parser.attributes
+
+[public]
+class CustomFunction extends Function{
+
+    [public]
+    property list<Node>? code
+    [readpublic]
+    property Module module
+    [readpublic]
+    property Location? location
+    [readpublic]
+    property Location? headerEndLocation
+
+    [public]
+    method construct(string identifier, list<Parameter> parameters, Types returnTypes, list<AttributeInstance> attributes, list<Node>? code, Module module, Location? location, Location? headerEndLocation){
+        parent(Function).construct(identifier, parameters, returnTypes, attributes)
+        this.fullyInitialized = code != null
+        this.code = code
+        this.module = module
+        this.location = location
+        this.headerEndLocation = headerEndLocation
+
+        foreach(attributes as attribute){
+            // Caching these for performance reasons
+            if(attribute.attribute.identifier == "public"){
+                isPublic = true
+            }elseif(attribute.attribute.identifier == "throws"){
+                canThrow = true
+            }
+        }
+    }
+
+}

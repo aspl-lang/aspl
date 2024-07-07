@@ -1,0 +1,6 @@
+import aspl.parser.ast.expressions
+
+[public]
+[abstract]
+class Literal extends Expression{
+}

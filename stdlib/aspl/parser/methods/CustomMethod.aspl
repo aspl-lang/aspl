@@ -1,0 +1,42 @@
+import aspl.parser.utils
+import aspl.parser.ast
+import aspl.parser.attributes
+
+[public]
+class CustomMethod extends Method{
+
+    [public]
+    property list<Node>? code
+    [readpublic]
+    property Location? location
+    [readpublic]
+    property Location? headerEndLocation
+
+    [public]
+    method construct(Type type, string name, list<Parameter> parameters, Types returnTypes, list<AttributeInstance> attributes, list<Node>? code, Location? location, Location? headerEndLocation){
+        parent(Method).construct(type, name, parameters, returnTypes, attributes)
+        this.fullyInitialized = code != null
+        this.code = code
+        this.location = location
+        this.headerEndLocation = headerEndLocation
+
+        foreach(attributes as attribute){
+            // Caching these for performance reasons
+            if(attribute.attribute.identifier == "abstract"){
+                this.isAbstract = true
+            }elseif(attribute.attribute.identifier == "static"){
+                this.isStatic = true
+            }elseif(attribute.attribute.identifier == "public"){
+                this.isPublic = true
+            }elseif(attribute.attribute.identifier == "throws"){
+                this.canThrow = true
+            }
+        }
+    }
+
+    [public]
+    method withType(Type type) returns Method{
+        return new self(type, this.name, this.parameters, this.returnTypes, this.attributes, this.code, this.location, this.headerEndLocation)
+    }
+
+}

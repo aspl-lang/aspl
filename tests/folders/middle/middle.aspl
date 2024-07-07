@@ -1,0 +1,3 @@
+function middle(){
+    print("Hello from the middle level folder")
+}

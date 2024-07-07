@@ -1,0 +1,387 @@
+import aspl.compiler.backend
+import aspl.compiler.utils
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.ast.literals
+import aspl.parser.functions
+import aspl.parser.utils
+
+// This class is the base class for all bytecode-based backends (e.g. the AIL bytecode backend)
+[public]
+[abstract]
+class BytecodeBackend extends Backend {
+
+    [public]
+    method encode(Node node, bool standalone = false) returns ByteList{
+        if(node oftype Expression && standalone){
+            return encodeDiscard(Expression(node))
+        }
+
+        if(node oftype BlockStatement){
+            return encodeCodeBlock(BlockStatement(node))
+        }elseif(node oftype NullLiteral){
+            return encodeNullLiteral(NullLiteral(node))
+        }elseif(node oftype BooleanLiteral){
+            return encodeBooleanLiteral(BooleanLiteral(node))
+        }elseif(node oftype ByteLiteral){
+            return encodeByteLiteral(ByteLiteral(node))
+        }elseif(node oftype IntegerLiteral){
+            return encodeIntegerLiteral(IntegerLiteral(node))
+        }elseif(node oftype LongLiteral){
+            return encodeLongLiteral(LongLiteral(node))
+        }elseif(node oftype FloatLiteral){
+            return encodeFloatLiteral(FloatLiteral(node))
+        }elseif(node oftype DoubleLiteral){
+            return encodeDoubleLiteral(DoubleLiteral(node))
+        }elseif(node oftype StringLiteral){
+            return encodeStringLiteral(StringLiteral(node))
+        }elseif(node oftype ListLiteral){
+            return encodeListLiteral(ListLiteral(node))
+        }elseif(node oftype MapLiteral){
+            return encodeMapLiteral(MapLiteral(node))
+        }elseif(node oftype StringIndexExpression){
+            return encodeStringIndex(StringIndexExpression(node))
+        }elseif(node oftype AssertStatement){
+            return encodeAssertion(AssertStatement(node))
+        }elseif(node oftype CheckEqualsExpression){
+            return encodeEqualsCheck(CheckEqualsExpression(node))
+        }elseif(node oftype NegateExpression){
+            return encodeNegation(NegateExpression(node))
+        }elseif(node oftype FunctionCallExpression){
+            return encodeFunctionCall(FunctionCallExpression(node))
+        }elseif(node oftype VariableDeclareExpression){
+            return encodeVariableDeclaration(VariableDeclareExpression(node))
+        }elseif(node oftype VariableAccessExpression){
+            return encodeVariableAccess(VariableAccessExpression(node))
+        }elseif(node oftype VariableAssignExpression){
+            return encodeVariableAssignment(VariableAssignExpression(node))
+        }elseif(node oftype FunctionDeclareStatement){
+            return encodeFunctionDeclaration(FunctionDeclareStatement(node))
+        }elseif(node oftype AndExpression){
+            return encodeAnd(AndExpression(node))
+        }elseif(node oftype OrExpression){
+            return encodeOr(OrExpression(node))
+        }elseif(node oftype XorExpression){
+            return encodeXor(XorExpression(node))
+        }elseif(node oftype PlusExpression){
+            return encodePlus(PlusExpression(node))
+        }elseif(node oftype MinusExpression){
+            return encodeMinus(MinusExpression(node))
+        }elseif(node oftype MultiplyExpression){
+            return encodeMultiplication(MultiplyExpression(node))
+        }elseif(node oftype DivideExpression){
+            return encodeDivision(DivideExpression(node))
+        }elseif(node oftype ModuloExpression){
+            return encodeModulo(ModuloExpression(node))
+        }elseif(node oftype LessThanExpression){
+            return encodeLessThan(LessThanExpression(node))
+        }elseif(node oftype LessThanOrEqualExpression){
+            return encodeLessThanOrEqual(LessThanOrEqualExpression(node))
+        }elseif(node oftype GreaterThanExpression){
+            return encodeGreaterThan(GreaterThanExpression(node))
+        }elseif(node oftype GreaterThanOrEqualExpression){
+            return encodeGreaterThanOrEqual(GreaterThanOrEqualExpression(node))
+        }elseif(node oftype ReferenceExpression){
+            return encodeReference(ReferenceExpression(node))
+        }elseif(node oftype DereferenceExpression){
+            return encodeDereference(DereferenceExpression(node))
+        }elseif(node oftype ReturnStatement){
+            return encodeReturnStatement(ReturnStatement(node))
+        }elseif(node oftype FallbackStatement){
+            return encodeFallbackStatement(FallbackStatement(node))
+        }elseif(node oftype EscapeStatement){
+            return encodeEscapeStatement(EscapeStatement(node))
+        }elseif(node oftype IfStatement){
+            return encodeIfStatement(IfStatement(node))
+        }elseif(node oftype IfElseStatement){
+            return encodeIfElseStatement(IfElseStatement(node))
+        }elseif(node oftype IfElseIfStatement){
+            return encodeIfElseIfStatement(IfElseIfStatement(node))
+        }elseif(node oftype WhileStatement){
+            return encodeWhileStatement(WhileStatement(node))
+        }elseif(node oftype RepeatStatement){
+            return encodeRepeatStatement(RepeatStatement(node))
+        }elseif(node oftype ForeachStatement){
+            return encodeForeachStatement(ForeachStatement(node))
+        }elseif(node oftype NonStaticMethodCallExpression){
+            return encodeNonStaticMethodCall(NonStaticMethodCallExpression(node))
+        }elseif(node oftype StaticMethodCallExpression){
+            return encodeStaticMethodCall(StaticMethodCallExpression(node))
+        }elseif(node oftype NonStaticPropertyAccessExpression){
+            return encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression(node))
+        }elseif(node oftype NonStaticPropertyAssignExpression){
+            return encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression(node))
+        }elseif(node oftype StaticPropertyAccessExpression){
+            return encodeStaticPropertyAccess(StaticPropertyAccessExpression(node))
+        }elseif(node oftype StaticPropertyAssignExpression){
+            return encodeStaticPropertyAssignment(StaticPropertyAssignExpression(node))
+        }elseif(node oftype ListIndexExpression){
+            return encodeListIndex(ListIndexExpression(node))
+        }elseif(node oftype ListAssignExpression){
+            return encodeListAssignment(ListAssignExpression(node))
+        }elseif(node oftype MapAccessExpression){
+            return encodeMapAccess(MapAccessExpression(node))
+        }elseif(node oftype MapAssignExpression){
+            return encodeMapAssignment(MapAssignExpression(node))
+        }elseif(node oftype ClassDeclareStatement){
+            return encodeClassDeclaration(ClassDeclareStatement(node))
+        }elseif(node oftype ClassInstantiateExpression){
+            return encodeClassInstantiation(ClassInstantiateExpression(node))
+        }elseif(node oftype MethodDeclareStatement){
+            return encodeMethodDeclaration(MethodDeclareStatement(node))
+        }elseif(node oftype PropertyDeclareStatement){
+            return encodePropertyDeclaration(PropertyDeclareStatement(node))
+        }elseif(node oftype ThisExpression){
+            return encodeThis(ThisExpression(node))
+        }elseif(node oftype EnumDeclareStatement){
+            return encodeEnumDeclaration(EnumDeclareStatement(node))
+        }elseif(node oftype EnumFieldAccessExpression){
+            return encodeEnumFieldAccess(EnumFieldAccessExpression(node))
+        }elseif(node oftype CallbackLiteral){
+            return encodeCallbackLiteral(CallbackLiteral(node))
+        }elseif(node oftype ImplementationCallExpression){
+            return encodeImplementationCall(ImplementationCallExpression(node))
+        }elseif(node oftype OfTypeExpression){
+            return encodeOfType(OfTypeExpression(node))
+        }elseif(node oftype BreakStatement){
+            return encodeBreakStatement(BreakStatement(node))
+        }elseif(node oftype ContinueStatement){
+            return encodeContinueStatement(ContinueStatement(node))
+        }elseif(node oftype CastExpression){
+            return encodeCast(CastExpression(node))
+        }elseif(node oftype ParentExpression){
+            return encode(new ThisExpression(ParentExpression(node).c, ParentExpression(node).location)) // the parent stuff is already handled in the parser
+        }elseif(node oftype ThrowStatement){
+            return encodeThrowStatement(ThrowStatement(node))
+        }elseif(node oftype CatchExpression){
+            return encodeCatchExpression(CatchExpression(node))
+        }elseif(node oftype PropagateErrorExpression){
+            return encodeErrorPropagation(PropagateErrorExpression(node))
+        }elseif(node oftype EmbedFileExpression){
+            return encodeFileEmbedding(EmbedFileExpression(node))
+        }elseif(node oftype IncludeFileStatement){
+            IncludeUtils:include(IncludeFileStatement(node).file)
+            return new ByteList()
+        }elseif(node oftype LinkLibraryStatement){
+            LinkUtils:libraries.add(LinkLibraryStatement(node).library)
+            return new ByteList()
+        }else{
+            aspl.parser.utils.fatal_error("Unsupported node type")
+        }
+    }
+
+    [abstract]
+    method encodeCodeBlock(BlockStatement statement) returns ByteList
+
+    [abstract]
+    method encodeNullLiteral(NullLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeBooleanLiteral(BooleanLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeByteLiteral(ByteLiteral literal) returns ByteList
+    
+    [abstract]
+    method encodeIntegerLiteral(IntegerLiteral literal) returns ByteList
+    
+    [abstract]
+    method encodeLongLiteral(LongLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeFloatLiteral(FloatLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeDoubleLiteral(DoubleLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeStringLiteral(StringLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeListLiteral(ListLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeMapLiteral(MapLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeAssertion(AssertStatement statement) returns ByteList
+
+    [abstract]
+    method encodeEqualsCheck(CheckEqualsExpression expression) returns ByteList
+
+    [abstract]
+    method encodeNegation(NegateExpression expression) returns ByteList
+
+    [abstract]
+    method encodeFunctionCall(FunctionCallExpression expression) returns ByteList
+
+    [abstract]
+    method encodeVariableDeclaration(VariableDeclareExpression expression) returns ByteList
+
+    [abstract]
+    method encodeVariableAccess(VariableAccessExpression expression) returns ByteList
+
+    [abstract]
+    method encodeVariableAssignment(VariableAssignExpression expression) returns ByteList
+    
+    [abstract]
+    method encodeFunctionDeclaration(FunctionDeclareStatement statement) returns ByteList
+
+    [abstract]
+    method encodeAnd(AndExpression expression) returns ByteList
+
+    [abstract]
+    method encodeOr(OrExpression expression) returns ByteList
+
+    [abstract]
+    method encodeXor(XorExpression expression) returns ByteList
+
+    [abstract]
+    method encodePlus(PlusExpression expression) returns ByteList
+
+    [abstract]
+    method encodeMinus(MinusExpression expression) returns ByteList
+
+    [abstract]
+    method encodeMultiplication(MultiplyExpression expression) returns ByteList
+
+    [abstract]
+    method encodeDivision(DivideExpression expression) returns ByteList
+
+    [abstract]
+    method encodeModulo(ModuloExpression expression) returns ByteList
+
+    [abstract]
+    method encodeLessThan(LessThanExpression expression) returns ByteList
+
+    [abstract]
+    method encodeLessThanOrEqual(LessThanOrEqualExpression expression) returns ByteList
+
+    [abstract]
+    method encodeGreaterThan(GreaterThanExpression expression) returns ByteList
+
+    [abstract]
+    method encodeGreaterThanOrEqual(GreaterThanOrEqualExpression expression) returns ByteList
+
+    [abstract]
+    method encodeReference(ReferenceExpression expression) returns ByteList
+
+    [abstract]
+    method encodeDereference(DereferenceExpression expression) returns ByteList
+
+    [abstract]
+    method encodeReturnStatement(ReturnStatement statement) returns ByteList
+
+    [abstract]
+    method encodeFallbackStatement(FallbackStatement statement) returns ByteList
+
+    [abstract]
+    method encodeEscapeStatement(EscapeStatement statement) returns ByteList
+
+    [abstract]
+    method encodeIfStatement(IfStatement statement) returns ByteList
+
+    [abstract]
+    method encodeIfElseStatement(IfElseStatement statement) returns ByteList
+
+    [abstract]
+    method encodeIfElseIfStatement(IfElseIfStatement statement) returns ByteList
+
+    [abstract]
+    method encodeWhileStatement(WhileStatement statement) returns ByteList
+
+    [abstract]
+    method encodeRepeatStatement(RepeatStatement statement) returns ByteList
+
+    [abstract]
+    method encodeForeachStatement(ForeachStatement statement) returns ByteList
+
+    [abstract]
+    method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns ByteList
+
+    [abstract]
+    method encodeStaticMethodCall(StaticMethodCallExpression expression) returns ByteList
+
+    [abstract]
+    method encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression expression) returns ByteList
+
+    [abstract]
+    method encodeStaticPropertyAccess(StaticPropertyAccessExpression expression) returns ByteList
+
+    [abstract]
+    method encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression expression) returns ByteList
+
+    [abstract]
+    method encodeStaticPropertyAssignment(StaticPropertyAssignExpression expression) returns ByteList
+
+    [abstract]
+    method encodeListIndex(ListIndexExpression expression) returns ByteList
+
+    [abstract]
+    method encodeListAssignment(ListAssignExpression expression) returns ByteList
+
+    [abstract]
+    method encodeStringIndex(StringIndexExpression expression) returns ByteList
+
+    [abstract]
+    method encodeMapAccess(MapAccessExpression expression) returns ByteList
+
+    [abstract]
+    method encodeMapAssignment(MapAssignExpression expression) returns ByteList
+
+    [abstract]
+    method encodeClassDeclaration(ClassDeclareStatement statement) returns ByteList
+
+    [abstract]
+    method encodeClassInstantiation(ClassInstantiateExpression expression) returns ByteList
+
+    [abstract]
+    method encodeMethodDeclaration(MethodDeclareStatement statement) returns ByteList
+
+    [abstract]
+    method encodePropertyDeclaration(PropertyDeclareStatement statement) returns ByteList
+
+    [abstract]
+    method encodeThis(ThisExpression expression) returns ByteList
+
+    [abstract]
+    method encodeEnumDeclaration(EnumDeclareStatement statement) returns ByteList
+
+    [abstract]
+    method encodeEnumFieldAccess(EnumFieldAccessExpression expression) returns ByteList
+
+    [abstract]
+    method encodeCallbackLiteral(CallbackLiteral literal) returns ByteList
+
+    [abstract]
+    method encodeImplementationCall(ImplementationCallExpression expression) returns ByteList
+
+    [abstract]
+    method encodeOfType(OfTypeExpression expression) returns ByteList
+
+    [abstract]
+    method encodeBreakStatement(BreakStatement statement) returns ByteList
+
+    [abstract]
+    method encodeContinueStatement(ContinueStatement statement) returns ByteList
+
+    [abstract]
+    method encodeCast(CastExpression expression) returns ByteList
+
+    [abstract]
+    method encodeThrowStatement(ThrowStatement statement) returns ByteList
+
+    [abstract]
+    method encodeCatchExpression(CatchExpression expression) returns ByteList
+
+    [abstract]
+    method encodeErrorPropagation(PropagateErrorExpression expression) returns ByteList
+
+    [abstract]
+    method encodeFileEmbedding(EmbedFileExpression expression) returns ByteList
+
+    [abstract]
+    method encodeDiscard(Expression expression) returns ByteList
+
+}

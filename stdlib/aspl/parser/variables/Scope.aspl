@@ -1,0 +1,82 @@
+import aspl.parser
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.callbacks
+
+[public]
+class Scope {
+
+    [static]
+    [threadlocal]
+    property list<ScopeBundle> scopes = []
+
+    [public]
+    property map<string, Variable> variables = {}
+    [readpublic]
+    property bool closure
+    [public]
+    property list<string> capturedVariables = []
+
+    method construct(bool closure = false){
+        this.closure = closure
+    }
+
+    [public]
+    [static]
+    method pushBundle(Function|Method|Callback|ReactivePropertyCallback? func){
+        self:scopes.add(new ScopeBundle(func))
+    }
+
+    [public]
+    [static]
+    method push(bool closure = false){
+        self:getCurrentBundle().scopes.add(new self(closure))
+    }
+
+    [public]
+    [static]
+    method pop(){
+        self:getCurrentBundle().scopes.removeAt(self:scopes[self:scopes.length - 1].scopes.length - 1)
+    }
+
+    [public]
+    [static]
+    method popBundle(){
+        self:scopes.removeAt(self:scopes.length - 1)
+    }
+
+    [public]
+    [static]
+    method getCurrentBundle() returns ScopeBundle{
+        return self:scopes[self:scopes.length - 1]
+    }
+
+    [public]
+    [static]
+    method getCurrent() returns self{
+        return self:getCurrentBundle().scopes[self:getCurrentBundle().scopes.length - 1]
+    }
+
+    [public]
+    [static]
+    method passCapturedVariables(list<string> capturedVariables){
+        var i = Scope:getCurrentBundle().scopes.length
+        while(i > 0){
+            i--
+            var scope = Scope:getCurrentBundle().scopes[i]
+            if(scope.closure){
+                foreach(capturedVariables as identifier){
+                    if(scope.variables.containsKey(identifier)){
+                        continue
+                    }
+                    if(!scope.capturedVariables.contains(identifier)){
+                        scope.capturedVariables.add(identifier)
+                    }
+                }
+                return
+            }
+        }
+    }
+
+}

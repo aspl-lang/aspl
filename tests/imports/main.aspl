@@ -1,0 +1,4 @@
+import imports.classes
+
+var example = new Example()
+print(example)

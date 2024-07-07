@@ -1,0 +1,18 @@
+[public]
+class Match{
+	
+	[readpublic]
+    property int start
+	[readpublic]
+    property int end
+	[readpublic]
+    property string value
+	
+	[public]
+	method construct(int start, int end, string value){
+		this.start = start
+		this.end = end
+		this.value = value
+	}
+	
+}

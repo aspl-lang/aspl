@@ -1,0 +1,64 @@
+import aspl.parser
+import io
+
+[public]
+function out_exe_name(string file) returns string{
+    var name = ""
+    if(Options:outputFile == null){
+        var parts = file.split(".") // TODO: This will break if the file or directory name contains a dot
+        var i = 0
+        foreach(parts as part){
+            if(i != parts.length - 1){
+                name += part + "."
+            }
+            i++
+        }
+        if(name == ""){ // check if file was a directory
+            name = io.directory_name(file) + "." // the . is needed below
+        }
+    }else{
+        name = Options:outputFile + "." // the . is needed below
+    }
+    
+    if(Options:targetOs == "windows"){
+        name += "exe" // the . was already added before
+    }else{
+        name = name.before(name.length - 1) // remove the last .
+    }
+    if(io.exists_directory(name)){ // the file system doesn't allow files with the same name as directories
+        var i = 1
+        while(io.exists_directory(name + "(" + i + ")") || io.exists_file(name + "(" + i + ")")){
+            i++
+        }
+        return name + "(" + i + ")"
+    }
+    return name
+}
+
+[public]
+function out_temp_name(string file) returns string{
+    var name = ""
+    if(Options:outputFile == null){
+        var parts = file.split(".") // TODO: This will break if the file or directory name contains a dot
+        var i = 0
+        foreach(parts as part){
+            if(i != parts.length - 1){
+                name += part + "."
+            }
+            i++
+        }
+        if(name == ""){ // check if file was a directory
+            name = io.directory_name(file) + "." // the . is needed below
+        }
+    }else{
+        name = Options:outputFile + "." // the . is needed below
+    }
+    if(Options:backend == "ail" || Options:backend == "twail"){
+        name += "ail" // the . was already added before
+    }elseif(Options:backend == "c"){
+        name += "c" // the . was already added before
+    }else{
+        name += "temp" // the . was already added before
+    }
+    return name
+}

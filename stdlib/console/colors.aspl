@@ -1,0 +1,224 @@
+[public]
+function format(string message, string open, string close) returns string{
+    return "[" + open + "m" + message + "[" + close + "m"
+}
+
+[public]
+function format_rgb(string message, int r, int g, int b, string open, string close) returns string{
+    return "[" + open + ";2;" + r + ";" + g + ";" + b + "m" + message + "[" + close + "m"
+}
+
+[public]
+function rgb(string message, int r, int g, int b) returns string{
+    return format_rgb(message, r, g, b, "38", "39")
+}
+
+[public]
+function rgb_background(string message, int r, int g, int b) returns string{
+    return format_rgb(message, r, g, b, "48", "49")
+}
+
+[public]
+function reset(string message) returns string{
+    return format(message, "0", "0")
+}
+
+[public]
+function bold(string message) returns string{
+    return format(message, "1", "22")
+}
+
+[public]
+function italic(string message) returns string{
+    return format(message, "3", "23")
+}
+
+[public]
+function underline(string message) returns string{
+    return format(message, "4", "24")
+}
+
+[public]
+function inverse(string message) returns string{
+    return format(message, "7", "27")
+}
+
+[public]
+function hidden(string message) returns string{
+    return format(message, "8", "28")
+}
+
+[public]
+function strikethrough(string message) returns string{
+    return format(message, "9", "29")
+}
+
+[public]
+function black(string message) returns string{
+    return format(message, "30", "39")
+}
+
+[public]
+function bright_black(string message) returns string{
+    return format(message, "90", "39")
+}
+
+[public]
+function gray(string message) returns string{
+    return bright_black(message)
+}
+
+[public]
+function black_background(string message) returns string{
+    return format(message, "40", "49")
+}
+
+[public]
+function bright_black_background(string message) returns string{
+    return format(message, "100", "49")
+}
+
+[public]
+function gray_background(string message) returns string{
+    return bright_black_background(message)
+}
+
+[public]
+function red(string message) returns string{
+    return format(message, "31", "39")
+}
+
+[public]
+function bright_red(string message) returns string{
+    return format(message, "91", "39")
+}
+
+[public]
+function red_background(string message) returns string{
+    return format(message, "41", "49")
+}
+
+[public]
+function bright_red_background(string message) returns string{
+    return format(message, "101", "49")
+}
+
+[public]
+function green(string message) returns string{
+    return format(message, "32", "39")
+}
+
+[public]
+function bright_green(string message) returns string{
+    return format(message, "92", "39")
+}
+
+[public]
+function green_background(string message) returns string{
+    return format(message, "42", "49")
+}
+
+[public]
+function bright_green_background(string message) returns string{
+    return format(message, "102", "49")
+}
+
+[public]
+function yellow(string message) returns string{
+    return format(message, "33", "39")
+}
+
+[public]
+function bright_yellow(string message) returns string{
+    return format(message, "93", "39")
+}
+
+[public]
+function yellow_background(string message) returns string{
+    return format(message, "43", "49")
+}
+
+[public]
+function bright_yellow_background(string message) returns string{
+    return format(message, "103", "49")
+}
+
+[public]
+function blue(string message) returns string{
+    return format(message, "34", "39")
+}
+
+[public]
+function bright_blue(string message) returns string{
+    return format(message, "94", "39")
+}
+
+[public]
+function blue_background(string message) returns string{
+    return format(message, "44", "49")
+}
+
+[public]
+function bright_blue_background(string message) returns string{
+    return format(message, "104", "49")
+}
+
+[public]
+function magenta(string message) returns string{
+    return format(message, "35", "39")
+}
+
+[public]
+function bright_magenta(string message) returns string{
+    return format(message, "95", "39")
+}
+
+[public]
+function magenta_background(string message) returns string{
+    return format(message, "45", "49")
+}
+
+[public]
+function bright_magenta_background(string message) returns string{
+    return format(message, "105", "49")
+}
+
+[public]
+function cyan(string message) returns string{
+    return format(message, "36", "39")
+}
+
+[public]
+function bright_cyan(string message) returns string{
+    return format(message, "96", "39")
+}
+
+[public]
+function cyan_background(string message) returns string{
+    return format(message, "46", "49")
+}
+
+[public]
+function bright_cyan_background(string message) returns string{
+    return format(message, "106", "49")
+}
+
+[public]
+function white(string message) returns string{
+    return format(message, "37", "39")
+}
+
+[public]
+function bright_white(string message) returns string{
+    return format(message, "97", "39")
+}
+
+[public]
+function white_background(string message) returns string{
+    return format(message, "47", "49")
+}
+
+[public]
+function bright_white_background(string message) returns string{
+    return format(message, "107", "49")
+}

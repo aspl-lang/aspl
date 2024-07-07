@@ -1,0 +1,15 @@
+[static]
+class Child extends Parent {
+    
+    [public]
+    [static]
+    property int first = 42
+
+    [public]
+    [static]
+    method one(){
+        print("child: one")
+        print("self: " + self:first)
+    }
+
+}

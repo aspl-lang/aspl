@@ -1,0 +1,72 @@
+import aspl.parser.lexer
+
+[public]
+[static]
+class PrecedenceUtils {
+    
+    [public]
+    [static]
+    method GetTokenPrecendenceLevel(Token token) returns PrecedenceLevel{ // TODO: Why is this PascalCase?
+        if(token.type == TokenType.Identifier){
+            if(token.value == "oftype"){
+                return PrecedenceLevel.OfType
+            }elseif(token.value == "catch"){
+                return PrecedenceLevel.Catch
+            }
+        }elseif(token.type == TokenType.Plus){
+            return PrecedenceLevel.Plus
+        }elseif(token.type == TokenType.PlusEquals){
+            return PrecedenceLevel.PlusEquals
+        }elseif(token.type == TokenType.PlusPlus){
+            return PrecedenceLevel.PlusPlus
+        }elseif(token.type == TokenType.Minus){
+            return PrecedenceLevel.Minus
+        }elseif(token.type == TokenType.MinusEquals){
+            return PrecedenceLevel.MinusEquals
+        }elseif(token.type == TokenType.MinusMinus){
+            return PrecedenceLevel.MinusMinus
+        }elseif(token.type == TokenType.Asterisk){
+            return PrecedenceLevel.Asterisk
+        }elseif(token.type == TokenType.MultiplyEquals){
+            return PrecedenceLevel.MultiplyEquals
+        }elseif(token.type == TokenType.Slash){
+            return PrecedenceLevel.Slash
+        }elseif(token.type == TokenType.DivideEquals){
+            return PrecedenceLevel.DivideEquals
+        }elseif(token.type == TokenType.Modulo){
+            return PrecedenceLevel.Modulo
+        }elseif(token.type == TokenType.ModuloEquals){
+            return PrecedenceLevel.ModuloEquals
+        }elseif(token.type == TokenType.And){
+            return PrecedenceLevel.And
+        }elseif(token.type == TokenType.Or){
+            return PrecedenceLevel.Or
+        }elseif(token.type == TokenType.Xor){
+            return PrecedenceLevel.Xor
+        }elseif(token.type == TokenType.Negate){
+            return PrecedenceLevel.Negate
+        }elseif(token.type == TokenType.CheckEquals){
+            return PrecedenceLevel.CheckEquals
+        }elseif(token.type == TokenType.CheckNotEquals){
+            return PrecedenceLevel.CheckNotEquals
+        }elseif(token.type == TokenType.LessThan){
+            return PrecedenceLevel.LessThan
+        }elseif(token.type == TokenType.LessThanOrEqual){
+            return PrecedenceLevel.LessThanOrEqual
+        }elseif(token.type == TokenType.GreaterThan){
+            return PrecedenceLevel.GreaterThan
+        }elseif(token.type == TokenType.GreaterThanOrEqual){
+            return PrecedenceLevel.GreaterThanOrEqual
+        }elseif(token.type == TokenType.Ampersand){
+            return PrecedenceLevel.Reference
+        }elseif(token.type == TokenType.Dot){
+            return PrecedenceLevel.Dot
+        }elseif(token.type == TokenType.QuestionAndExclamationMark){
+            return PrecedenceLevel.QuestionAndExclamationMark
+        }elseif(token.type == TokenType.BracketOpen){
+            return PrecedenceLevel.BracketOpen
+        }
+        return PrecedenceLevel.None
+    }
+
+}

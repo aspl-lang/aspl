@@ -1,0 +1,7 @@
+import json
+
+var list<any> l = list<any>["Hello", "World", 1, 2, true]
+print(json.encode(l))
+
+var map<string, any> m = map<string, any>{"Hello" => "World", "x" => 1, "y" => 2, "b" => true}
+print(json.encode(m, true)) // true for pretty print

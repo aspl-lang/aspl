@@ -1,0 +1,34 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class CatchExpression extends Expression {
+
+    [readpublic]
+    property Expression expression
+    [readpublic]
+    property string? variable
+    [readpublic]
+    property list<Node> code
+    [readpublic]
+	property list<string> capturedVariables
+    [readpublic]
+    property bool standalone
+
+    [public]
+    method construct(Expression expression, string? variable, list<Node> code, list<string> capturedVariables, bool standalone, Location? location){
+        parent(Node).construct(location)
+        this.expression = expression
+        this.variable = variable
+        this.code = code
+        this.capturedVariables = capturedVariables
+        this.standalone = standalone
+    }
+	
+	[public]
+	method getType() returns Types{
+		return this.expression.getType()
+	}
+    
+}

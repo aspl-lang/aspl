@@ -1,0 +1,21 @@
+import aspl.parser.utils
+
+[public]
+class AndExpression extends BinaryOperator {
+
+    [public]
+    method construct(Expression left, Expression right, Location? location){
+        parent(BinaryOperator).construct(left, right, location)
+    }
+
+    [public]
+    method getType() returns Types{
+        return this.left.getType()
+    }
+
+    [public]
+    method getConstantValue() returns any{
+        return this.left.getConstantValue() && this.right.getConstantValue()
+    }
+
+}

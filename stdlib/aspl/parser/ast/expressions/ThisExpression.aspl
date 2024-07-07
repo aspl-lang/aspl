@@ -1,0 +1,27 @@
+import aspl.parser.ast
+import aspl.parser.classes
+import aspl.parser.utils
+
+[public]
+class ThisExpression extends Expression {
+
+    [readpublic]
+    property Class c
+
+    [public]
+    method construct(Class c, Location? location){
+        parent(Node).construct(location)
+        this.c = c
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([this.c.type])
+    }
+
+    [public]
+    method isConstant() returns bool{
+        return false
+    }
+
+}

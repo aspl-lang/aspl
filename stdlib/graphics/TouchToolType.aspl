@@ -1,0 +1,9 @@
+[public]
+enum TouchToolType{
+    Unknown,
+    Finger,
+    Stylus,
+    Mouse,
+    Eraser,
+    Palm
+}

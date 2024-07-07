@@ -1,0 +1,19 @@
+// execute executes a program and returns the exit code and the output
+[public]
+function execute(string command) returns CommandResult{
+    var result = list<int|string>(implement("os.command.execute", command))
+    return new CommandResult(int(result[0]), string(result[1]))
+}
+
+// system executes a program (like os.execute()), but only returns the exit code
+[public]
+function system(string command) returns int{
+    return int(implement("os.command.system", command))
+}
+
+// execvp executes a program in place of the current process
+// Note: this function does not return if successful
+[public]
+function execvp(string command, list<string> args){
+    implement("os.command.execvp", command, args)
+}

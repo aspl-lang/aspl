@@ -1,0 +1,53 @@
+[public]
+function get(string uri, string data = "", map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.get", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function post(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.post", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function put(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.put", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function head(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.head", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function delete(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.delete", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function options(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.options", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function trace(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.trace", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function connect(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.connect", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}
+
+[public]
+function patch(string uri, string data, map<string, list<string>>? headers = null) returns HttpResponse{
+    var response = list<string|map<string, list<string>>|int>(implement("internet.http.patch", uri, data, headers))
+    return new HttpResponse(string(response[0]), map<string, list<string>>(response[1]), int(response[2]), string(response[3]), string(response[4]))
+}

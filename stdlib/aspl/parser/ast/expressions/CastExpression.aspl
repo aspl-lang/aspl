@@ -1,0 +1,24 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class CastExpression extends Expression {
+
+    [readpublic]
+    property Expression value
+    [readpublic]
+    property Type type
+
+    [public]
+    method construct(Expression value, Type type, Location? location){
+        parent(Node).construct(location)
+        this.value = value
+        this.type = type
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([this.type])
+    }
+
+}

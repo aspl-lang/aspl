@@ -1,0 +1,29 @@
+[public]
+enum Architecture{
+	amd64, // aka x86_64
+	arm64, // 64-bit arm
+	arm32, // 32-bit arm
+	rv64, // 64-bit risc-v
+	rv32, // 32-bit risc-v
+	i386 // aka x86_32
+}
+
+[public]
+function architecture_from_string(string arch) returns Architecture? {
+    arch = arch.toLower()
+    if(arch == "amd64" || arch == "x86_64" || arch == "x64") {
+        return Architecture.amd64
+    }elseif(arch == "arm64" || arch == "aarch64") {
+        return Architecture.arm64
+    }elseif(arch == "arm32" || arch == "aarch32") {
+        return Architecture.arm32
+    }elseif(arch == "rv64" || arch == "riscv64" || arch == "risc-v64") {
+        return Architecture.rv64
+    }elseif(arch == "rv32" || arch == "riscv32" || arch == "risc-v32") {
+        return Architecture.rv32
+    }elseif(arch == "i386" || arch == "x86_32"|| arch == "x86" || arch == "x32" || arch == "ia-32" || arch == "ia32") {
+        return Architecture.i386
+    }else{
+        return null
+    }
+}

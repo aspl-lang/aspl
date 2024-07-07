@@ -1,0 +1,95 @@
+import aspl.parser
+import aspl.parser.lexer
+import aspl.parser.attributes
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.variables
+import aspl.parser.properties
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.precedence
+
+[public]
+[static]
+class AttributeUtils {
+    
+    [public]
+    [static]
+    method parseAttributesIfAny(Parser parser, Token token, TokenList tokens) returns bool{
+        var parsedAny = false
+        while(true){
+            if(parsedAny){
+                token = tokens.peek()
+            }
+            if(token.type != TokenType.BracketOpen){
+                return parsedAny
+            }
+            if(parsedAny){
+                tokens.shift()
+            }
+			if(tokens.peek().type == TokenType.Identifier){
+				var attributePeek = parser.peekTypeIdentifier(tokens)
+				var isAttribute = false
+				if((tokens.peek(attributePeek.tokenCount).type == TokenType.BracketClose) || (tokens.peek(attributePeek.tokenCount).type == TokenType.ParenthesisOpen)){
+					if(Attribute:exists(attributePeek.identifier)){
+						isAttribute = true
+					}else{
+                        /* TODO: This is sometimes false-positive: 
+                        // TODO: Below variables are needed because of a weird bug in ASPL where inline and is broken; TODO: verify if this is still the case
+                        var t = !attributePeek.identifier.startsWith("this.")
+                        var s = !attributePeek.identifier.startsWith("self:")
+                        var f = !Function:exists(attributePeek.identifier)
+                        var m = (parser.currentClass == null || !Method:exists(Class(parser.currentClass).type, attributePeek.identifier))
+                        var v = !Variable:exists(attributePeek.identifier)
+                        var p = (parser.currentClass == null || !Property:exists(Class(parser.currentClass).type, attributePeek.identifier))
+                        if(t && s && f && m && v && p){
+                            aspl.parser.utils.syntax_error("Unknown attribute '" + attributePeek.identifier + "'", tokens.peek().location)
+					    }*/
+                    }
+				}
+				if(!isAttribute){
+                    return parsedAny
+                }
+                var attribute = Attribute:get(IdentifierUtils:handleTypeIdentifier(parser.parseTypeIdentifier(tokens).identifier))
+                var list<Expression> arguments = []
+                if(tokens.peek().type == TokenType.ParenthesisOpen){
+                    tokens.shift()
+                    foreach(attribute.parameters as parameter){
+                        if(tokens.peek().type == TokenType.ParenthesisClose){
+                            if(!parameter.optional){
+                                aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.parameters.length + ")", tokens.peek().location)
+                            }
+                            break
+                        }
+                        var value = aspl.parser.utils.verify_expression(parser.parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+                        if(!Type:matches(parameter.types, value.getType())){
+                            aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+                        }
+                        arguments.add(value)
+                        if(tokens.peek().type == TokenType.Comma){
+                            tokens.shift()
+                        }
+                    }
+                    if(tokens.peek().type == TokenType.ParenthesisClose){
+                        tokens.shift()
+                    }else{
+                        aspl.parser.utils.syntax_error("Expected ')' after attribute arguments", tokens.peek().location)
+                    }
+                }elseif(attribute.parameters.length > 0 && !attribute.parameters[0].optional){
+                    aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.parameters.length + ")", tokens.peek().location)
+                }
+                if(tokens.peek().type == TokenType.BracketClose){
+                    tokens.shift()
+                }else{
+                    aspl.parser.utils.syntax_error("Expected ']' after attribute name", tokens.peek().location)
+                }
+                parsedAny = true
+                parser.attributeCache.add(new AttributeInstance(attribute, arguments, token.location, list<Token>(token.comments)))
+                // ingore the attribute since it has already been preprocessed
+			}else{
+                return parsedAny
+            }
+        }
+    }
+
+}

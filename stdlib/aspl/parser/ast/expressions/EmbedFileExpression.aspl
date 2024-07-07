@@ -1,0 +1,30 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class EmbedFileExpression extends Expression {
+    
+	[readpublic]
+	property string file
+	
+	method construct(string file, Location? location){
+        parent(Node).construct(location)
+		this.file = file
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("list<byte>")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+
+	[public]
+	method getConstantValue() returns any{
+		return io.read_file_bytes(file)
+	}
+
+}

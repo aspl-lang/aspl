@@ -1,0 +1,46 @@
+name: Docs
+
+on:
+  - push
+  - workflow_dispatch
+
+jobs:
+  generate-and-publish-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install_ci.sh
+      - name: Generate docs
+        run: |
+          cd $GITHUB_WORKSPACE
+          mkdir docs
+          cd stdlib
+          FOLDERS=""
+          for d in * ; do
+            ../aspl -o ../docs/$d document $d
+            FOLDERS+="* [$d]($d.md)"$'\n'
+          done
+          echo "$FOLDERS" > ../docs/overview.md
+      - uses: actions/checkout@v3
+        with:
+          repository: aspl-lang/docs
+          path: docs_repo
+          token: ${{ secrets.CDKEY }}
+      - name: Copy docs
+        run: |
+          cd $GITHUB_WORKSPACE
+          cp -r docs/* docs_repo/
+          sed -i '/## Modules/,$ d' docs_repo/README.md && echo "## Modules" >> docs_repo/README.md && cat docs_repo/overview.md >> docs_repo/README.md
+          rm docs_repo/overview.md
+      - name: Commit and push
+        run: |
+          cd $GITHUB_WORKSPACE/docs_repo
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git diff-index --quiet HEAD || git commit -m "Update docs"
+          git push

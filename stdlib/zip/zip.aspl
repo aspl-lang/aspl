@@ -1,0 +1,14 @@
+[public]
+function unzip(string file, string folder){
+    implement("zip.extract_file_to_directory", file, folder)
+}
+
+[public]
+function zip_folder(string folder, string file){
+    implement("zip.create_archive_from_directory", file, folder)
+}
+
+[public]
+function zip_files(list<string> files, string file){
+    implement("zip.create_archive_from_files", file, files)
+}

@@ -1,0 +1,48 @@
+// StringBuilder is used to construct large strings by concatenating efficiently
+[public]
+class StringBuilder {
+    
+    property any handle
+    [public]
+    property int length{
+        get{
+            return int(implement("strings.string_builder.get_length", handle))
+        }
+    }
+
+    [public]
+    method construct(string str = ""){
+        handle = implement("strings.string_builder.new")
+        if(str != ""){
+            append(str)
+        }
+    }
+
+    // append writes the given string or string builder to the end of this string builder
+    // it returns this string builder to allow chaining
+    [public]
+    method append(string|StringBuilder str) returns self{
+        if(str oftype string){
+            implement("strings.string_builder.append_string", handle, str)
+        }else{
+            implement("strings.string_builder.append_string_builder", handle, StringBuilder(str).handle)
+        }
+        return this
+    }
+
+    // toString returns the constructed string
+    // NOTE: this does not empty the string builder; see toStringFlush for that
+    [public]
+    method toString() returns string{
+        var str = string(implement("strings.string_builder.to_string_flush", handle))
+        append(str)
+        return str
+    }
+
+    // toStringFlush returns the constructed string and empties the string builder
+    [public]
+    method toStringFlush() returns string{
+        return string(implement("strings.string_builder.to_string_flush", handle))
+    }
+
+}

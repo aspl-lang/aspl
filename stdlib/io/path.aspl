@@ -1,0 +1,33 @@
+[public]
+function abs(string relative) returns string{
+    return string(implement("io.path.relative_to_absolute", relative))
+}
+
+[public]
+function join_path(list<string> paths) returns string{
+    var string path = ""
+    var int i = 0
+    foreach(paths as p){
+        path += p
+        if(i < paths.length - 1){
+            path += "/"
+        }
+        i++
+    }
+    return path
+}
+
+[public]
+function get_executable_path() returns string{
+    return string(implement("io.path.get_current_executable_path"))
+}
+
+[public]
+function copy(string from, string to){
+    implement("io.path.copy", from, to)
+}
+
+[public]
+function move(string from, string to){
+    implement("io.path.move", from, to)
+}

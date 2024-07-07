@@ -1,0 +1,3 @@
+var i = 3
+i *= 4
+assert i == 12

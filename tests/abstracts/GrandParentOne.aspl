@@ -1,0 +1,8 @@
+[abstract]
+class GrandParentOne {
+    
+    [public]
+    [abstract]
+    method three()
+
+}

@@ -1,0 +1,49 @@
+[public]
+function short_to_bytes(int s) returns list<byte>{
+    return list<byte>(implement("bitconverter.convert.short_to_bytes", s))
+}
+
+[public]
+function bytes_to_short(list<byte> b) returns int{
+    return int(implement("bitconverter.convert.bytes_to_short", b))
+}
+
+[public]
+function int_to_bytes(int i) returns list<byte>{
+    return list<byte>(implement("bitconverter.convert.int_to_bytes", i))
+}
+
+[public]
+function bytes_to_int(list<byte> b) returns int{
+    return int(implement("bitconverter.convert.bytes_to_int", b))
+}
+
+[public]
+function long_to_bytes(long l) returns list<byte>{
+    return list<byte>(implement("bitconverter.convert.long_to_bytes", l))
+}
+
+[public]
+function bytes_to_long(list<byte> b) returns long{
+    return long(implement("bitconverter.convert.bytes_to_long", b))
+}
+
+[public]
+function float_to_bytes(float f) returns list<byte>{
+    return list<byte>(implement("bitconverter.convert.float_to_bytes", f))
+}
+
+[public]
+function bytes_to_float(list<byte> b) returns float{
+    return float(implement("bitconverter.convert.bytes_to_float", b))
+}
+
+[public]
+function double_to_bytes(double d) returns list<byte>{
+    return list<byte>(implement("bitconverter.convert.double_to_bytes", d))
+}
+
+[public]
+function bytes_to_double(list<byte> b) returns double{
+    return double(implement("bitconverter.convert.bytes_to_double", b))
+}

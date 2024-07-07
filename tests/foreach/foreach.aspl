@@ -1,0 +1,13 @@
+var map<int, int> m = map<int, int>{}
+foreach([3, 4, 5] as index => element){
+    m[index] = element
+}
+assert m == {0 => 3, 1 => 4, 2 => 5}
+var s = ""
+foreach("Hello World!" as c){
+    s += c
+}
+assert s == "Hello World!"
+foreach({"Hello" => "World"} as key => value){
+    print(key + ": " + value)
+}

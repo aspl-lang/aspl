@@ -1,0 +1,26 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class NullLiteral extends Literal{
+
+	method construct(Location? location){
+        parent(Node).construct(location)
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("null")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		return null
+	}
+
+}

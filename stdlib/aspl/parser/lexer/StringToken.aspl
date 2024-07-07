@@ -1,0 +1,14 @@
+import aspl.parser.utils
+
+[public]
+class StringToken extends Token {
+    
+    [readpublic]
+    property string literalString
+
+    method construct(TokenType type, string value, string literalString, Location location){
+      parent(Token).construct(type, value, location)
+      this.literalString = literalString
+	}
+
+}

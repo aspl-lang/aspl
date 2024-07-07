@@ -1,0 +1,42 @@
+[public]
+class Module {
+
+    [public]
+    [static]
+    [threadlocal]
+    property map<string, Module> modules = map<string, Module>{}
+    [public]
+    [static]
+    [threadlocal]
+    property Module mainModule
+    [readpublic]
+    [static]
+    [threadlocal]
+    property bool initialized = false
+
+    [public]
+    [static]
+    method init(Module mainModule){
+        self:mainModule = mainModule
+        self:modules = {self:mainModule.name => self:mainModule}
+        self:initialized = true
+    }
+    
+    [readpublic]
+    property string name
+    [public]
+    property string id{
+        get{
+            return name.toLower()
+        }
+    }
+    [readpublic]
+    property string directory
+
+    [public]
+    method construct(string name, string directory){
+        this.name = name
+        this.directory = directory
+    }
+
+}

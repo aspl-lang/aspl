@@ -1,0 +1,22 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class GreaterThanExpression extends BinaryOperator {
+
+    [public]
+    method construct(Expression left, Expression right, Location? location){
+        parent(BinaryOperator).construct(left, right, location)
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([Type:fromString("boolean")])
+    }
+
+    [public]
+    method getConstantValue() returns any{
+        return this.left.getConstantValue() > this.right.getConstantValue()
+    }
+
+}

@@ -1,0 +1,35 @@
+import aspl.parser.ast
+import aspl.parser.functions
+import aspl.parser.utils
+
+[public]
+class FunctionCallExpression extends Expression{
+
+	[readpublic]
+	property string identifier
+	[readpublic]
+	property Function func
+	[readpublic]
+	property list<Expression> arguments
+	[readpublic]
+	property bool newThread
+	
+	method construct(string identifier, Function func, list<Expression> arguments, bool newThread, Location? location){
+        parent(Node).construct(location)
+		this.identifier = identifier
+		this.func = func
+		this.arguments = arguments
+		this.newThread = newThread
+	}
+	
+	[public]
+	method getType() returns Types{
+		return this.func.returnTypes
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+	
+}

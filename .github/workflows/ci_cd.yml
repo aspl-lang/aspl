@@ -1,0 +1,303 @@
+name: CI/CD
+
+on:
+  - push
+  - workflow_dispatch
+
+jobs:
+  build-runtime-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:buster # use an older Debian version to support older glibc versions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL installer dependencies
+        run: |
+          apt-get update
+          apt-get install --quiet -y git jq curl unzip
+      - name: Install ASPL
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install_ci.sh
+      - name: Install runtime dependencies
+        run: |
+          apt-get update
+          apt-get install --quiet -y build-essential
+          apt-get install --quiet -y libglfw3-dev libxi-dev libxcursor-dev # for the graphics module
+          apt-get install --quiet -y gcc-arm-linux-gnueabi # for ARM32 cross-compilation
+          apt-get install --quiet -y lib32z1 # for ARM32 cross-compilation
+      - name: Build ASPL runtime templates
+        run: |
+          cd $GITHUB_WORKSPACE
+          aspl -os linux -cc gcc build-minimal-template
+          mv -f Template templates/linux/x86_64/minimal
+          aspl -os linux -cc gcc build-full-template
+          mv -f Template templates/linux/x86_64/full
+          # aspl -os linux -arch arm32 -cc arm-linux-gnueabi-gcc build-minimal-template
+          # mv -f Template templates/linux/arm32/minimal
+          # aspl -os linux -arch arm32 -cc arm-linux-gnueabi-gcc build-full-template
+          # mv -f Template templates/linux/arm32/full
+      - name: Upload template artifact (Linux x86_64 minimal)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_linux_x86_64_minimal
+          path: templates/linux/x86_64/minimal/Template
+      - name: Upload template artifact (Linux x86_64 full)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_linux_x86_64_full
+          path: templates/linux/x86_64/full/Template
+  build-runtime-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        run: |
+          cd $GITHUB_WORKSPACE
+          .\install.bat
+        shell: cmd
+      - name: Build ASPL runtime templates
+        run: |
+          cd $GITHUB_WORKSPACE
+          aspl -os windows -cc gcc build-minimal-template
+          mv -f Template.exe templates/windows/x86_64/minimal
+          aspl -os windows -cc gcc build-full-template
+          mv -f Template.exe templates/windows/x86_64/full/cli
+        shell: cmd
+      - name: Upload template artifact (Windows x86_64 minimal)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_windows_x86_64_minimal
+          path: templates/windows/x86_64/minimal/Template.exe
+      - name: Upload template artifact (Windows x86_64 full)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_windows_x86_64_full
+          path: templates/windows/x86_64/full/cli/Template.exe
+  build-runtime-macos:
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install_ci.sh
+      - name: Install runtime dependencies
+        run: |
+          brew install glfw # for the graphics module
+      - name: Build ASPL runtime templates
+        run: |
+          cd $GITHUB_WORKSPACE
+          aspl -os macos -cc gcc build-minimal-template
+          mv -f Template templates/macos/x86_64/minimal
+          aspl -os macos -cc gcc build-full-template
+          mv -f Template templates/macos/x86_64/full
+      - name: Upload template artifact (macOS x86_64 minimal)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_macos_x86_64_minimal
+          path: templates/macos/x86_64/minimal/Template
+      - name: Upload template artifact (macOS x86_64 full)
+        uses: actions/upload-artifact@v3
+        with:
+          name: template_macos_x86_64_full
+          path: templates/macos/x86_64/full/Template
+  build-compiler:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:buster # use an older Debian version to support older glibc versions
+    needs: [build-runtime-linux, build-runtime-windows, build-runtime-macos]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL installer dependencies
+        run: |
+          apt-get update
+          apt-get install --quiet -y git jq curl unzip xz-utils build-essential
+      - name: Install ASPL
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install_ci.sh
+      # - name: Delete template (macOS x86_64)
+      #   run: |
+      #     rm templates/macos/x86_64/Template
+      - name: Download template artifact (macOS x86_64 full)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_macos_x86_64_full
+          path: templates/macos/x86_64/full
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+      - name: Build ASPL compiler
+        run: |
+          cd $GITHUB_WORKSPACE
+          cd cli
+          ../aspl -prod -os linux -backend c -heapBased -useDynamicCTemplate -cc gcc -showcc compile . # use GCC as it tends to optimize better
+          mv cli ../aspl_linux_x86_64
+          # ../aspl -prod -os linux -arch arm32 -backend c -heapBased -useDynamicCTemplate compile .
+          # mv cli ../aspl_linux_arm32
+          ../aspl -prod -os windows -backend c -heapBased -useDynamicCTemplate -showcc compile .
+          mv cli.exe ../aspl_windows_x86_64.exe
+          ../aspl -prod -os macos -backend ail compile .
+          mv cli ../aspl_macos_x86_64
+          # TODO: Build for more platforms
+      - name: Upload ASPL compiler artifact (Linux x86_64)
+        uses: actions/upload-artifact@v3
+        with:
+          name: aspl_linux_x86_64
+          path: aspl_linux_x86_64
+      - name: Upload ASPL compiler artifact (Windows x86_64)
+        uses: actions/upload-artifact@v3
+        with:
+          name: aspl_windows_x86_64
+          path: aspl_windows_x86_64.exe
+      - name: Upload ASPL compiler artifact (macOS x86_64)
+        uses: actions/upload-artifact@v3
+        with:
+          name: aspl_macos_x86_64
+          path: aspl_macos_x86_64
+  publish:
+    runs-on: ubuntu-latest
+    needs: [build-runtime-linux, build-runtime-windows, build-runtime-macos, build-compiler]
+    steps:
+      - name: Delete template (Linux x86_64 minimal)
+        run: |
+          rm -rf templates/linux/x86_64/minimal/Template
+      - name: Download template artifact (Linux x86_64 minimal)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_linux_x86_64_minimal
+          path: templates/linux/x86_64/minimal
+      - name: Delete template artifact (Linux x86_64 minimal)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_linux_x86_64_minimal
+      - name: Delete template (Linux x86_64 full)
+        run: |
+          rm -rf templates/linux/x86_64/full/Template
+      - name: Download template artifact (Linux x86_64 full)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_linux_x86_64_full
+          path: templates/linux/x86_64/full
+      - name: Delete template artifact (Linux x86_64 full)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_linux_x86_64_full
+      - name: Delete template (Windows x86_64 minimal)
+        run: |
+          rm -rf templates/windows/x86_64/minimal/Template.exe
+      - name: Download template artifact (Windows x86_64 minimal)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_windows_x86_64_minimal
+          path: templates/windows/x86_64/minimal
+      - name: Delete template artifact (Windows x86_64 minimal)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_windows_x86_64_minimal
+      - name: Delete template (Windows x86_64 full)
+        run: |
+          rm -rf templates/windows/x86_64/full/cli/Template.exe
+      - name: Download template artifact (Windows x86_64 full)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_windows_x86_64_full
+          path: templates/windows/x86_64/full/cli
+      - name: Delete template artifact (Windows x86_64 full)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_windows_x86_64_full
+      - name: Delete template (macOS x86_64 minimal)
+        run: |
+          rm -rf templates/macos/x86_64/minimal/Template
+      - name: Download template artifact (macOS x86_64 minimal)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_macos_x86_64_minimal
+          path: templates/macos/x86_64/minimal
+      - name: Delete template artifact (macOS x86_64 minimal)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_macos_x86_64_minimal
+      - name: Delete template (macOS x86_64 full)
+        run: |
+          rm -rf templates/macos/x86_64/full/Template
+      - name: Download template artifact (macOS x86_64 full)
+        uses: actions/download-artifact@v3
+        with:
+          name: template_macos_x86_64_full
+          path: templates/macos/x86_64/full
+      - name: Delete template artifact (macOS x86_64 full)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: template_macos_x86_64_full
+      - name: Download ASPL compiler artifact (Linux x86_64)
+        uses: actions/download-artifact@v3
+        with:
+          name: aspl_linux_x86_64
+          path: ./
+      - name: Delete ASPL compiler artifact (Linux x86_64)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: aspl_linux_x86_64
+      - name: Download ASPL compiler artifact (Windows x86_64)
+        uses: actions/download-artifact@v3
+        with:
+          name: aspl_windows_x86_64
+          path: ./
+      - name: Delete ASPL compiler artifact (Windows x86_64)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: aspl_windows_x86_64
+      - name: Download ASPL compiler artifact (macOS x86_64)
+        uses: actions/download-artifact@v3
+        with:
+          name: aspl_macos_x86_64
+          path: ./
+      - name: Delete ASPL compiler artifact (macOS x86_64)
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: aspl_macos_x86_64
+      - name: Zip templates
+        run: |
+          cd $GITHUB_WORKSPACE
+          zip -r templates.zip templates -x '.gitignore' -x '*.md'
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          repository: aspl-lang/cd
+          tag_name: SHA-${{ github.sha }}
+          token: ${{ secrets.CDKEY }}
+          files: |
+            ${{ github.workspace }}/aspl_linux_x86_64
+            ${{ github.workspace }}/aspl_windows_x86_64.exe
+            ${{ github.workspace }}/aspl_macos_x86_64
+            ${{ github.workspace }}/templates.zip
+          # ${{ github.workspace }}/aspl_linux_arm32
+      - name: Update metadata file
+        run: |
+          curl \
+            -X PUT\
+            -H "Authorization: token ${{ secrets.CDKEY }}"\
+            -d '{"message": "Update latest.txt", "content": "'$(echo ${{ github.sha }} | base64)'", "sha": "'$(curl -s -H "Authorization: token ${{ secrets.CDKEY }}" https://api.github.com/repos/aspl-lang/cd/contents/latest.txt | jq -r .sha)'", "committer": {"name": "github-actions[bot]", "email": "github-actions[bot]@users.noreply.github.com"}}'\
+            https://api.github.com/repos/aspl-lang/cd/contents/latest.txt
+  ci:
+    runs-on: ubuntu-latest
+    needs: [publish]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        run: |
+          $GITHUB_WORKSPACE/install_ci.sh
+      - name: Run tests
+        run: |
+          cd $GITHUB_WORKSPACE
+          echo "Testing the C backend..."
+          ./aspl -backend c -cc gcc -showcc test-all || exit $?
+          echo "Testing the AIL backend..."
+          ./aspl -backend ail -cc gcc -showcc test-all || exit $?

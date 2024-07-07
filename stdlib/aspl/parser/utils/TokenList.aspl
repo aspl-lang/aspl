@@ -1,0 +1,61 @@
+import aspl.parser.lexer
+
+[public]
+class TokenList{
+
+	property list<Token>* tokens
+	[readpublic]
+	property int position
+
+	[public]
+	property int length{
+		get{
+			return (*tokens).length - position
+		}
+	}
+	
+	method construct(list<Token> tokens){
+		this.tokens = &tokens
+	}
+	
+	[public]
+	method peek(int offset = 0) returns Token{
+		return (*tokens)[offset + position]
+	}
+	
+	[public]
+	method shift(int amount = 1){
+		position += amount
+	}
+	
+	[public]
+	method next(int offset = 0) returns Token{
+		var token = (*tokens)[offset + position]
+		shift(offset + 1)
+		return token
+	}
+
+	[public]
+	method empty() returns bool{
+		return length == 0
+	}
+
+	[public]
+	method in(int offset) returns TokenList{
+		var newTokens = new TokenList((*tokens).cloneShallow())
+		newTokens.shift(position + offset)
+		return newTokens
+	}
+
+	[public]
+	method clone() returns TokenList{
+		return new TokenList((*tokens).cloneShallow())
+	}
+
+	[public]
+	method set(TokenList other){
+		tokens = other.tokens
+		position = other.position
+	}
+	
+}

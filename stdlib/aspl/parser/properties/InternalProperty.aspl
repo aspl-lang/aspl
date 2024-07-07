@@ -1,0 +1,21 @@
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class InternalProperty extends Property{
+
+    [public]
+    method construct(Type type, string name, Types types, list<AttributeInstance> attributes){
+        parent(Property).construct(type, name, types, attributes)
+        this.isStatic = false
+        this.isPublic = false
+        this.isReadPublic = true
+        this.fullyInitialized = false
+    }
+
+    [public]
+    method withType(Type type) returns Property{
+        return new self(type, this.name, this.types, this.attributes)
+    }
+
+}

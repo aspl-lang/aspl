@@ -1,0 +1,13 @@
+function main() returns callback<returns int>{
+    var outer = 42
+    var cross = "Default"
+    var c = callback() returns int{
+        cross = "from the inner scope"
+        var inner = null
+        return outer
+    }
+    assert cross == "Default"
+    return c
+}
+
+assert main().invoke() == 42

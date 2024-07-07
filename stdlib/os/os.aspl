@@ -1,0 +1,17 @@
+// user_os returns the name of the operating system currently used to execute this program
+[public]
+function user_os() returns string{
+    return string(implement("os.get_current_runtime_os_name"))
+}
+
+// user_architecture returns the name of the architecture currently used to execute this program
+[public]
+function user_architecture() returns string{
+    return string(implement("os.get_current_runtime_architecture_name"))
+}
+
+// user_architecture_generic returns a value from the Architecture enum and is more generic than os.user_architecture()
+[public]
+function user_architecture_generic() returns Architecture{
+    return Architecture(int(implement("os.get_current_runtime_architecture_enum")))
+}

@@ -1,0 +1,19 @@
+$if !twailbackend{
+    $include("implementations.c")
+    $if windows{
+        $link("gdi32")
+    }
+    $if !ssl{
+        $if linux{
+            $link("X11")
+            $link("Xcursor")
+            $link("Xi")
+            $link("GL")
+            $link("dl")
+        }
+        $if macos{
+            $link("framework:Cocoa")
+            $link("framework:OpenGL")
+        }
+    }
+}

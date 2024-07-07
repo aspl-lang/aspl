@@ -1,0 +1,4 @@
+[public]
+function break(string? message = null){
+    implement("breakpoints.break", message)
+}

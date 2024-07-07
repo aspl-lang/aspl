@@ -1,0 +1,14 @@
+[public]
+function floor(double x) returns double{
+	return double(implement("math.floor", x))
+}
+
+[public]
+function ceil(double x) returns double{
+	return double(-floor(-x))
+}
+
+[public]
+function round(double x, int d = 0) returns double{
+	return double(implement("math.round", x, d))
+}

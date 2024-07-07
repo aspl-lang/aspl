@@ -1,0 +1,43 @@
+import aspl.parser.ast
+import aspl.parser.utils
+import aspl.parser.ast.expressions
+
+[public]
+class ListLiteral extends Literal{
+
+	[public]
+	property Types type
+	[public]
+	property list<Expression> value
+
+	method construct(Types type, list<Expression> value, Location? location){
+        parent(Node).construct(location)
+		this.type = type
+		this.value = value
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("list<" + this.type.toString() + ">")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		foreach(this.value as element){
+			if(!element.isConstant()){
+				return false
+			}
+		}
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		var list<any> l = list<any>[]
+		foreach(this.value as element){
+			l.add(element.getConstantValue())
+		}
+		return l
+	}
+
+}

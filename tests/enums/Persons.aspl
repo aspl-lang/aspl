@@ -1,0 +1,10 @@
+[description("An example enum")]
+enum Persons{
+    [deprecated]
+    [description("This is the first person")]
+    John,
+    [description("This is the second person")]
+    Maria,
+    Lewis = 4,
+    Leo = 5
+}

@@ -1,0 +1,8 @@
+Child:one()
+assert Child:first == 42
+Child:first = 21
+assert Child:first == 21
+Parent:two()
+assert Parent:first == 42
+Parent:first = 21
+assert Parent:first == 21

@@ -1,0 +1,25 @@
+import aspl.parser.ast
+import aspl.parser.utils
+import aspl.parser.classes
+
+[public]
+class ClassInstantiateExpression extends Expression {
+
+    [readpublic]
+    property Class c
+    [readpublic]
+    property list<Expression> arguments
+
+    [public]
+    method construct(Class c, list<Expression> arguments, Location? location){
+        parent(Node).construct(location)
+        this.c = c
+        this.arguments = arguments
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([this.c.type])
+    }
+
+}

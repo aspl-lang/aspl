@@ -1,0 +1,8 @@
+/*
+This test only works with a module called "example" installed
+import example
+
+print(example.add(1, 2))
+print(example.subfolder.stringAdd("Hello", "World"))
+*/
+assert true

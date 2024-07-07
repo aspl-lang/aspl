@@ -1,0 +1,6 @@
+[public]
+enum IntType {
+    Short,
+    Int,
+    Long
+}

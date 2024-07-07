@@ -1,0 +1,41 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class OfTypeExpression extends Expression {
+
+    [readpublic]
+    property Expression expression
+    [readpublic]
+    property Type type
+
+    [public]
+    method construct(Expression expression, Type type, Location? location){
+        parent(Node).construct(location)
+        this.expression = expression
+        this.type = type
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([Type:fromString("boolean")])
+    }
+
+    [public]
+    method isConstant() returns bool{
+        if(!expression.getType().canCast(type)){
+            return true
+        }else{
+            return false
+        }
+    }
+
+    [public]
+    method getConstantValue() returns any{
+        if(!expression.getType().canCast(type)){
+            return false
+        }
+        aspl.parser.utils.fatal_error("Cannot evaluate constant value of oftype expression")
+    }
+
+}

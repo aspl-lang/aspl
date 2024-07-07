@@ -1,0 +1,9 @@
+import math
+
+function fahrenheit_to_celsius(float degrees) returns float{
+    return (degrees - 32) * (5f / 9)
+}
+
+var fahrenheit = float(math.round(double(float(input("Enter a temperature in °F: "))), 2))
+var celsius = math.round(double(fahrenheit_to_celsius(fahrenheit)), 2)
+print(fahrenheit + "°F ≙ " + celsius + "°C")

@@ -1,0 +1,18 @@
+[abstract]
+class GrandParentTwo {
+    
+    [public]
+    [abstract]
+    method four()
+
+    [public]
+    method five(){
+        print("grand parent two: five")
+    }
+
+    [public]
+    method six(){
+        print("grand parent two: six")
+    }
+
+}

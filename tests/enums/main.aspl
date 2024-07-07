@@ -1,0 +1,12 @@
+print(Persons.John)
+assert Persons.John != Persons.Maria
+
+print(Options.Debug || Options.TestAll)
+assert ((Options.Debug || Options.TestAll) && Options.Debug) != 0
+
+[flags]
+enum Options {
+    Debug,
+    TestAll,
+    Deploy
+}

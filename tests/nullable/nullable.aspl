@@ -1,0 +1,6 @@
+var int? i = 0
+i = null
+assert i == null
+i = 10
+assert i == 10
+assert i?! == 10

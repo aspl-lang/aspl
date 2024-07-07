@@ -1,0 +1,243 @@
+import aspl.compiler.backend
+import aspl.compiler.backend.bytecode.ail
+import aspl.compiler.backend.bytecode.twail
+import aspl.compiler.backend.stringcode.c
+import aspl.compiler.utils
+import aspl.parser
+import aspl.parser.utils
+import io
+import os
+import appbundle.generator
+
+$if main{
+    import console
+
+    if(os.args().length < 2){
+        aspl.parser.utils.syntax_error("Usage: compiler <file.aspl> or <directory>")
+    }
+    var main = io.abs(os.args()[1])
+    compile(main)
+    //print("Took: " + (Timings:total / 1000) + " seconds")
+    var string? mainOutFile = null
+    var tempFile = aspl.compiler.utils.out_temp_name(main)
+    var tempFileParts = tempFile.replace("\\", "/").split("/")
+    tempFile = tempFileParts[tempFileParts.length - 1]
+    if(Options:targetOs == "android"){
+        mainOutFile = tempFile
+    }else{
+        var exeFile = aspl.compiler.utils.out_exe_name(main)
+        var exeParts = exeFile.replace("\\", "/").split("/")
+        exeFile = exeParts[exeParts.length - 1]
+        mainOutFile = exeFile
+    }
+    print(console.green("Successfully compiled: " + mainOutFile))
+}
+
+[public]
+function compile(string main) returns CompilationResult{
+    main = io.abs(main) // if the path remaind relative, below usage (e.g. executable naming) would fail
+    var string mainDirectory = ""
+    if(io.exists_file(main)){
+        mainDirectory = io.full_directory_path(main)
+    }elseif(io.exists_directory(main)){
+        mainDirectory = main
+    }else{
+        aspl.parser.utils.fatal_error("Main is neither a valid file nor a valid directory: " + main)
+    }
+    Module:init(new Module(io.directory_name(mainDirectory), mainDirectory))
+    var Backend backend = new AILBytecodeBackend()
+    if(Options:backend == "twail"){
+        backend = new TreeWalkingAILBytecodeBackend()
+    }elseif(Options:backend == "c"){
+        backend = new CBackend()
+    }
+    var result = backend.compile(aspl.parser.parse())
+    var tempFile = aspl.compiler.utils.out_temp_name(main)
+    var tempFileParts = tempFile.replace("\\", "/").split("/")
+    tempFile = tempFileParts[tempFileParts.length - 1]
+    if(Options:targetOs == "android"){
+        var extension = ".ail"
+        if(Options:backend == "c"){
+            extension = ".c"
+        }
+        aspl.parser.utils.notice("Direct Android packaging is not yet supported; a " + extension + " file will be generated instead...")
+        aspl.parser.utils.notice("You can use ASAPP to package the application for Android")
+        io.write_file_bytes(tempFile, result.output)
+    }elseif(Options:backend == "twail"){
+        aspl.parser.utils.notice("Direct packaging with the tree-walking AIL backend is currently not supported; an .ail file will be generated instead...")
+        io.write_file_bytes(tempFile, result.output)
+    }else{
+        if(Options:keepTemporary || Options:backend == "c"){
+            io.write_file_bytes(tempFile, result.output)
+        }
+        var exeFile = aspl.compiler.utils.out_exe_name(main)
+        var exeParts = exeFile.replace("\\", "/").split("/")
+        exeFile = exeParts[exeParts.length - 1]
+        if(Options:backend == "ail"){
+            var templateType = "minimal"
+            if(Options:noCachedTemplate){
+                templateType = "none"
+            }elseif(IncludeUtils:files.length > 0){
+                templateType = "full"
+            }
+            foreach(IncludeUtils:files as file){
+                if(!ModuleUtils:isFilePartOfStdlib(file)){
+                    templateType = "none"
+                    break
+                }
+            }
+            if(templateType == "none"){
+                var mainFile = "#include \"runtime/ailinterpreter/main.c\"\n\n" // TODO: Speed this up using a string builder
+                foreach(IncludeUtils:files as include){
+                    mainFile += "#include \"" + include + "\"\n"
+                }
+                if(IncludeUtils:files.length > 0){
+                    mainFile += "\n"
+                }
+                foreach(ImplementationCallUtils:usedImplementationCalls as call => argc){
+                    var callWrapper = ""
+                    if(Options:targetOs == "windows"){
+                        callWrapper += "__declspec(dllexport) "
+                    }
+                    callWrapper += "ASPL_OBJECT_TYPE aspl_ailinterpreter_implementation_" + call.replace(".", "$") + "(ASPL_AILI_ArgumentList args){\n"
+                    callWrapper += "\treturn ASPL_IMPLEMENT_" + call.replace(".", "$") + "("
+                    repeat(argc, i = 0){
+                        callWrapper += "C_REFERENCE(args.arguments[" + i + "])"
+                        if(i < argc - 1){
+                            callWrapper += ", "
+                        }
+                    }
+                    callWrapper += ");\n"
+                    callWrapper += "}\n\n"
+                    mainFile += callWrapper
+                }
+                io.write_file(exeFile + ".c", mainFile)
+                var ccmd = build_ccmd(exeFile + ".c", exeFile)
+                ccmd += " -DASPL_AILI_BUNDLED"
+                if(ImplementationCallUtils:usedImplementationCalls.length > 0){
+                    // TODO: Figure out a less verbose way than these flags
+                    if(Options:targetOs == "macos"){
+                        ccmd += " -Wl,-export_dynamic"
+                    }elseif(Options:targetOs != "windows"){
+                        ccmd += " -export-dynamic"
+                    }
+                }
+                if(Options:showCCommand){
+                    print("cc: " + ccmd)
+                }
+                var ccmdResult = os.execute(ccmd)
+                print(ccmdResult.output, false)
+                if(ccmdResult.exitCode != 0){
+                    aspl.parser.utils.fatal_error("C compiler returned with exit code " + ccmdResult.exitCode)
+                }
+                if(!Options:keepTemporary){
+                    io.delete_file(exeFile + ".c")
+                }
+            }else{
+                var template = aspl.compiler.utils.choose_executable_template(Options:targetOs, Options:targetArchitecture, templateType, Options:guiApp)
+                if(!io.exists_file(template)) {
+                    aspl.parser.utils.fatal_error("Template file not found: " + template)
+                }
+                io.write_file_bytes(exeFile, io.read_file_bytes(template))
+            }
+            if(!Options:internalDoNotBundle){
+                os.chmod(exeFile, 509)
+                var Bundle bundle = new Bundle(exeFile)
+                bundle.addResource("AIL Code", result.output)
+                bundle.generate()
+            }
+        }elseif(Options:backend == "c"){
+            var ccmd = build_ccmd(tempFile, exeFile)
+            if(Options:showCCommand){
+                print("cc: " + ccmd)
+            }
+            var ccmdResult = os.execute(ccmd)
+            print(ccmdResult.output, false)
+            if(ccmdResult.exitCode != 0){
+                aspl.parser.utils.fatal_error("C compiler returned with exit code " + ccmdResult.exitCode)
+            }
+            if(!Options:keepTemporary){
+                io.delete_file(tempFile)
+            }
+        }
+    }
+    return result
+}
+
+function build_ccmd(string sourceFile, string outputFile) returns string{
+    var ccmd = Options:cCompiler + " " + sourceFile + " -o " + outputFile
+    if(Options:cCompiler == "zig cc"){
+        var architecture = string(Options:targetArchitecture)
+        if(architecture == "amd64"){
+            architecture = "x86_64"
+        }
+        ccmd += " -target " + architecture + "-" + Options:targetOs
+        if(Options:targetOs == "linux" || Options:targetOs == "windows"){
+            ccmd += "-gnu"
+        }
+    }else{
+        // TODO: Cross compilation with other compilers
+    }
+    if(Options:targetOs != "windows"){
+        ccmd += " -lm"
+    }
+    if(!Options:getConditionCompilationSymbols().contains("singlethreaded")){
+        if(Options:targetOs == "windows"){
+            ccmd += " -lkernel32 -lwinmm"
+        }else{
+            // TODO: The following code looks shady; check it
+
+            // zig cc links to pthread automatically when cross-compiling, but complains when the library is manually specified
+            if(Options:cCompiler == "zig cc"){
+                ccmd += " -lpthread"
+            }else{
+                if(Options:targetOs == "linux"){ // TODO: Isn't this required for all Unix-like systems?
+                    ccmd += " -lpthread"
+                }
+            }
+        }
+    }else{
+        ccmd += " -DASPL_NO_MULTITHREADING"
+    }
+    var isObjectiveC = false
+    foreach(LinkUtils:libraries as library){
+        if(library.startsWith("framework:")){
+            ccmd += " -framework " + library.after("framework:".length - 1)
+            isObjectiveC = true
+        }else{
+            ccmd += " -l" + library
+        }
+    }
+    if(isObjectiveC){
+        ccmd += " -ObjC"
+    }
+    ccmd += " -I " + io.full_directory_path(io.get_executable_path())
+    ccmd += " -I " + io.full_directory_path(io.get_executable_path()) + "/thirdparty/libgc/include"
+    if(Options:production){
+        ccmd += " -O3"
+    }else{
+        ccmd += " -g"
+        ccmd += " -DASPL_DEBUG"
+    }
+    if(Options:heapBased){
+        ccmd += " -DASPL_HEAP_BASED"
+    }
+    if(Options:stackSize != null){
+        if(Options:targetOs == "windows" && (Options:cCompiler == "gcc" || Options:cCompiler == "zig cc")){ // TODO: Figure this out for more C compilers and targets
+            ccmd += " -Wl,--stack," + Options:stackSize
+        }
+    }
+    if(Options:useSsl){
+        ccmd += " -DASPL_USE_SSL"
+        ccmd += " -lssl"
+        ccmd += " -L " + io.full_directory_path(io.get_executable_path()) + "/thirdparty/ssl/" + Options:targetOs + "/bin"
+    }
+    if(Options:targetOs == "windows" && Options:guiApp){
+        ccmd += " -Wl,--subsystem,windows"
+    }
+    ccmd += " -Wno-return-type" // TODO: Remove this once return statements are enforced in all control flow paths
+    if(Options:cCompiler == "gcc"){
+        ccmd += " -Wno-stringop-overflow" // TODO: Figure out if these warnings are actually false-positives or not
+    }
+    return ccmd
+}

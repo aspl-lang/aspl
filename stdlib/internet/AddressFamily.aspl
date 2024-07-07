@@ -1,0 +1,7 @@
+[public]
+enum AddressFamily {
+    Unix,
+    Ip4,
+    Ip6,
+    Unspecified
+}

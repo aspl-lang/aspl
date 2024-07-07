@@ -1,0 +1,15 @@
+var string input = input("Enter a string: ")
+
+var int consonants = 0
+var int vowels = 0
+
+foreach(input as c){
+	if(["a", "e", "i", "o", "u"].contains(c)){
+		vowels++
+	}else{
+		consonants++
+	}
+}
+
+print("Consonants: " + consonants)
+print("Vowels: " + vowels)

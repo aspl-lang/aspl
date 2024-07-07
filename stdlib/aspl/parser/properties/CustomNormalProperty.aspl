@@ -1,0 +1,42 @@
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class CustomNormalProperty extends Property{
+
+    [public]
+    property Expression? defaultValue
+    [readpublic]
+    property Location location
+    [readpublic]
+    property Location headerEndLocation
+
+    [public]
+    method construct(Type type, string name, Types types, list<AttributeInstance> attributes, Expression? defaultValue, Location location, Location headerEndLocation){
+        parent(Property).construct(type, name, types, attributes)
+        this.fullyInitialized = defaultValue != null
+        this.defaultValue = defaultValue
+        this.location = location
+        this.headerEndLocation = headerEndLocation
+
+        foreach(attributes as attribute){
+            // Caching these for performance reasons
+            if(attribute.attribute.identifier == "static"){
+                this.isStatic = true
+            }elseif(attribute.attribute.identifier == "threadlocal"){
+                this.isThreadLocal = true
+            }elseif(attribute.attribute.identifier == "public"){
+                this.isPublic = true
+            }elseif(attribute.attribute.identifier == "readpublic"){
+                this.isReadPublic = true
+            }
+        }
+    }
+
+    [public]
+    method withType(Type type) returns Property{
+        return new self(type, this.name, this.types, this.attributes, this.defaultValue, this.location, this.headerEndLocation)
+    }
+
+}

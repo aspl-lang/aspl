@@ -1,0 +1,47 @@
+import aspl.parser
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class Enum {
+    
+    [public]
+    [static]
+    [threadlocal]
+    property map<string, Enum> enums = map<string, Enum>{}
+
+    [readpublic]
+    property Type type
+    [readpublic]
+    property list<AttributeInstance>? attributes
+    [readpublic]
+    property bool isFlags = false
+    [readpublic]
+    property bool isPublic = false
+    [public]
+    property map<string, EnumField>? fields
+    [readpublic]
+    property Module module
+    [public]
+    property Location location
+
+    [public]
+    method construct(Type type, list<AttributeInstance>? attributes, map<string, EnumField>? fields, Module module, Location location) {
+        this.type = type
+        this.attributes = attributes
+        if(attributes != null){
+            foreach(attributes as attribute){
+                // Caching these for performance reasons
+                if(attribute.attribute.identifier == "flags"){
+                    isFlags = true
+                }elseif(attribute.attribute.identifier == "public"){
+                    isPublic = true
+                }
+            }
+        }
+        this.fields = fields
+        this.module = module
+        this.location = location
+    }
+
+}

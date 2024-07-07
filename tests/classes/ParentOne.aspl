@@ -1,0 +1,11 @@
+class ParentOne extends GrandParent {
+
+    [public]
+    property int parentOneProperty = 100
+
+    [public]
+    method parentOneMethod(){
+        print("Hello from parent 1!")
+    }
+
+}

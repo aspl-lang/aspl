@@ -1,0 +1,19 @@
+[public]
+function encode(string s) returns list<byte>{
+    return list<byte>(implement("encoding.utf8.encode", s))
+}
+
+[public]
+function encode_char(string c) returns int{
+    return int(implement("encoding.utf8.encode_char_to_int", c))
+}
+
+[public]
+function decode(list<byte> bytes) returns string{
+    return string(implement("encoding.utf8.decode", bytes))
+}
+
+[public]
+function decode_char(int code) returns string{
+    return string(implement("encoding.utf8.decode_int_to_char", code))
+}

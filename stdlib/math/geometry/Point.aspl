@@ -1,0 +1,15 @@
+[public]
+class Point{
+
+	[readpublic]
+    property float x
+	[readpublic]
+    property float y
+	
+    [public]
+    method construct(float x, float y){
+		this.x = x
+		this.y = y
+	}	
+		
+}

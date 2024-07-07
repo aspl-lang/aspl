@@ -1,0 +1,15 @@
+[public]
+class Size{
+
+	[readpublic]
+    property float width
+	[readpublic]
+    property float height
+	
+	[public]
+	method construct(float width, float height){
+		this.width = width
+		this.height = height
+	}	
+		
+}

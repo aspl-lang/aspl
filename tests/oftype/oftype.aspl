@@ -1,0 +1,5 @@
+assert "Hello" oftype string
+assert !("Hello" oftype int)
+var a = 10
+assert a oftype int
+assert !(a oftype float)

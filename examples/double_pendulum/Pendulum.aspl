@@ -1,0 +1,41 @@
+class Pendulum {
+
+    property float g = 9.81
+    property float dt = 0.05
+
+    [readpublic]
+    property double angle
+    [readpublic]
+    property double angVel = 0
+    property double angAcc = 0
+    property double length
+    property double mass
+
+    [public]
+    method construct(double angle, double length, double mass){
+        this.angle = angle
+        this.length = length
+        this.mass = mass
+    }
+
+    [public]
+    method update1(){
+        this.angAcc = (-g / this.length) * math.sin(this.angle)
+        this.angVel += this.angAcc * dt
+        this.angle += this.angVel * dt
+    }
+
+    [public]
+    method update2(double angle1, double angVel1, double length1, double mass1){
+        var num1 = -g * (2 * this.mass + mass1) * math.sin(this.angle)
+        var num2 = -this.mass * g * math.sin(this.angle - 2 * angle1)
+        var num3 = -2 * math.sin(this.angle - angle1) * this.mass
+        var num4 = angVel1 * angVel1 * length1 + this.angVel * this.angVel * this.length * math.cos(this.angle - angle1)
+        var den = length1 * (2 * this.mass + mass1 - this.mass * math.cos(2 * this.angle - 2 * angle1))
+        
+        this.angAcc = (num1 + num2 + num3 * num4) / den
+        this.angVel += this.angAcc * dt
+        this.angle += this.angVel * dt
+    }
+
+}

@@ -1,0 +1,45 @@
+function quicksort(list<float> l) returns list<float>{
+    if(l.length < 2){
+        return l
+    }
+
+    var float pivot = l[l.length / 2]
+
+    var list<float> left = []
+    var list<float> right = []
+    var list<float> equal = []
+
+    foreach(l as element){
+        if(element < pivot){
+            left.add(element)
+        } elseif(element == pivot){
+            equal.add(element)
+        } else {
+            right.add(element)
+        }
+    }
+
+    left = quicksort(left)
+    right = quicksort(right)
+
+    var list<float> result = []
+    foreach(left as element){
+        result.add(element)
+    }
+    foreach(equal as element){
+        result.add(element)
+    }
+    foreach(right as element){
+        result.add(element)
+    }
+
+    return result
+}
+
+var list<string> l1 = input("Enter a list of numbers you want to sort: ").split(",")
+var list<float> l2 = []
+foreach(l1 as element){
+    l2.add(float(element.trim()))
+}
+print("Unsorted: " + l2)
+print("Sorted: " + quicksort(l2))

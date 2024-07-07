@@ -1,0 +1,6 @@
+var i = 1
+i += 5
+assert i == 6
+var s = "Hello"
+s += " World"
+assert s == "Hello World"

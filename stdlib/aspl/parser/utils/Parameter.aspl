@@ -1,0 +1,30 @@
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class Parameter {
+    
+    [readpublic]
+    property string name
+    [readpublic]
+    property Types types
+    [readpublic]
+    property Expression? defaultValue
+    [public]
+    property bool optional{
+        get{
+            return defaultValue != null
+        }
+    }
+    [readpublic]
+    property Location? location
+
+    [public]
+    method construct(string name, Types types, Expression? defaultValue = null, Location? location = null) {
+        this.name = name
+        this.types = types
+        this.defaultValue = defaultValue
+        this.location = location
+    }
+
+}

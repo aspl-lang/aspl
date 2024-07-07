@@ -1,0 +1,15 @@
+var l = ["Hello", "World"]
+var list<string> x = l
+l.add("!")
+l.add("?")
+assert x.length == 4
+x.removeAt(3)
+assert l.length == 3
+assert x.length == 3
+assert x[0] == l[0]
+assert x[1] == l[1]
+assert x[2] != l[1]
+assert x[2] == "!"
+x[2] = "?"
+assert l[2] == "?"
+print(x)

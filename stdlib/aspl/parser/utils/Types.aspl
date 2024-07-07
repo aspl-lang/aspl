@@ -1,0 +1,124 @@
+import aspl.parser
+
+[public]
+class Types{
+
+    [readpublic]
+    property list<Type> types
+
+    [public]
+    method construct(list<Type> types){
+        this.types = types
+    }
+
+    [public]
+    [static]
+    method existsByName(Parser parser, string identifier) returns bool{
+        foreach(self:getPartsOfMultiType(identifier) as type){
+            if(!Type:existsByName(parser, type)){
+                return false
+            }
+        }
+        return true
+    }
+
+    [public]
+    [static]
+    method fromString(string identifier, Parser? parser = null) returns Types{
+        var list<Type> types = list<Type>[]
+        foreach(self:getPartsOfMultiType(identifier) as type){
+            types.add(Type:fromString(type, parser))
+        }
+        return new Types(types)
+    }
+
+    [public]
+    method toString() returns string{
+        if(types.length == 0){
+            return "void"
+        }
+        var list<string> typeArray = []
+        foreach(types as type){
+            typeArray.add(type.toString())
+        }
+        return typeArray.join("|")
+    }
+
+    [public]
+    method toType() returns Type{
+        return new Type(toString())
+    }
+
+    [public]
+    [static]
+    method getPartsOfMultiType(string type) returns list<string>{
+        var list<string> parts = []
+        var int i = 0
+        var string part = ""
+        while(i < type.length){
+            var int indent = 0 // generic indent
+            while(i < type.length){
+                var c = type[i]
+                if(c == "<"){
+                    indent++
+                }elseif(c == ">"){
+                    indent--
+                }
+                if(indent == 0){
+                    if(c == "|"){
+                        parts.add(part)
+                        part = ""
+                    }else{
+                        part += c
+                    }
+                }else{
+                    part += c
+                }
+                i++
+            }
+        }
+        parts.add(part)
+        return parts
+    }
+
+    [public]
+    method canCast(Type target) returns bool{
+        foreach(types as type){
+            if(type.canCast(target)){
+                return true
+            }
+        }
+        return false
+    }
+
+    [public]
+    method isPointer() returns bool{
+        return types.length == 1 && types[0].isPointer()
+    }
+
+    [public]
+    method getPointer() returns Type{
+        return toType().getPointer()
+    }
+
+    [public]
+    method getReferenced() returns self{
+        var list<Type> types = []
+        foreach(this.types as type){
+            types.add(type.getReferenced())
+        }
+        return new self(types)
+    }
+
+    [public]
+    method withoutType(Type type) returns self{
+        var list<Type> types = []
+        foreach(this.types as t){
+            if(t.identifier != type.identifier){
+                types.add(t)
+            }
+        }
+        return new self(types)
+    }
+
+}

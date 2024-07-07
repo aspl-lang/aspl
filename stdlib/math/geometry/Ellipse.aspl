@@ -1,0 +1,26 @@
+import math
+
+[public]
+class Ellipse{
+
+	[readpublic]
+    property Point position
+	[readpublic]
+    property Size size
+	
+    [public]
+    method construct(Point position, Size size){
+		this.position = position
+		this.size = size
+	}
+
+	[public]
+    method containsPoint(Point point) returns bool{
+		var x = point.x - this.position.x
+		var y = point.y - this.position.y
+		var a = this.size.width / 2
+		var b = this.size.height / 2
+		return (x * x) / (a * a) + (y * y) / (b * b) <= 1
+	}
+
+}

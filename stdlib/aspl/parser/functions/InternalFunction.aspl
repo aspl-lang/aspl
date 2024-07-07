@@ -1,0 +1,14 @@
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class InternalFunction extends Function{
+
+    [public]
+    method construct(string identifier, list<Parameter> parameters, Types returnTypes, list<AttributeInstance> attributes){
+        parent(Function).construct(identifier, parameters, returnTypes, attributes)
+        this.isPublic = true
+        this.fullyInitialized = false
+    }
+
+}

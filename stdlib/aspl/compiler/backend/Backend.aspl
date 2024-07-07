@@ -1,0 +1,12 @@
+import aspl.compiler
+import aspl.parser
+
+[public]
+[abstract]
+class Backend {
+
+    [public]
+    [abstract]
+    method compile(ParserResult result) returns CompilationResult
+
+}

@@ -1,0 +1,9 @@
+[public]
+function radians(double degrees) returns double{
+	return double(degrees / 180 * pi())
+}
+
+[public]
+function degrees(double radians) returns double{
+	return double(radians / pi() * 180)
+}

@@ -1,0 +1,71 @@
+import aspl.parser
+import aspl.parser.utils
+import aspl.compiler.utils
+import io
+import strings
+
+function gather_implementation_calls(){
+    foreach(find_files_recursively("stdlib", "implementations.c") as file){ // TODO: Also allow other file names
+        var lines = io.read_file(file).split("\n")
+        var isImplementationFile = false
+        foreach(lines as line){
+            if(line.contains("ASPL_OBJECT_TYPE ASPL_IMPLEMENT_")){
+                isImplementationFile = true
+                var argc = count_string_occurrences(line, "ASPL_OBJECT_TYPE* ")
+                var implementationCallNameMatch = regex.match_string("ASPL_OBJECT_TYPE ASPL_IMPLEMENT_", line)?!
+                var implementationCallName = line.after(implementationCallNameMatch.end - 1).split("(")[0]
+                ImplementationCallUtils:usedImplementationCalls[implementationCallName] = argc
+            }
+        }
+        if(isImplementationFile){
+            IncludeUtils:include(file)
+        }
+    }
+    // The following libraries are required for the graphics module
+    if(Options:targetOs == "windows"){
+        LinkUtils:libraries.add("gdi32")
+    }elseif(Options:targetOs == "linux"){
+        LinkUtils:libraries.add("X11")
+        LinkUtils:libraries.add("Xcursor")
+        LinkUtils:libraries.add("Xi")
+        LinkUtils:libraries.add("GL")
+        LinkUtils:libraries.add("dl")
+    }elseif(Options:targetOs == "macos"){
+        LinkUtils:libraries.add("framework:Cocoa")
+        LinkUtils:libraries.add("framework:OpenGL")
+    }
+    // The following libraries are required for the internet module
+    if(Options:targetOs == "windows"){
+        LinkUtils:libraries.add("ws2_32")
+    }
+}
+
+function find_files_recursively(string directory, string name) returns list<string>{
+    var allFiles = io.files(directory)
+    var list<string> files = []
+    foreach(allFiles as file){
+        if(file.contains(name)){
+            files.add(io.join_path([directory, file]))
+        }
+    }
+    var dirs = io.directories(directory)
+    foreach(dirs as dir){
+        files.insertElements(files.length, find_files_recursively(io.join_path([directory, dir]), name))
+    }
+    return files
+}
+
+function count_string_occurrences(string haystack, string needle) returns int{
+    var count = 0
+    var index = 0
+    while(index < haystack.length){
+        var remainder = haystack.after(index - 1)
+        if(remainder.startsWith(needle)){
+            count++
+            index += needle.length
+        }else{
+            index++
+        }
+    }
+    return count
+}

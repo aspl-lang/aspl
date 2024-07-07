@@ -1,0 +1,56 @@
+import encoding.utf8
+import io
+import bitconverter
+
+[public]
+class Bundle {
+    
+    property string executable
+    [readpublic]
+    property map<string, any> resources = {}
+
+    [public]
+    method construct(string executable){
+        this.executable = executable
+    }
+
+    [public]
+    method addResource(string name, any resource){
+        resources[name] = resource
+    }
+
+    [public]
+    method generate(){
+        var bytes = io.read_file_bytes(executable)
+        var originalLength = bytes.length
+        foreach(resources as name => resource){
+            var type = 255b
+            var list<byte> resourceBytes = []
+            if(resource oftype list<byte>){
+                type = 0b
+                resourceBytes = list<byte>(resource)
+            }elseif(resource oftype string){
+                type = 2b
+                resourceBytes = encoding.utf8.encode(string(resource))
+            }
+            bytes.add(type)
+            foreach(bitconverter.long_to_bytes(long(name.length)) as b){
+                bytes.add(b)
+            }
+            foreach(encoding.utf8.encode(name) as b){
+                bytes.add(b)
+            }
+            foreach(bitconverter.long_to_bytes(long(resourceBytes.length)) as b){
+                bytes.add(b)
+            }
+            foreach(resourceBytes as b){
+                bytes.add(b)
+            }
+        }
+        foreach(bitconverter.long_to_bytes(long(bytes.length - originalLength)) as b){
+            bytes.add(b)
+        }
+        io.write_file_bytes(executable, bytes)
+    }
+
+}

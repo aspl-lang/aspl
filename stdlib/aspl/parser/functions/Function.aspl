@@ -1,0 +1,86 @@
+import aspl.parser
+import aspl.parser.utils
+import aspl.parser.ast.literals
+import aspl.parser.attributes
+
+[public]
+[abstract]
+class Function {
+
+    [public]
+    [static]
+    [threadlocal]
+    property map<string, Function> functions = map<string, Function>{}
+
+    [readpublic]
+    property string identifier
+    [public]
+    property list<Parameter> parameters
+    [public]
+    property int minimumParameterCount{
+        get{
+            var count = 0
+            foreach(parameters as parameter){
+                if(parameter.optional){
+                    return count
+                }
+                count++
+            }
+            return count
+        }
+    }
+    [public]
+    property Types returnTypes
+    [readpublic]
+    property list<AttributeInstance> attributes
+    [readpublic]
+    property bool isPublic
+    [readpublic]
+    property bool canThrow
+    [readpublic] 
+    property bool fullyInitialized = true
+    [readpublic]
+    property bool used = false
+
+    [public]
+    method construct(string identifier, list<Parameter> parameters, Types returnTypes, list<AttributeInstance> attributes){
+        this.identifier = identifier
+        this.parameters = parameters
+        this.returnTypes = returnTypes
+        this.attributes = attributes
+    }
+
+    [public]
+    [static]
+    method init(){
+        new InternalFunction("print", [new Parameter("value", new Types([Type:fromString("any")])), new Parameter("newline", new Types([Type:fromString("boolean")]), new BooleanLiteral(true, null))], new Types([]), []).register(null)
+        new InternalFunction("panic", [new Parameter("value", new Types([Type:fromString("any")]))], new Types([]), []).register(null)
+        new InternalFunction("key", [new Parameter("prompt", new Types([Type:fromString("string")]), new StringLiteral("", "", null))], new Types([Type:fromString("string")]), []).register(null)
+        new InternalFunction("input", [new Parameter("prompt", new Types([Type:fromString("string")]))], new Types([Type:fromString("string")]), []).register(null)
+        new InternalFunction("exit", [new Parameter("code", new Types([Type:fromString("integer")]))], new Types([]), []).register(null)
+        new InternalFunction("range", [new Parameter("start", new Types([Type:fromString("byte"), Type:fromString("integer"), Type:fromString("long"), Type:fromString("float"), Type:fromString("double")])), new Parameter("end", new Types([Type:fromString("byte"), Type:fromString("integer"), Type:fromString("long"), Type:fromString("float"), Type:fromString("double")]))], new Types([Type:fromString("list<byte>"), Type:fromString("list<integer>"), Type:fromString("list<long>"), Type:fromString("list<float>"), Type:fromString("list<double>")]), []).register(null)
+    }
+
+    [public]
+    method register(Location? location){
+        if(self:functions.containsKey(this.identifier)){
+            if(self:functions[this.identifier].fullyInitialized){
+                aspl.parser.utils.generic_error("Function '" + this.identifier + "' already defined somewhere else", location)
+            }
+        }
+        self:functions[this.identifier] = this
+    }
+
+    [public]
+    [static]
+    method exists(string identifier) returns bool{
+        return self:functions.containsKey(identifier)
+    }
+
+    [public]
+    [static]
+    method get(string identifier) returns Function{
+        return self:functions[identifier]
+    }
+
+}

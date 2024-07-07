@@ -1,0 +1,82 @@
+import console
+
+[public]
+function encode(any data, bool prettyPrint = false) returns string?{
+    if(data == null){
+        return "null"
+    }
+    elseif(data oftype bool){
+        if(bool(data)){
+            return "true"
+        }
+        else{
+            return "false"
+        }
+    }
+    elseif(data oftype byte){
+        return string(data)
+    }
+    elseif(data oftype int){
+        return string(data)
+    }
+    elseif(data oftype long){
+        return string(data)
+    }
+    elseif(data oftype float){
+        if(!string(data).contains(".")){
+            return string(data) + ".0" // to mark it as a float
+        }
+        else{
+            return string(data)
+        }
+    }
+    elseif(data oftype double){
+        if(!string(data).contains(".")){
+            return string(data) + ".0" // to mark it as a double
+        }
+        else{
+            return string(data)
+        }
+    }
+    elseif(data oftype string){
+        return "\"" + data + "\""
+    }
+    elseif(data oftype list<any>){
+        var result = "["
+        foreach(list<any>(data) as element){
+            result += encode(element) + ","
+        }
+        if(list<any>(data).length > 0){
+            result = result.before(result.length - 1)
+        }
+        result += "]"
+        return result
+    }
+    elseif(data oftype map<string, any>){
+        var result = "{"
+        if(prettyPrint){
+            result + "\n"
+        }
+        foreach(map<string, any>(data) as key => value){
+            if(prettyPrint){
+                result += "\t" + encode(key) + " :" + encode(value) + ",\n"
+            }else{
+                result += encode(key) + ":" + encode(value) + ","
+            }
+        }
+        if(map<string, any>(data).length > 0){
+            if(prettyPrint){
+                result = result.before(result.length - 2) // remove the last comma and newline
+            }else{
+                result = result.before(result.length - 1) // remove the last comma
+            }
+            if(prettyPrint){
+                result += "\n"
+            }
+        }
+        result += "}"
+        return result
+    }
+    print(console.red("json.encode: Unsupported type of expression: " + data))
+    exit(1)
+}

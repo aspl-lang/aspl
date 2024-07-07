@@ -1,0 +1,11 @@
+class Parent{
+
+    method getValue() returns int{
+        return 41
+    }
+
+    method getValueWithArg(int x) returns int{
+        return x * 10
+    }
+
+}

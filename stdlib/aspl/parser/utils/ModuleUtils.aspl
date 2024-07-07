@@ -1,0 +1,27 @@
+import io
+import aspl.parser
+
+[public]
+[static]
+class ModuleUtils {
+
+    [public]
+    [static]
+    method getModulePath(string module) returns string{
+        if(Module:mainModule != null && module.toLower() == Module:mainModule.name.toLower()){
+            return Module:mainModule.directory
+        }
+        // TODO: Make the below case insensitive
+        if(io.exists_directory(io.abs(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib", module])))){
+            return io.abs(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib", module]))
+        }
+        return io.abs(io.join_path([io.get_home_directory(), ".aspl_modules", module]))
+    }
+
+    [public]
+    [static]
+    method isFilePartOfStdlib(string file) returns boolean{
+        return file.startsWith(io.abs(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib"]))) // TODO: This might fail with some weird paths?
+    }
+
+}

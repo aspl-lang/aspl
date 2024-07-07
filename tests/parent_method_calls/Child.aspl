@@ -1,0 +1,13 @@
+class Child extends Parent {
+
+    [public]
+    method getValue() returns int{
+        return parent(Parent).getValue() + 1
+    }
+
+    [public]
+    method getValueWithArg(int x) returns int{
+        return parent(Parent).getValueWithArg(x) + 5
+    }
+
+}

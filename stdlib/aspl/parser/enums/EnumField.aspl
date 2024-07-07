@@ -1,0 +1,27 @@
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class EnumField{
+
+    [readpublic]
+    property Enum e
+    [readpublic]
+    property string name
+    [readpublic]
+    property int? value
+    [readpublic]
+    property list<AttributeInstance> attributes
+    [readpublic]
+    property Location location
+
+    [public]
+    method construct(Enum e, string name, int? value, list<AttributeInstance> attributes, Location location){
+        this.e = e
+        this.name = name
+        this.attributes = attributes
+        this.value = value
+        this.location = location
+    }
+
+}

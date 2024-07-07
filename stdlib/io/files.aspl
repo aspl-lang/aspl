@@ -1,0 +1,39 @@
+[public]
+function exists_file(string path) returns bool{
+	return bool(implement("io.file.exists", path))
+}
+
+[public]
+function read_file(string path) returns string{
+	return string(implement("io.file.read_string", path))
+}
+
+[public]
+function read_file_bytes(string path) returns list<byte>{
+	return list<byte>(implement("io.file.read_bytes", path))
+}
+
+[public]
+function write_file(string path, string data){
+	implement("io.file.write_string", path, data)
+}
+
+[public]
+function write_file_bytes(string path, list<byte> data){
+	implement("io.file.write_bytes", path, data)
+}
+
+[public]
+function file_name(string path) returns string{
+    return string(implement("io.path.get_file_name", path))
+}
+
+[public]
+function delete_file(string path){
+	implement("io.file.delete", path)
+}
+
+[public]
+function files(string path) returns list<string>{
+    return list<string>(implement("io.file.list", path))
+}

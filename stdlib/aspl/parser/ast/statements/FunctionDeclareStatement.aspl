@@ -1,0 +1,20 @@
+import aspl.parser.ast
+import aspl.parser.functions
+import aspl.parser.utils
+import aspl.parser.lexer
+
+[public]
+class FunctionDeclareStatement extends Statement{
+
+	[readpublic]
+	property Function func
+	[readpublic]
+	property list<Token> comments
+	
+	method construct(Function func, list<Token> comments, Location? location){
+        parent(Node).construct(location)
+		this.func = func
+		this.comments = comments
+	}
+	
+}

@@ -1,0 +1,46 @@
+class WebSocketServer{
+
+	property any handle
+
+	[public]
+    property callback<WebSocketServerClient> onConnect = callback(WebSocketServerClient client){}
+	[public]
+    property callback<string> onMessage = callback(string message){}
+	[public]
+    property callback<WebSocketServerClient, int, string> onClose = callback(WebSocketServerClient client, int code, string reason){}
+	
+	[public]
+	method construct(AddressFamily addressFamily, int port){
+		var addressFamilyString = ""
+		if(addressFamily == AddressFamily.Unix){
+			addressFamilyString = "unix"
+		}
+		elseif(addressFamily == AddressFamily.Ip4){
+			addressFamilyString = "ip4"
+		}
+		elseif(addressFamily == AddressFamily.Ip6){
+			addressFamilyString = "ip6"
+		}
+		elseif(addressFamily == AddressFamily.Unspecified){
+			addressFamilyString = "unspecified"
+		}
+		handle = implement("internet.web_socket_server.new", addressFamilyString, port)
+		implement("internet.web_socket_server.set_on_connect", handle, callback(any clientHandle){
+			var WebSocketServerClient client = new WebSocketServerClient(clientHandle)
+			onConnect.(client)
+		})
+		implement("internet.web_socket_server.set_on_message", handle, callback(string message){
+			onMessage.(message)
+		})
+		implement("internet.web_socket_server.set_on_close", handle, callback(any clientHandle, int code, string reason){
+			var WebSocketServerClient client = new WebSocketServerClient(clientHandle)
+			onClose.(client, code, reason)
+		})
+	}
+
+	[public]
+    method listen(){
+		implement("internet.web_socket_server.listen", handle)
+	}
+	
+}

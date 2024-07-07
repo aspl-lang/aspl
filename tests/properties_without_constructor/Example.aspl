@@ -1,0 +1,6 @@
+class Example{
+
+    [public]
+    property map<string, string> m = {"Hello" => "World"}
+
+}

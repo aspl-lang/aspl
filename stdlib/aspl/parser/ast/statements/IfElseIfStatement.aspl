@@ -1,0 +1,23 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class IfElseIfStatement extends Statement {
+
+    [readpublic]
+    property Expression condition
+    [readpublic]
+    property list<Node> ifCode
+    [readpublic]
+    property IfStatement|IfElseIfStatement|IfElseStatement elseIf
+
+    [public]
+    method construct(Expression condition, list<Node> ifCode, IfStatement|IfElseIfStatement|IfElseStatement elseIf, Location? location){
+        parent(Node).construct(location)
+        this.condition = condition
+        this.ifCode = ifCode
+        this.elseIf = elseIf
+    }
+    
+}

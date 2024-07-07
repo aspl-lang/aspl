@@ -1,0 +1,8 @@
+[public]
+function abs(double x) returns double{
+    if(x > 0){
+        return x
+    }else{
+        return double(-x)
+    }
+}

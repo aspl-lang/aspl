@@ -1,0 +1,3 @@
+var i = 14
+i %= 3
+assert i == 2

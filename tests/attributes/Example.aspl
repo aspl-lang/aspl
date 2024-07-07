@@ -1,0 +1,16 @@
+[description("An example class")]
+class Example {
+    
+    property int x = [0][0] // test to ensure attributes and list indexing is not mixed up
+
+    [deprecated("Use the other property x")]
+    property list<int> y = [0] // test to ensure attributes and list indexing is not mixed up
+    
+    [public]
+    [deprecated]
+    method hello(){
+        print("Hello from Example!")
+        print(this.y)
+    }
+
+}

@@ -1,0 +1,7 @@
+var string a = "Hello"
+var b = "World!"
+var string|null c = "World"
+c = b
+print(a)
+print(b)
+print(c)

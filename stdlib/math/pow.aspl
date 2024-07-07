@@ -1,0 +1,14 @@
+[public]
+function pow(double base, double exponent) returns double{
+	return double(implement("math.pow", base, exponent))
+}
+
+[public]
+function root(double x, double n) returns double{
+	return pow(x, 1d / n)
+}
+
+[public]
+function sqrt(double x) returns double{
+	return root(x, 2d)
+}

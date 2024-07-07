@@ -1,0 +1,78 @@
+import aspl.parser.utils
+import aspl.parser.ast.literals
+
+[public]
+class Attribute {
+
+    [static]
+    property map<string, Attribute> attributes = map<string, Attribute>{}
+    
+    [readpublic]
+    property string identifier
+    [readpublic]
+    property list<Parameter> parameters
+    [public]
+    property int minimumParameterCount{
+        get{
+            var count = 0
+            foreach(parameters as parameter){
+                if(parameter.optional){
+                    return count
+                }
+                count++
+            }
+            return count
+        }
+    }
+    [readpublic]
+    property AttributeUsage usage
+    [readpublic]
+    property list<string> conflicting
+
+    [public]
+    method construct(string identifier, list<Parameter> parameters, AttributeUsage usage, list<string> conflicting){
+        this.identifier = identifier
+        this.parameters = parameters
+        this.usage = usage
+        this.conflicting = conflicting
+    }
+
+    [public]
+    method canPair(Attribute other) returns bool{
+        return !this.conflicting.contains(other.identifier)
+    }
+
+    [public]
+    [static]
+    method init(){
+        self:register(new Attribute("abstract", [], AttributeUsage.Class || AttributeUsage.Method, ["static"]))
+        self:register(new Attribute("deprecated", [new Parameter("message", new Types([Type:fromString("string")]), new NullLiteral(null))], AttributeUsage.Function || AttributeUsage.Callback || AttributeUsage.Class || AttributeUsage.Property || AttributeUsage.Method || AttributeUsage.Enum || AttributeUsage.EnumField, []))
+        self:register(new Attribute("description", [new Parameter("description", new Types([Type:fromString("string")]))], AttributeUsage.Function || AttributeUsage.Callback || AttributeUsage.Class || AttributeUsage.Property || AttributeUsage.Method || AttributeUsage.Enum || AttributeUsage.EnumField, []))
+        self:register(new Attribute("flags", [], AttributeUsage.Enum, []))
+        self:register(new Attribute("threadlocal", [], AttributeUsage.Property, []))
+        self:register(new Attribute("static", [], AttributeUsage.Class || AttributeUsage.Property || AttributeUsage.Method, ["abstract"]))
+        self:register(new Attribute("public", [], AttributeUsage.Function || AttributeUsage.Class || AttributeUsage.Property || AttributeUsage.Method || AttributeUsage.Enum, ["readpublic"]))
+        self:register(new Attribute("readpublic", [], AttributeUsage.Property, ["public"]))
+        self:register(new Attribute("error", [], AttributeUsage.Class, []))
+        self:register(new Attribute("throws", [], AttributeUsage.Function || AttributeUsage.Callback || AttributeUsage.Method, []))
+    }
+
+    [public]
+    [static]
+    method register(Attribute attribute){
+        self:attributes[attribute.identifier] = attribute
+    }
+
+    [public]
+    [static]
+    method exists(string identifier) returns bool{
+        return self:attributes.containsKey(identifier)
+    }
+
+    [public]
+    [static]
+    method get(string identifier) returns Attribute{
+        return self:attributes[identifier]
+    }
+
+}

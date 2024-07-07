@@ -1,0 +1,35 @@
+import aspl.parser.ast
+import aspl.parser.methods
+import aspl.parser.utils
+
+[public]
+class StaticMethodCallExpression extends Expression{
+
+	[readpublic]
+	property Method m
+	[readpublic]
+	property Type base
+	[readpublic]
+	property list<Expression> arguments
+	[readpublic]
+	property bool newThread
+	
+	method construct(Method m, Type base, list<Expression> arguments, bool newThread, Location? location){
+        parent(Node).construct(location)
+		this.m = m
+		this.base = base
+		this.arguments = arguments
+		this.newThread = newThread
+	}
+	
+	[public]
+	method getType() returns Types{
+		return this.m.returnTypes
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+	
+}

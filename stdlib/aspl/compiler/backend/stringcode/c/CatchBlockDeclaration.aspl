@@ -1,0 +1,20 @@
+import aspl.parser.ast.literals
+import aspl.parser.ast.expressions
+
+class CatchBlockDeclaration {
+
+    [public]
+    [static]
+    property int _id
+    
+    [readpublic]
+    property CatchExpression block
+    [readpublic]
+    property int id
+
+    method construct(CatchExpression block){
+        this.block = block
+        this.id = self:_id++
+    }
+
+}

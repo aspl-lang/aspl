@@ -1,0 +1,39 @@
+class TokenList{
+
+	property list<Token>* tokens
+	
+	[public]
+	method construct(list<Token> tokens){
+		this.tokens = &tokens
+	}
+
+	[public]	
+	method peek(int amount = 0) returns Token{
+		return (*tokens)[amount]
+	}
+	
+	[public]
+	method shift(int amount = 1){
+		repeat(amount, i = 0){
+			(*tokens).removeAt(i)
+		}
+	}
+	
+	[public]
+	method next(int offset = 0) returns Token{
+		var Token token = (*tokens)[offset]
+		shift(offset + 1)
+		return token
+	}
+	
+	[public]
+	method count() returns int{
+		return (*tokens).length
+	}
+
+	[public]
+	method empty() returns bool{
+		return count() == 0
+	}
+
+}

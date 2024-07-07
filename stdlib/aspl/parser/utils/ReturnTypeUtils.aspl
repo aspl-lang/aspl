@@ -1,0 +1,26 @@
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.callbacks
+
+[public]
+[static]
+class ReturnTypeUtils{
+
+    [public]
+    [static]
+    method getReturnTypes(Function|Method|Callback|ReactivePropertyCallback? func) returns Types{
+        var returnTypes = new Types([])
+        if(func oftype Function){
+            returnTypes = Function(func).returnTypes
+        }elseif(func oftype Method){
+            returnTypes = Method(func).returnTypes
+        }elseif(func oftype Callback){
+            returnTypes = Callback(func).returnTypes
+        }elseif(func oftype ReactivePropertyCallback){
+            returnTypes = ReactivePropertyCallback(func).returnTypes
+        }
+        return returnTypes
+    }
+
+}

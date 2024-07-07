@@ -1,0 +1,13 @@
+*
+!*.*
+!*/
+!LICENSE
+*.exe
+*.exe.lib
+*.dll
+*.pdb
+/*.c
+*.def
+*.apk
+*.ail
+*.log

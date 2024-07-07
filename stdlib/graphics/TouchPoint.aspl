@@ -1,0 +1,23 @@
+import math.geometry
+
+[public]
+class TouchPoint {
+    
+    [readpublic]
+    property long identifier
+    [readpublic]
+    property Point position
+    [readpublic]
+    property TouchToolType toolType
+    [readpublic]
+    property bool changed
+
+    [public]
+    method construct(long identifier, Point position, TouchToolType toolType, bool changed){
+        this.identifier = identifier
+        this.position = position
+        this.toolType = toolType
+        this.changed = changed
+    }
+
+}

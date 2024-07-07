@@ -1,0 +1,32 @@
+import aspl.parser
+
+[public]
+class ImportTable {
+    
+    property list<string> namespaces = []
+
+    [public]
+    method importNamespace(string namespace){
+        namespaces.add(namespace)
+    }
+
+    [public]
+    method canResolveAbbreviation(Parser parser, string abbreviation) returns bool{
+        foreach(namespaces as namespace){
+            if(Type:existsByName(null, namespace + "." + abbreviation)){
+                return true
+            }
+        }
+        return false
+    }
+
+    [public]
+    method resolveAbbreviation(Parser parser, string abbreviation) returns Type{
+        foreach(namespaces as namespace){
+            if(Type:existsByName(null, namespace + "." + abbreviation)){
+                return Type:fromString(namespace + "." + abbreviation)
+            }
+        }
+    }
+
+}

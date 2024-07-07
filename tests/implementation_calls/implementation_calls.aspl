@@ -1,0 +1,6 @@
+import time // needed to include the implementations in some backends
+import math
+
+assert implement("time.nanotime_utc") > 0
+print(implement("time.nanotime_utc"))
+assert implement("math.round", 0.6d, 0) == 1d

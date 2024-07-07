@@ -1,0 +1,3 @@
+*.aspl linguist-language=ASPL text=auto eol=lf
+*.v linguist-language=V text=auto eol=lf
+**/v.mod linguist-language=V text=auto eol=lf

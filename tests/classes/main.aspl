@@ -1,0 +1,16 @@
+var example = new Example()
+print(example)
+example.hello()
+example.parentOneMethod()
+example.parentTwoMethod()
+example.grandParentMethod()
+print(example.parentOneProperty)
+print(example.parentTwoProperty)
+print(example.grandParentProperty)
+assert example.getNumber() == 42
+example.number = 10
+assert example.getNumber() == 10
+assert !example.isImportantProperty
+assert example.alwaysTrue
+example.alwaysTrue = false
+assert example.alwaysTrue

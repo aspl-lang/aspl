@@ -1,0 +1,19 @@
+[public]
+class WebSocketServerClient {
+    
+    property any handle
+    [readpublic]
+    property string id
+
+    [public]
+    method construct(any handle){
+        this.handle = handle
+        id = string(implement("internet.web_socket_server_client.get_id", handle))
+    }
+	
+	[public]
+    method send(string content){
+		implement("internet.web_socket_server_client.send", handle, content)
+	}
+
+}

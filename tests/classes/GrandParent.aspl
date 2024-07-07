@@ -1,0 +1,11 @@
+class GrandParent {
+
+    [public]
+    property int grandParentProperty = -100
+
+    [public]
+    method grandParentMethod(){
+        print("Hello from grandparent!")
+    }
+
+}

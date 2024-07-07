@@ -1,0 +1,19 @@
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.callbacks
+
+[public]
+class ScopeBundle {
+
+    [readpublic]   
+    property list<Scope> scopes = []
+    [public]
+    property Function|Method|Callback|ReactivePropertyCallback? func
+
+    [public]
+    method construct(Function|Method|Callback|ReactivePropertyCallback? func){
+        this.func = func
+    }
+
+}

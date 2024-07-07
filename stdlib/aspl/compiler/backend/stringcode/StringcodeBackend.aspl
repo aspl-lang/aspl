@@ -1,0 +1,402 @@
+import aspl.compiler.backend
+import aspl.compiler.utils
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.ast.literals
+import aspl.parser.functions
+import aspl.parser.utils
+
+// This class is the base class for all stringcode-based backends (e.g. the C backend)
+[public]
+[abstract]
+class StringcodeBackend extends Backend {
+
+    [public] // TODO: Remove this public modifier; it is currently needed because of a bug in the compiler
+    property int indentLevel = 0
+
+    [public]
+    method encode(Node node, bool standalone = false) returns string{
+        var indentStub = ""
+        var terminator = ""
+        if(standalone){
+            repeat(indentLevel){
+                indentStub += "\t"
+            }
+            terminator = getLineTerminator()
+        }
+
+        if(node oftype Expression && standalone){
+            return indentStub + encodeDiscard(Expression(node)) + terminator
+        }
+
+        if(node oftype BlockStatement){
+            return indentStub + encodeCodeBlock(BlockStatement(node)) // no line terminator
+        }elseif(node oftype NullLiteral){
+            return indentStub + encodeNullLiteral(NullLiteral(node)) + terminator
+        }elseif(node oftype BooleanLiteral){
+            return indentStub + encodeBooleanLiteral(BooleanLiteral(node)) + terminator
+        }elseif(node oftype ByteLiteral){
+            return indentStub + encodeByteLiteral(ByteLiteral(node)) + terminator
+        }elseif(node oftype IntegerLiteral){
+            return indentStub + encodeIntegerLiteral(IntegerLiteral(node)) + terminator
+        }elseif(node oftype LongLiteral){
+            return indentStub + encodeLongLiteral(LongLiteral(node)) + terminator
+        }elseif(node oftype FloatLiteral){
+            return indentStub + encodeFloatLiteral(FloatLiteral(node)) + terminator
+        }elseif(node oftype DoubleLiteral){
+            return indentStub + encodeDoubleLiteral(DoubleLiteral(node)) + terminator
+        }elseif(node oftype StringLiteral){
+            return indentStub + encodeStringLiteral(StringLiteral(node)) + terminator
+        }elseif(node oftype ListLiteral){
+            return indentStub + encodeListLiteral(ListLiteral(node)) + terminator
+        }elseif(node oftype MapLiteral){
+            return indentStub + encodeMapLiteral(MapLiteral(node)) + terminator
+        }elseif(node oftype StringIndexExpression){
+            return indentStub + encodeStringIndex(StringIndexExpression(node)) + terminator
+        }elseif(node oftype AssertStatement){
+            return indentStub + encodeAssertion(AssertStatement(node)) + terminator
+        }elseif(node oftype CheckEqualsExpression){
+            return indentStub + encodeEqualsCheck(CheckEqualsExpression(node)) + terminator
+        }elseif(node oftype NegateExpression){
+            return indentStub + encodeNegation(NegateExpression(node)) + terminator
+        }elseif(node oftype FunctionCallExpression){
+            return indentStub + encodeFunctionCall(FunctionCallExpression(node)) + terminator
+        }elseif(node oftype VariableDeclareExpression){
+            return indentStub + encodeVariableDeclaration(VariableDeclareExpression(node)) + terminator
+        }elseif(node oftype VariableAccessExpression){
+            return indentStub + encodeVariableAccess(VariableAccessExpression(node)) + terminator
+        }elseif(node oftype VariableAssignExpression){
+            return indentStub + encodeVariableAssignment(VariableAssignExpression(node)) + terminator
+        }elseif(node oftype FunctionDeclareStatement){
+            return indentStub + encodeFunctionDeclaration(FunctionDeclareStatement(node)) // no line terminator
+        }elseif(node oftype AndExpression){
+            return indentStub + encodeAnd(AndExpression(node)) + terminator
+        }elseif(node oftype OrExpression){
+            return indentStub + encodeOr(OrExpression(node)) + terminator
+        }elseif(node oftype XorExpression){
+            return indentStub + encodeXor(XorExpression(node)) + terminator
+        }elseif(node oftype PlusExpression){
+            return indentStub + encodePlus(PlusExpression(node)) + terminator
+        }elseif(node oftype MinusExpression){
+            return indentStub + encodeMinus(MinusExpression(node)) + terminator
+        }elseif(node oftype MultiplyExpression){
+            return indentStub + encodeMultiplication(MultiplyExpression(node)) + terminator
+        }elseif(node oftype DivideExpression){
+            return indentStub + encodeDivision(DivideExpression(node)) + terminator
+        }elseif(node oftype ModuloExpression){
+            return indentStub + encodeModulo(ModuloExpression(node)) + terminator
+        }elseif(node oftype LessThanExpression){
+            return indentStub + encodeLessThan(LessThanExpression(node)) + terminator
+        }elseif(node oftype LessThanOrEqualExpression){
+            return indentStub + encodeLessThanOrEqual(LessThanOrEqualExpression(node)) + terminator
+        }elseif(node oftype GreaterThanExpression){
+            return indentStub + encodeGreaterThan(GreaterThanExpression(node)) + terminator
+        }elseif(node oftype GreaterThanOrEqualExpression){
+            return indentStub + encodeGreaterThanOrEqual(GreaterThanOrEqualExpression(node)) + terminator
+        }elseif(node oftype ReferenceExpression){
+            return indentStub + encodeReference(ReferenceExpression(node)) + terminator
+        }elseif(node oftype DereferenceExpression){
+            return indentStub + encodeDereference(DereferenceExpression(node)) + terminator
+        }elseif(node oftype ReturnStatement){
+            return indentStub + encodeReturnStatement(ReturnStatement(node)) + terminator
+        }elseif(node oftype FallbackStatement){
+            return indentStub + encodeFallbackStatement(FallbackStatement(node)) + terminator
+        }elseif(node oftype EscapeStatement){
+            return indentStub + encodeEscapeStatement(EscapeStatement(node)) + terminator
+        }elseif(node oftype IfStatement){
+            return indentStub + encodeIfStatement(IfStatement(node)) // no line terminator
+        }elseif(node oftype IfElseStatement){
+            return indentStub + encodeIfElseStatement(IfElseStatement(node)) // no line terminator
+        }elseif(node oftype IfElseIfStatement){
+            return indentStub + encodeIfElseIfStatement(IfElseIfStatement(node)) // no line terminator
+        }elseif(node oftype WhileStatement){
+            return indentStub + encodeWhileStatement(WhileStatement(node)) // no line terminator
+        }elseif(node oftype RepeatStatement){
+            return indentStub + encodeRepeatStatement(RepeatStatement(node)) // no line terminator
+        }elseif(node oftype ForeachStatement){
+            return indentStub + encodeForeachStatement(ForeachStatement(node)) // no line terminator
+        }elseif(node oftype NonStaticMethodCallExpression){
+            return indentStub + encodeNonStaticMethodCall(NonStaticMethodCallExpression(node)) + terminator
+        }elseif(node oftype StaticMethodCallExpression){
+            return indentStub + encodeStaticMethodCall(StaticMethodCallExpression(node)) + terminator
+        }elseif(node oftype NonStaticPropertyAccessExpression){
+            return indentStub + encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression(node)) + terminator
+        }elseif(node oftype NonStaticPropertyAssignExpression){
+            return indentStub + encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression(node)) + terminator
+        }elseif(node oftype StaticPropertyAccessExpression){
+            return indentStub + encodeStaticPropertyAccess(StaticPropertyAccessExpression(node)) + terminator
+        }elseif(node oftype StaticPropertyAssignExpression){
+            return indentStub + encodeStaticPropertyAssignment(StaticPropertyAssignExpression(node)) + terminator
+        }elseif(node oftype ListIndexExpression){
+            return indentStub + encodeListIndex(ListIndexExpression(node)) + terminator
+        }elseif(node oftype ListAssignExpression){
+            return indentStub + encodeListAssignment(ListAssignExpression(node)) + terminator
+        }elseif(node oftype MapAccessExpression){
+            return indentStub + encodeMapAccess(MapAccessExpression(node)) + terminator
+        }elseif(node oftype MapAssignExpression){
+            return indentStub + encodeMapAssignment(MapAssignExpression(node)) + terminator
+        }elseif(node oftype ClassDeclareStatement){
+            return indentStub + encodeClassDeclaration(ClassDeclareStatement(node)) // no line terminator
+        }elseif(node oftype ClassInstantiateExpression){
+            return indentStub + encodeClassInstantiation(ClassInstantiateExpression(node)) + terminator
+        }elseif(node oftype MethodDeclareStatement){
+            return indentStub + encodeMethodDeclaration(MethodDeclareStatement(node)) // no line terminator
+        }elseif(node oftype PropertyDeclareStatement){
+            return indentStub + encodePropertyDeclaration(PropertyDeclareStatement(node)) + terminator
+        }elseif(node oftype ThisExpression){
+            return indentStub + encodeThis(ThisExpression(node)) + terminator
+        }elseif(node oftype EnumDeclareStatement){
+            return indentStub + encodeEnumDeclaration(EnumDeclareStatement(node)) // no line terminator
+        }elseif(node oftype EnumFieldAccessExpression){
+            return indentStub + encodeEnumFieldAccess(EnumFieldAccessExpression(node)) + terminator
+        }elseif(node oftype CallbackLiteral){
+            return indentStub + encodeCallbackLiteral(CallbackLiteral(node)) + terminator
+        }elseif(node oftype ImplementationCallExpression){
+            return indentStub + encodeImplementationCall(ImplementationCallExpression(node)) + terminator
+        }elseif(node oftype OfTypeExpression){
+            return indentStub + encodeOfType(OfTypeExpression(node)) + terminator
+        }elseif(node oftype BreakStatement){
+            return indentStub + encodeBreakStatement(BreakStatement(node)) + terminator
+        }elseif(node oftype ContinueStatement){
+            return indentStub + encodeContinueStatement(ContinueStatement(node)) + terminator
+        }elseif(node oftype CastExpression){
+            return indentStub + encodeCast(CastExpression(node)) + terminator
+        }elseif(node oftype ParentExpression){
+            return encode(new ThisExpression(ParentExpression(node).c, ParentExpression(node).location)) // the parent stuff is already handled in the parser
+        }elseif(node oftype ThrowStatement){
+            return indentStub + encodeThrowStatement(ThrowStatement(node)) + terminator
+        }elseif(node oftype CatchExpression){
+            return indentStub + encodeCatchExpression(CatchExpression(node)) + terminator
+        }elseif(node oftype PropagateErrorExpression){
+            return indentStub + encodeErrorPropagation(PropagateErrorExpression(node)) + terminator
+        }elseif(node oftype EmbedFileExpression){
+            return indentStub + encodeFileEmbedding(EmbedFileExpression(node)) + terminator
+        }elseif(node oftype IncludeFileStatement){
+            IncludeUtils:include(IncludeFileStatement(node).file)
+            return indentStub + "// Including file " + IncludeFileStatement(node).file // no line terminator
+        }elseif(node oftype LinkLibraryStatement){
+            LinkUtils:libraries.add(LinkLibraryStatement(node).library)
+            return indentStub + "// Linking library " + LinkLibraryStatement(node).library // no line terminator
+        }else{
+            aspl.parser.utils.fatal_error("Unsupported node type " + node)
+        }
+    }
+
+    [abstract]
+    method getLineTerminator() returns string
+
+    [abstract]
+    method encodeCodeBlock(BlockStatement statement) returns string
+
+    [abstract]
+    method encodeNullLiteral(NullLiteral literal) returns string
+
+    [abstract]
+    method encodeBooleanLiteral(BooleanLiteral literal) returns string
+
+    [abstract]
+    method encodeByteLiteral(ByteLiteral literal) returns string
+    
+    [abstract]
+    method encodeIntegerLiteral(IntegerLiteral literal) returns string
+    
+    [abstract]
+    method encodeLongLiteral(LongLiteral literal) returns string
+
+    [abstract]
+    method encodeFloatLiteral(FloatLiteral literal) returns string
+
+    [abstract]
+    method encodeDoubleLiteral(DoubleLiteral literal) returns string
+
+    [abstract]
+    method encodeStringLiteral(StringLiteral literal) returns string
+
+    [abstract]
+    method encodeListLiteral(ListLiteral literal) returns string
+
+    [abstract]
+    method encodeMapLiteral(MapLiteral literal) returns string
+
+    [abstract]
+    method encodeAssertion(AssertStatement statement) returns string
+
+    [abstract]
+    method encodeEqualsCheck(CheckEqualsExpression expression) returns string
+
+    [abstract]
+    method encodeNegation(NegateExpression expression) returns string
+
+    [abstract]
+    method encodeFunctionCall(FunctionCallExpression expression) returns string
+
+    [abstract]
+    method encodeVariableDeclaration(VariableDeclareExpression expression) returns string
+
+    [abstract]
+    method encodeVariableAccess(VariableAccessExpression expression) returns string
+
+    [abstract]
+    method encodeVariableAssignment(VariableAssignExpression expression) returns string
+    
+    [abstract]
+    method encodeFunctionDeclaration(FunctionDeclareStatement statement) returns string
+
+    [abstract]
+    method encodeAnd(AndExpression expression) returns string
+
+    [abstract]
+    method encodeOr(OrExpression expression) returns string
+
+    [abstract]
+    method encodeXor(XorExpression expression) returns string
+
+    [abstract]
+    method encodePlus(PlusExpression expression) returns string
+
+    [abstract]
+    method encodeMinus(MinusExpression expression) returns string
+
+    [abstract]
+    method encodeMultiplication(MultiplyExpression expression) returns string
+
+    [abstract]
+    method encodeDivision(DivideExpression expression) returns string
+
+    [abstract]
+    method encodeModulo(ModuloExpression expression) returns string
+
+    [abstract]
+    method encodeLessThan(LessThanExpression expression) returns string
+
+    [abstract]
+    method encodeLessThanOrEqual(LessThanOrEqualExpression expression) returns string
+
+    [abstract]
+    method encodeGreaterThan(GreaterThanExpression expression) returns string
+
+    [abstract]
+    method encodeGreaterThanOrEqual(GreaterThanOrEqualExpression expression) returns string
+
+    [abstract]
+    method encodeReference(ReferenceExpression expression) returns string
+
+    [abstract]
+    method encodeDereference(DereferenceExpression expression) returns string
+
+    [abstract]
+    method encodeReturnStatement(ReturnStatement statement) returns string
+
+    [abstract]
+    method encodeFallbackStatement(FallbackStatement statement) returns string
+
+    [abstract]
+    method encodeEscapeStatement(EscapeStatement statement) returns string
+
+    [abstract]
+    method encodeIfStatement(IfStatement statement) returns string
+
+    [abstract]
+    method encodeIfElseStatement(IfElseStatement statement) returns string
+
+    [abstract]
+    method encodeIfElseIfStatement(IfElseIfStatement statement) returns string
+
+    [abstract]
+    method encodeWhileStatement(WhileStatement statement) returns string
+
+    [abstract]
+    method encodeRepeatStatement(RepeatStatement statement) returns string
+
+    [abstract]
+    method encodeForeachStatement(ForeachStatement statement) returns string
+
+    [abstract]
+    method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns string
+
+    [abstract]
+    method encodeStaticMethodCall(StaticMethodCallExpression expression) returns string
+
+    [abstract]
+    method encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression expression) returns string
+
+    [abstract]
+    method encodeStaticPropertyAccess(StaticPropertyAccessExpression expression) returns string
+
+    [abstract]
+    method encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression expression) returns string
+
+    [abstract]
+    method encodeStaticPropertyAssignment(StaticPropertyAssignExpression expression) returns string
+
+    [abstract]
+    method encodeListIndex(ListIndexExpression expression) returns string
+
+    [abstract]
+    method encodeListAssignment(ListAssignExpression expression) returns string
+
+    [abstract]
+    method encodeStringIndex(StringIndexExpression expression) returns string
+
+    [abstract]
+    method encodeMapAccess(MapAccessExpression expression) returns string
+
+    [abstract]
+    method encodeMapAssignment(MapAssignExpression expression) returns string
+
+    [abstract]
+    method encodeClassDeclaration(ClassDeclareStatement statement) returns string
+
+    [abstract]
+    method encodeClassInstantiation(ClassInstantiateExpression expression) returns string
+
+    [abstract]
+    method encodeMethodDeclaration(MethodDeclareStatement statement) returns string
+
+    [abstract]
+    method encodePropertyDeclaration(PropertyDeclareStatement statement) returns string
+
+    [abstract]
+    method encodeThis(ThisExpression expression) returns string
+
+    [abstract]
+    method encodeEnumDeclaration(EnumDeclareStatement statement) returns string
+
+    [abstract]
+    method encodeEnumFieldAccess(EnumFieldAccessExpression expression) returns string
+
+    [abstract]
+    method encodeCallbackLiteral(CallbackLiteral literal) returns string
+
+    [abstract]
+    method encodeImplementationCall(ImplementationCallExpression expression) returns string
+
+    [abstract]
+    method encodeOfType(OfTypeExpression expression) returns string
+
+    [abstract]
+    method encodeBreakStatement(BreakStatement statement) returns string
+
+    [abstract]
+    method encodeContinueStatement(ContinueStatement statement) returns string
+
+    [abstract]
+    method encodeCast(CastExpression expression) returns string
+
+    [abstract]
+    method encodeThrowStatement(ThrowStatement statement) returns string
+
+    [abstract]
+    method encodeCatchExpression(CatchExpression expression) returns string
+
+    [abstract]
+    method encodeErrorPropagation(PropagateErrorExpression expression) returns string
+
+    [abstract]
+    method encodeFileEmbedding(EmbedFileExpression expression) returns string
+
+    [abstract]
+    method encodeDiscard(Expression expression) returns string
+
+}

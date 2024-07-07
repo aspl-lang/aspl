@@ -1,0 +1,165 @@
+import math.geometry
+
+[public]
+class Canvas extends ICanvas{
+
+	property any handle = null
+	[readpublic]
+	property int width
+	[readpublic]
+	property int height
+	
+	[public]
+	method construct(int width, int height, any handle = null){
+		this.width = width
+		this.height = height
+		if(handle == null){
+			this.handle = implement("graphics.canvas.new_from_size", width, height)
+		}else{
+			this.handle = handle
+		}
+	}
+
+	// getInternalHandle returns the internal handle of the canvas
+	// this is used by other classes in the graphics module and should not be called from outside
+	[public]
+	method getInternalHandle() returns any{
+		return this.handle
+	}
+	
+	[public]
+	method getPixel(int x, int y) returns Color{
+		var color = list<byte>(implement("graphics.canvas.get_pixel", handle, x, y))
+		return new Color(color[0], color[1], color[2], color[3])
+	}
+	
+	[public]
+	method setPixel(int x, int y, Color color, bool blend = true){
+		implement("graphics.canvas.set_pixel", this.handle, x, y, color.a, color.r, color.g, color.b, blend)
+	}
+	
+	[public]
+	method fill(Color color, bool blend = true){
+		implement("graphics.canvas.fill", this.handle, color.a, color.r, color.g, color.b, blend)
+	}
+
+	[public]
+	method drawImage(Canvas image, int x, int y, bool blend = true){
+		implement("graphics.canvas.draw_image", this.handle, image.handle, x, y, blend)
+	}
+
+	[public]
+	method drawLine(int x1, int y1, int x2, int y2, Color color, int thickness = 1, bool blend = true, bool antialias = true){
+		implement("graphics.canvas.draw_line", this.handle, x1, y1, x2, y2, color.a, color.r, color.g, color.b, thickness, blend, antialias)
+	}
+
+	[public]
+	method drawRectangle(Rectangle rectangle, Color color, bool blend = true){
+		implement("graphics.canvas.draw_rectangle", this.handle, int(Point(rectangle.position).x), int(Point(rectangle.position).y), int(Point(rectangle.position).x) + int(Size(rectangle.size).width), int(Point(rectangle.position).y) + int(Size(rectangle.size).height), color.a, color.r, color.g, color.b, blend)
+	}
+
+	[public]
+	method fillRectangle(Rectangle rectangle, Color color, bool blend = true){
+		implement("graphics.canvas.fill_rectangle", this.handle, int(Point(rectangle.position).x), int(Point(rectangle.position).y), int(Point(rectangle.position).x) + int(Size(rectangle.size).width), int(Point(rectangle.position).y) + int(Size(rectangle.size).height), color.a, color.r, color.g, color.b, blend)
+	}
+	[public]
+	method drawCircle(Ellipse circle, Color color, bool blend = true){
+		implement("graphics.canvas.draw_circle", this.handle, int(Point(circle.position).x), int(Point(circle.position).y), int(Size(circle.size).width), color.a, color.r, color.g, color.b, blend)
+	}
+	
+	[public]
+	method fillCircle(Ellipse circle, Color color, bool blend = true){
+		implement("graphics.canvas.fill_circle", this.handle, int(Point(circle.position).x), int(Point(circle.position).y), int(Size(circle.size).width), color.a, color.r, color.g, color.b, blend)
+	}
+
+	[public]
+	method drawText(string text, int x, int y, Font font, Color color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left, VerticalAlignment verticalAlignment = VerticalAlignment.Bottom, bool blend = true){
+		implement("graphics.canvas.draw_text", this.handle, text, x, y, font.path, font.size, color.a, color.r, color.g, color.b, int(horizontalAlignment), int(verticalAlignment), blend)
+	}
+
+	[public]
+	method replaceColor(Color from, Color to, bool blend = true){
+		implement("graphics.canvas.replace_color", this.handle, from.a, from.r, from.g, from.b, to.a, to.r, to.g, to.b, blend)
+	}
+
+	// replaceColorIgnoreAlpha works like replaceColor, but checks only the R, G and B components and leaves the alpha value unchanged
+	[public]
+	method replaceColorIgnoreAlpha(Color from, Color to){
+		implement("graphics.canvas.replace_color_ignore_alpha", this.handle, from.r, from.g, from.b, to.r, to.g, to.b)
+	}
+
+	[public]
+	method blur(int radius){
+		implement("graphics.canvas.blur", this.handle, radius)
+	}
+
+	[public]
+	method resize(int width, int height){
+		if(width == this.width && height == this.height){
+			return
+		}
+		implement("graphics.canvas.resize_with_size", this.handle, width, height)
+		this.width = width
+		this.height = height
+	}
+
+	[public]
+	method resizeScale(float scale){
+		if(scale == 1f){
+			return
+		}
+		implement("graphics.canvas.resize_with_scale", this.handle, scale)
+		this.width = int(this.width * scale)
+		this.height = int(this.height * scale)
+	}
+
+	[public]
+	method extendTo(int width, int height){
+		if(width <= this.width && height <= this.height){
+			return
+		}
+		implement("graphics.canvas.extend_to", this.handle, width, height)
+		this.width = width
+		this.height = height
+	}
+
+	[public]
+	method getSubImage(int x, int y, int width, int height) returns Canvas{
+		return new Canvas(width, height, implement("graphics.canvas.get_sub_image", this.handle, x, y, width, height))
+	}
+
+	[public]
+	method copy() returns Canvas{
+		return new Canvas(width, height, implement("graphics.canvas.copy", this.handle))
+	}
+
+	[public]
+	method save(string path){
+		implement("graphics.canvas.save_to_file", this.handle, path)
+	}
+
+	[public]
+	[static]
+	method fromFile(string file) returns Canvas{
+		var handle = implement("graphics.canvas.load_from_file", file)
+		return new Canvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), handle)
+	}
+
+	[public]
+	[static]
+	method fromFileData(list<byte> bytes) returns Canvas{
+		var handle = implement("graphics.canvas.load_from_file_data", bytes)
+		return new Canvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), handle)
+	}
+	
+}
+
+[public]
+function get_image_width_from_file(string file) returns int{
+	return int(implement("graphics.canvas.get_width_from_file", file))
+}
+
+[public]
+function get_image_height_from_file(string file) returns int{
+	return int(implement("graphics.canvas.get_height_from_file", file))
+}

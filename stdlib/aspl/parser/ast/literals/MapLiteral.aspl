@@ -1,0 +1,48 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class MapLiteral extends Literal{
+
+	[readpublic]
+	property Types keyType
+	[readpublic]
+	property Types valueType
+	[readpublic]
+	property list<Pair> value
+
+	method construct(Types keyType, Types valueType, list<Pair> value, Location? location){
+        parent(Node).construct(location)
+		this.keyType = keyType
+		this.valueType = valueType
+		this.value = value
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("map<" + this.keyType.toString() + ", " + this.valueType.toString() + ">")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		foreach(this.value as pair){
+			if(!pair.k.isConstant()){
+				return false
+			}
+			if(!pair.v.isConstant()){
+				return false
+			}
+		}
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		var map<any, any> m = map<any, any>{}
+		foreach(this.value as pair){
+			m[pair.k.getConstantValue()] = pair.v.getConstantValue()
+		}
+		return m
+	}
+
+}

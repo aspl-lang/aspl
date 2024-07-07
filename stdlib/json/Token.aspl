@@ -1,0 +1,17 @@
+class Token {
+    
+    [readpublic]
+    property TokenType type
+    [readpublic]
+    property string value
+    [readpublic]
+    property int length
+
+    [public]
+    method construct(TokenType type, string value, int length) {
+        this.type = type
+        this.value = value
+        this.length = length
+    }
+
+}

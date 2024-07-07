@@ -1,0 +1,30 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class IntegerLiteral extends Literal{
+
+	[readpublic]
+	property int value
+
+	method construct(int value, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("integer")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		return value
+	}
+
+}

@@ -1,0 +1,30 @@
+import io
+import os
+import aspl.parser.utils
+
+[public]
+function choose_executable_template(string os, Architecture arch, string internalTemplateType, bool gui) returns string{
+    var baseTemplatePath = io.join_path([io.full_directory_path(io.get_executable_path()), "templates"])
+    var archName = architecture_to_folder_name(arch)
+    if(os == "windows"){
+        if(internalTemplateType == "minimal"){
+            return io.join_path([baseTemplatePath, "windows", archName, internalTemplateType, "Template.exe"])
+        }elseif(gui){
+            return io.join_path([baseTemplatePath, "windows", archName, internalTemplateType, "gui", "Template.exe"])
+        }else{
+            return io.join_path([baseTemplatePath, "windows", archName, internalTemplateType, "cli", "Template.exe"])
+        }
+    }else{
+        return io.join_path([baseTemplatePath, os, archName, internalTemplateType, "Template"])
+    }
+}
+
+function architecture_to_folder_name(Architecture arch) returns string{
+    if(arch == Architecture.amd64){
+        return "x86_64"
+    }elseif(arch == Architecture.i386){
+        return "x86_32"
+    }else{
+        return string(arch)
+    }
+}

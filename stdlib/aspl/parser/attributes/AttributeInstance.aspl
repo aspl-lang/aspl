@@ -1,0 +1,25 @@
+import aspl.parser.utils
+import aspl.parser.ast.expressions
+import aspl.parser.lexer
+
+[public]
+class AttributeInstance {
+
+    [readpublic]
+    property Attribute attribute
+    [readpublic]
+    property list<Expression> arguments
+    [readpublic]
+    property Location? location
+    [readpublic]
+    property list<Token> comments
+
+    [public]
+    method construct(Attribute attribute, list<Expression> arguments, Location? location, list<Token> comments){
+        this.attribute = attribute
+        this.arguments = arguments
+        this.location = location
+        this.comments = comments
+    }
+
+}

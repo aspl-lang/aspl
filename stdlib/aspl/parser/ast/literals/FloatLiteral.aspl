@@ -1,0 +1,30 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class FloatLiteral extends Literal{
+
+	[readpublic]
+	property float value
+
+	method construct(float value, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("float")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		return value
+	}
+
+}

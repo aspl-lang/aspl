@@ -1,0 +1,23 @@
+class Child extends Parent {
+    
+    [public]
+    method one(){
+        print("child: one")
+    }
+
+    [public]
+    method three(){
+        print("child: three")
+    }
+
+    [public]
+    method four(){
+        print("child: four")
+    }
+
+    [public]
+    method five(){
+        print("child: five")
+    }
+
+}

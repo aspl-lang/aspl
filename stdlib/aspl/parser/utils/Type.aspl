@@ -1,0 +1,444 @@
+import aspl.parser
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.classes
+import aspl.parser.enums
+import aspl.parser.ast.literals
+
+[public]
+class Type{
+
+    [static]
+    property list<string> primitives = ["any", "null", "boolean", "byte", "integer", "long", "float", "double", "string", "list", "map", "callback"]
+
+    [static]
+    [threadlocal]
+    property list<string> genericsHandled = []
+
+    [readpublic]
+    property string identifier
+
+    [public]
+    method construct(string identifier){
+        this.identifier = identifier
+    }
+
+    [public]
+    [static]
+    method existsByName(Parser? parser, string identifier) returns bool{
+        if(identifier.endsWith("*")){
+            return self:existsByName(parser, identifier.before(identifier.length - 1))
+        }elseif(identifier == "self" && parser != null && Parser(parser).currentClass != null){
+            return true
+        }
+        var handledIdentifier = IdentifierUtils:handleTypeIdentifier(identifier, parser)
+        if(handledIdentifier.contains("<")){
+            var genericTypeIdentifier = handledIdentifier.split("<")[0]
+            if(!self:existsByName(parser, genericTypeIdentifier)){
+                return false
+            }
+            var list<string> types = self:getGenericTypesIdentifiers(handledIdentifier)
+            foreach(types as type){
+                if(genericTypeIdentifier == "callback" && type.startsWith("returns ")){
+                    type = type.after("returns ".length - 1)
+                }
+                foreach(Types:getPartsOfMultiType(type) as t){
+                    if(!self:existsByName(parser, t)){
+                        return false
+                    }
+                }
+            }
+            return true
+        }elseif(self:primitives.contains(handledIdentifier)){
+            return true
+        }elseif(Class:classes.containsKey(handledIdentifier)){
+            return true
+        }elseif(Enum:enums.containsKey(handledIdentifier)){
+            return true
+        }else{
+            return false
+        }
+    }
+
+    [public]
+    [static]
+    method fromString(string identifier, Parser? parser = null, Location? location = null) returns Type{
+        if(identifier.endsWith("*")){
+            return self:fromString(identifier.before(identifier.length - 1), parser).getPointer()
+        }
+        if(identifier == "self"){
+            if(parser != null && Parser(parser).currentClass != null){
+                return Class(Parser(parser).currentClass).type
+            }else{
+                aspl.parser.utils.generic_error("Cannot use the 'self' keyword outside of a class")
+            }
+        }
+        var Type newType = new self(IdentifierUtils:handleTypeIdentifier(identifier, parser))
+        if(parser != null && parser?!.currentParseMode == ParseMode.Normal){
+            if(Class:classes.containsKey(newType.toString()) && !Class:classes[newType.toString()].isPublic && parser?!.module.id != Class:classes[newType.toString()].module.id){
+                aspl.parser.utils.warning("Cannot use the private class '" + newType.toString() + "' here", Location(location))
+            }elseif(Enum:enums.containsKey(newType.toString()) && !Enum:enums[newType.toString()].isPublic && parser?!.module.id != Enum:enums[newType.toString()].module.id){
+                aspl.parser.utils.warning("Cannot use the private enum '" + newType.toString() + "' here", Location(location))
+            }
+        }
+        if(newType.toString().contains("<")){
+            if(!self:genericsHandled.contains(newType.toString())){
+                var genericTypeIdentifier = Type:getGenericTypeIdentifier(newType.toString())
+                var genericType = Type:fromString(genericTypeIdentifier, parser)
+                var list<string> types = Type:getGenericTypesIdentifiers(newType.toString())
+                foreach(types as type){
+                    type = type.trim()
+                    if(parser != null){
+                        foreach(Types:getPartsOfMultiType(type) as t){
+                            if(!self:existsByName(parser, t)){
+                                if(!(genericTypeIdentifier == "callback" && t.startsWith("returns "))){
+                                    aspl.parser.utils.fatal_error("Type '" + t + "' is not a valid type identifier")
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach(Method:getAllFor(genericType) as m){
+                    var newMethod = m.withType(newType)
+                    if(!Method:exists(newType, newMethod.name)){
+                        var list<Parameter> parameters = []
+                        if(genericTypeIdentifier == "callback" && newMethod.name == "invoke"){
+                            var Types? returnTypes = null
+                            var int i = 0
+                            foreach(types as type){
+                                if(type.startsWith("returns ")){
+                                    if(returnTypes != null){
+                                        aspl.parser.utils.generic_error("Tried to define more than one return type for a callback")
+                                    }
+                                    returnTypes = Types:fromString(type.after("returns ".length - 1), parser)
+                                }else{
+                                    parameters.add(new Parameter("arg" + i, new Types([Type:fromString(type, parser)]))) // TODO: Optional args; TODO: use the real parameter names
+                                }
+                                i++
+                            }
+                            if(returnTypes == null){
+                                newMethod.returnTypes = new Types([])
+                            }else{
+                                newMethod.returnTypes = Types(returnTypes)
+                            }
+                        }else{
+                            foreach(newMethod.parameters as parameter){
+                                var list<Type> paramTypes = []
+                                foreach(parameter.types.types as type){
+                                    if(GenericsUtils:typePlaceholders.containsKey(genericType.toString())){
+                                        var int i = 0
+                                        foreach(GenericsUtils:typePlaceholders[genericType.toString()] as placeholder){
+                                            if(self:containsPlaceHolder(type, placeholder)){
+                                                paramTypes.add(self:replacePlaceHolder(type, placeholder, Type:fromString(types[i], parser)))
+                                                continue
+                                            }
+                                            i++
+                                        }
+                                    }
+                                    paramTypes.add(type)
+                                }
+                                parameters.add(new Parameter(parameter.name, new Types(paramTypes), parameter.defaultValue))
+                            }
+                            var list<Type> returnTypes = []
+                            foreach(newMethod.returnTypes.types as type){
+                                if(GenericsUtils:typePlaceholders.containsKey(genericType.toString())){
+                                    var int i = 0
+                                    foreach(GenericsUtils:typePlaceholders[genericType.toString()] as placeholder){
+                                        if(self:containsPlaceHolder(type, placeholder)){
+                                            returnTypes.add(self:replacePlaceHolder(type, placeholder, Type:fromString(types[i], parser)))
+                                            continue 2
+                                        }
+                                        i++
+                                    }
+                                }
+                                returnTypes.add(type)
+                            }
+                            newMethod.returnTypes = new Types(returnTypes)
+                        }
+                        newMethod.parameters = parameters
+                        newMethod.register(null)
+                    }
+                }
+                foreach(Property:getAllFor(genericType) as p){
+                    var newProperty = p.withType(newType)
+                    if(!Property:exists(newType, newProperty.name)){
+                        var list<Type> propertyTypes = []
+                        foreach(p.types.types as type){
+                            if(GenericsUtils:typePlaceholders.containsKey(genericType.toString())){
+                                var int i = 0
+                                foreach(GenericsUtils:typePlaceholders[genericType.toString()] as placeholder){
+                                    if(self:containsPlaceHolder(type, placeholder)){
+                                        propertyTypes.add(self:replacePlaceHolder(type, placeholder, Type:fromString(types[i], parser)))
+                                        continue
+                                    }
+                                    i++
+                                }
+                            }
+                            propertyTypes.add(type)
+                        }
+                        newProperty.types = new Types(propertyTypes)
+                        newProperty.register(null)
+                    }
+                }
+                // TODO: This does not work since generic methods & properties may have changed since this type has been handled, so it needs to be handled again: self:genericsHandled.add(newType.toString())
+            }
+        }
+        return newType
+    }
+
+    [public]
+    [static]
+    method matches(Types expected, Types got, bool ignoreGenerics = false) returns bool{
+        if(got.types.length == 0){
+            return false // void is never a match
+        }
+        foreach(got.types as t){
+            foreach(expected.types as e){
+                if(t.toString() == e.toString() || e.toString() == "any"){
+                    return true
+                }elseif(ignoreGenerics && t.toString().contains("<")){
+                    var string type = t.toString().split("<")[0]
+                    if(e.toString() == type){
+                        return true
+                    }
+                    if(Class:classes.containsKey(type) && Class:classes.containsKey(e.toString())){
+                        if(ClassUtils:isParent(Class:classes[type], Class:classes[e.toString()])){
+                            return true
+                        }
+                    }
+                }
+                if(Class:classes.containsKey(t.toString()) && Class:classes.containsKey(e.toString())){
+                    if(ClassUtils:isParent(Class:classes[t.toString()], Class:classes[e.toString()])){
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+        return true
+    }
+
+    [public]
+    [static]
+    method getGenericTypeIdentifier(string identifier) returns string{
+        return identifier.split("<")[0]
+    }
+
+    [public]
+    [static]
+    method getGenericTypesIdentifiers(string identifier) returns list<string>{
+        if(!identifier.contains("<")){
+            return []
+        }
+        var list<string> genericTypes = list<string>[]
+        var string currentType = ""
+        var int depth = 0
+        foreach(identifier.split("<", 2)[1].reverse().split(">", 2)[1].reverse() as c){
+            if(c == ","){
+                if(depth == 0){
+                    genericTypes.add(currentType.trim())
+                    currentType = ""
+                }else{
+                    currentType += c
+                }
+            }elseif(c == "<"){
+                depth++
+                currentType += c
+            }elseif(c == ">"){
+                depth--
+                currentType += c
+            }else{
+                currentType += c
+            }
+        }
+        if(currentType.length > 0){
+            genericTypes.add(currentType.trim())
+        }
+        return genericTypes
+    }
+
+    [public]
+    [static]
+    method getGenericTypes(string identifier) returns list<Types>{
+        var list<Types> genericTypes = []
+        var identifiers = self:getGenericTypesIdentifiers(identifier)
+        foreach(identifiers as type){
+            genericTypes.add(Types:fromString(type))
+        }
+        return genericTypes
+    }
+
+    [public]
+    method toString() returns string{
+        return this.identifier
+    }
+
+    [public]
+    method getDefaultValue(Location location) returns Literal?{
+        if(toString() == "null"){
+            return new NullLiteral(location)
+        }elseif(toString() == "boolean"){
+            return new BooleanLiteral(false, location)
+        }elseif(toString() == "byte"){
+            return new ByteLiteral(0b, location)
+        }elseif(toString() == "integer"){
+            return new IntegerLiteral(0, location)
+        }elseif(toString() == "long"){
+            return new LongLiteral(0, location)
+        }elseif(toString() == "float"){
+            return new FloatLiteral(0f, location)
+        }elseif(toString() == "double"){
+            return new DoubleLiteral(0d, location)
+        }elseif(toString() == "string"){
+            return new StringLiteral("", "", location)
+        }elseif(self:getGenericTypeIdentifier(toString()) == "list"){
+            if(self:getGenericTypes(toString()).length < 1){
+                return new ListLiteral(new Types([]), [], location) // list<void> (due to a previous non-fatal error)
+            }
+            return new ListLiteral(self:getGenericTypes(toString())[0], [], location)
+        }elseif(self:getGenericTypeIdentifier(toString()) == "map"){
+            if(self:getGenericTypes(toString()).length < 2){
+                return new MapLiteral(new Types([]), new Types([]), [], location) // map<void> (due to a previous non-fatal error)
+            }
+            return new MapLiteral(self:getGenericTypes(toString())[0], self:getGenericTypes(toString())[1], [], location)
+        }elseif(Class:classes.containsKey(toString())){
+            return null
+        }elseif(Enum:enums.containsKey(toString())){
+            return null
+        }else{
+            aspl.parser.utils.type_error("Type '" + toString() + "' has no default value", location)
+            return null
+        }
+    }
+
+    [public]
+    method canCast(Type target) returns bool{
+        if(toString() == target.toString()){
+            return true
+        }elseif(toString() == "any" || target.toString() == "any"){
+            return true
+        }elseif(target.toString() == "string"){
+            return true
+        }elseif(target.toString() == "boolean"){
+            if(toString() == "byte" || toString() == "integer" || toString() == "long" || toString() == "float" || toString() == "double"){
+                return true
+            }
+        }elseif(target.toString() == "byte"){
+            if(toString() == "integer" || toString() == "long" || toString() == "float" || toString() == "double" || toString() == "string"){
+                return true
+            }
+        }elseif(target.toString() == "integer"){
+            if(toString() == "byte" || toString() == "long" || toString() == "float" || toString() == "double" || toString() == "string"){
+                return true
+            }
+        }elseif(target.toString() == "long"){
+            if(toString() == "byte" || toString() == "integer" || toString() == "float" || toString() == "double" || toString() == "string"){
+                return true
+            }
+        }elseif(target.toString() == "float"){
+            if(toString() == "byte" || toString() == "integer" || toString() == "long" || toString() == "double" || toString() == "string"){
+                return true
+            }
+        }elseif(target.toString() == "double"){
+            if(toString() == "byte" || toString() == "integer" || toString() == "long" || toString() == "float" || toString() == "string"){
+                return true
+            }
+        }elseif(Class:classes.containsKey(toString()) && Class:classes.containsKey(target.toString())){
+            return ClassUtils:isParent(Class:classes[toString()], Class:classes[target.toString()]) || ClassUtils:isParent(Class:classes[target.toString()], Class:classes[toString()])
+        }
+        // below line has no elseif because "integer" was handled above
+        if((Enum:enums.containsKey(toString()) && target.toString() == "integer") || (Enum:enums.containsKey(target.toString()) && toString() == "integer")){
+            return true
+        }
+        // TODO: Check if cast method exists
+        return false
+    }
+
+    [public]
+    method isPointer() returns bool{
+        return identifier.endsWith("*")
+    }
+
+    [public]
+    method getPointer() returns self{
+        return new self(identifier + "*")
+    }
+
+    [public]
+    method getReferenced() returns self{
+        return new self(identifier.before(identifier.length - 1))
+    }
+
+    [public]
+    method isPrimitive() returns bool{
+        return self:primitives.contains(identifier) || (identifier.contains("<") && self:primitives.contains(self:getGenericTypeIdentifier(identifier)))
+    }
+
+    [public]
+    [static]
+    method containsPlaceHolder(Type type, string placeholder) returns bool{
+        if(type.toString() == placeholder){
+            return true
+        }elseif(type.isPointer()){
+            return self:containsPlaceHolder(type.getReferenced(), placeholder)
+        }elseif(type.toString().contains("<")){
+            var genericTypes = self:getGenericTypes(type.toString())
+            foreach(genericTypes as genericType){
+                foreach(genericType.types as t){
+                    if(self:containsPlaceHolder(t, placeholder)){
+                        return true
+                    }
+                }
+            }
+            return false
+        }else{
+            return false
+        }
+    }
+
+    [public]
+    [static]
+    method replacePlaceHolder(Type type, string placeholder, Type replacement) returns Type{
+        if(type.toString() == placeholder){
+            return replacement
+        }elseif(type.isPointer()){
+            return self:replacePlaceHolder(type.getReferenced(), placeholder, replacement).getPointer()
+        }elseif(type.toString().contains("<")){
+            var genericTypes = self:getGenericTypes(type.toString())
+            var list<string> newGenericTypes = []
+            foreach(genericTypes as genericType){
+                var list<string> newGenericType = []
+                foreach(genericType.types as t){
+                    newGenericType.add(self:replacePlaceHolder(t, placeholder, replacement).toString())
+                }
+                newGenericTypes.add(newGenericType.join("|"))
+            }
+            return new self(self:getGenericTypeIdentifier(type.toString()) + "<" + newGenericTypes.join(", ") + ">")
+        }else{
+            return type
+        }
+    }
+
+    [public]
+    [static]
+    method isPublic(Type type) returns bool{
+        if(Class:classes.containsKey(type.identifier)){
+            return Class:classes[type.identifier].isPublic
+        }elseif(Enum:enums.containsKey(type.identifier)){
+            return Enum:enums[type.identifier].isPublic
+        }elseif(type.identifier.contains("<")){
+            var genericTypes = self:getGenericTypes(type.identifier)
+            foreach(genericTypes as genericType){
+                foreach(genericType.types as t){
+                    if(!self:isPublic(t)){
+                        return false
+                    }
+                }
+            }
+            return self:isPublic(Type:fromString(getGenericTypeIdentifier(type.identifier)))
+        }else{
+            return true
+        }
+    }
+
+}

@@ -1,0 +1,21 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class DereferenceExpression extends Expression {
+
+    [readpublic]
+    property Expression pointer
+
+    [public]
+    method construct(Expression pointer, Location? location){
+        parent(Node).construct(location)
+        this.pointer = pointer
+    }
+
+    [public]
+    method getType() returns Types{
+        return this.pointer.getType().getReferenced()
+    }
+    
+}

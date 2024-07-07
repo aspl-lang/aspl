@@ -1,0 +1,601 @@
+import aspl.compiler
+import aspl.compiler.backend
+import aspl.compiler.backend.bytecode
+import aspl.parser
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.ast.literals
+import aspl.parser.functions
+import aspl.parser.properties
+import aspl.parser.methods
+import aspl.parser.enums
+import aspl.parser.utils
+
+[public]
+// NOTE: This backend is deprecated; only use it if you actually need it!
+class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
+
+    [public]
+    method compile(ParserResult result) returns CompilationResult{
+        var output = new ByteList()
+        output.add(Instruction.Manifest)
+        var manifestBody = new ByteList()
+        // TODO: Encode manifest information
+        output.add(manifestBody.length)
+        output.add(manifestBody)
+        foreach(result.nodes as node){
+            output.add(this.encode(node))
+        }
+        return new CompilationResult(output.bytes)
+    }
+
+    method encodeCodeBlock(BlockStatement statement) returns ByteList{
+        var bytes = new ByteList()
+        foreach(statement.statements as s){
+            bytes.add(this.encode(s))
+        }
+        return bytes
+    }
+
+    method encodeNullLiteral(NullLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("null", IntType.Short)
+    }
+
+    method encodeBooleanLiteral(BooleanLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("bool", IntType.Short).add(literal.value) // "bool" instead of "boolean" for speed and minimal size
+    }
+
+    method encodeByteLiteral(ByteLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("byte", IntType.Short).add(literal.value)
+    }
+
+    method encodeIntegerLiteral(IntegerLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("int", IntType.Short).add(literal.value) // "int" instead of "integer" for speed and minimal size
+    }
+
+    method encodeLongLiteral(LongLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("long", IntType.Short).add(literal.value)
+    }
+
+    method encodeFloatLiteral(FloatLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("float", IntType.Short).add(literal.value)
+    }
+
+    method encodeDoubleLiteral(DoubleLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("double", IntType.Short).add(literal.value)
+    }
+
+    method encodeStringLiteral(StringLiteral literal) returns ByteList{
+        return new ByteList().add(Instruction.CreateObject).add("string", IntType.Short).add(literal.value, IntType.Long)
+    }
+
+    method encodeListLiteral(ListLiteral literal) returns ByteList{
+        var bytes = new ByteList().add(Instruction.CreateObject).add("list", IntType.Short).add(literal.type.types.length, IntType.Short)
+        foreach(literal.type.types as type){
+            bytes.add(type.toString(), IntType.Short)
+        }
+        bytes.add(literal.value.length)
+        foreach(literal.value as element){
+            bytes.add(this.encode(element))
+        }
+        return bytes
+    }
+
+    method encodeMapLiteral(MapLiteral literal) returns ByteList{
+        var bytes = new ByteList().add(Instruction.CreateObject).add("map", IntType.Short).add(literal.keyType.types.length, IntType.Short)
+        foreach(literal.keyType.types as type){
+            bytes.add(type.toString(), IntType.Short)
+        }
+        bytes.add(literal.valueType.types.length, IntType.Short)
+        foreach(literal.valueType.types as type){
+            bytes.add(type.toString(), IntType.Short)
+        }
+        bytes.add(literal.value.length)
+        foreach(literal.value as pair){
+            bytes.add(Instruction.CreatePair)
+            bytes.add(this.encode(pair.k))
+            bytes.add(this.encode(pair.v))
+        }
+        return bytes
+    }
+
+    method encodeAssertion(AssertStatement statement) returns ByteList{
+        return new ByteList().add(Instruction.Assert).add(Location(statement.location).file, IntType.Short).add(Location(statement.location).startLine).add(Location(statement.location).startColumn).add(this.encode(statement.expression))
+    }
+
+    method encodeEqualsCheck(CheckEqualsExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Equals).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeNegation(NegateExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Negate).add(this.encode(expression.expression))
+    }
+
+    method encodeFunctionCall(FunctionCallExpression expression) returns ByteList{
+        var identifier = expression.func.identifier
+        if(expression.func oftype InternalFunction){
+            identifier = "_" + identifier
+        }
+        var bytes = new ByteList().add(Instruction.CallFunction).add(identifier, IntType.Long).add(expression.newThread).add(expression.arguments.length, IntType.Short)
+        foreach(expression.arguments as argument){
+            bytes.add(this.encode(argument))
+        }
+        return bytes
+    }
+
+    method encodeVariableDeclaration(VariableDeclareExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.RegisterVariable).add(expression.variable.identifier, IntType.Short).add(expression.getType().types.length, IntType.Short)
+        foreach(expression.getType().types as type){
+            bytes.add(TypeUtils:shortName(type.toString()), IntType.Short)
+        }
+        bytes.add(this.encode(expression.value))
+        return bytes
+    }
+
+    method encodeVariableAccess(VariableAccessExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.AccessVariable).add(expression.variable.identifier, IntType.Short)
+    }
+
+    method encodeVariableAssignment(VariableAssignExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.UpdateVariable).add(expression.variable.identifier, IntType.Short)
+        bytes.add(this.encode(expression.value))
+        return bytes
+    }
+
+    method encodeFunctionDeclaration(FunctionDeclareStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareFunction)
+        bytes.add(statement.func.identifier, IntType.Short).add(statement.func.parameters.length, IntType.Short)
+        foreach(statement.func.parameters as parameter){
+            bytes.add(encodeParameter(parameter))
+        }
+        bytes.add(statement.func.returnTypes.types.length, IntType.Short)
+        foreach(statement.func.returnTypes.types as returnType){
+            bytes.add(TypeUtils:shortName(returnType.toString()), IntType.Short)
+        }
+        var body = new ByteList()
+        foreach(CustomFunction(statement.func).code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeParameter(Parameter parameter) returns ByteList{
+        var bytes = new ByteList().add(parameter.name, IntType.Short).add(parameter.types.types.length, IntType.Short)
+        foreach(parameter.types.types as type){
+            bytes.add(TypeUtils:shortName(type.toString()), IntType.Short)
+        }
+        if(parameter.optional){
+            bytes.add(true)
+            bytes.add(this.encode(parameter.defaultValue))
+        }else{
+            bytes.add(false)
+        }
+        return bytes
+    }
+
+    method encodeReturnStatement(ReturnStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.ReturnStatement)
+        if(statement.value != null){
+            bytes.add(this.encode(statement.value))
+        }else{
+            bytes.add(encodeNullLiteral(new NullLiteral(null)))
+        }
+        return bytes
+    }
+
+    method encodeFallbackStatement(FallbackStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.FallbackStatement)
+        bytes.add(this.encode(statement.value))
+        return bytes
+    }
+
+    method encodeEscapeStatement(EscapeStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.EscapeStatement)
+        bytes.add(this.encode(statement.value))
+        return bytes
+    }
+
+    method encodeAnd(AndExpression expression) returns ByteList{
+        var right = this.encode(expression.right)
+        return new ByteList().add(Instruction.And).add(this.encode(expression.left)).add(right.length).add(right)
+    }
+
+    method encodeOr(OrExpression expression) returns ByteList{
+        var right = this.encode(expression.right)
+        return new ByteList().add(Instruction.Or).add(this.encode(expression.left)).add(right.length).add(right)
+    }
+
+    method encodeXor(XorExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Xor).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodePlus(PlusExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Add).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeMinus(MinusExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Subtract).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeMultiplication(MultiplyExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Multiply).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeDivision(DivideExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Divide).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeModulo(ModuloExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Modulo).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeLessThan(LessThanExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.LessThan).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeLessThanOrEqual(LessThanOrEqualExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.LessEqual).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeGreaterThan(GreaterThanExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.GreaterThan).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+
+    method encodeGreaterThanOrEqual(GreaterThanOrEqualExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.GreaterEqual).add(this.encode(expression.left)).add(this.encode(expression.right))
+    }
+    
+    method encodeReference(ReferenceExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.DeclarePointer).add(this.encode(expression.expression))
+    }
+
+    method encodeDereference(DereferenceExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.DereferencePointer).add(this.encode(expression.pointer))
+    }
+
+    method encodeIfStatement(IfStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.IfStatement)
+        var body = new ByteList()
+        foreach(statement.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(this.encode(statement.condition))
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeIfElseStatement(IfElseStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.IfElseStatement)
+        var ifBody = new ByteList()
+        foreach(statement.ifCode as s){
+            ifBody.add(this.encode(s))
+        }
+        bytes.add(ifBody.length, IntType.Long)
+        bytes.add(this.encode(statement.condition))
+        bytes.add(ifBody)
+        var elseBody = new ByteList()
+        foreach(statement.elseCode as s){
+            elseBody.add(this.encode(s))
+        }
+        bytes.add(elseBody.length, IntType.Long)
+        bytes.add(elseBody)
+        return bytes
+    }
+
+    method encodeIfElseIfStatement(IfElseIfStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.IfElseStatement)
+        var ifBody = new ByteList()
+        foreach(statement.ifCode as s){
+            ifBody.add(this.encode(s))
+        }
+        bytes.add(ifBody.length, IntType.Long)
+        bytes.add(this.encode(statement.condition))
+        bytes.add(ifBody)
+        var elseBody = this.encode(statement.elseIf)
+        bytes.add(elseBody.length, IntType.Long)
+        bytes.add(elseBody)
+        return bytes
+    }
+
+    method encodeWhileStatement(WhileStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.WhileStatement)
+        var body = new ByteList()
+        foreach(statement.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(this.encode(statement.condition))
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeRepeatStatement(RepeatStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.RepeatStatement)
+        var body = new ByteList()
+        foreach(statement.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(this.encode(statement.iterations))
+        if(statement.variable == null){
+            bytes.add("_", IntType.Short)
+        }else{
+            bytes.add(statement.variable, IntType.Short)
+        }
+        bytes.add(statement.start)
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeForeachStatement(ForeachStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.ForeachStatement)
+        var body = new ByteList()
+        foreach(statement.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(this.encode(statement.collection))
+        if(statement.key == null){
+            bytes.add("_", IntType.Long)
+        }else{
+            bytes.add(statement.key, IntType.Long)
+        }
+        if(statement.value == null){
+            bytes.add("_", IntType.Long)
+        }else{
+            bytes.add(statement.value, IntType.Long)
+        }
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.CallMethod)
+        .add(false)
+        .add(this.encode(expression.base)).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.arguments.length, IntType.Short)
+        foreach(expression.arguments as argument){
+            bytes.add(this.encode(argument))
+        }
+        return bytes
+    }
+
+    method encodeStaticMethodCall(StaticMethodCallExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.CallMethod)
+        .add(true)
+        .add(expression.base.toString(), IntType.Short).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.arguments.length, IntType.Short)
+        foreach(expression.arguments as argument){
+            bytes.add(this.encode(argument))
+        }
+        return bytes
+    }
+
+    method encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.AccessProperty)
+        .add(false)
+        .add(this.encode(expression.base)).add(expression.p.name, IntType.Short)
+    }
+
+    method encodeStaticPropertyAccess(StaticPropertyAccessExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.AccessProperty)
+        .add(true)
+        .add(expression.base.toString(), IntType.Short).add(expression.p.name, IntType.Short)
+    }
+
+    method encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.UpdateProperty)
+        .add(false)
+        .add(this.encode(expression.base), IntType.Short).add(expression.p.name, IntType.Short).add(this.encode(expression.value))
+    }
+
+    method encodeStaticPropertyAssignment(StaticPropertyAssignExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.UpdateProperty)
+        .add(true)
+        .add(expression.base.toString(), IntType.Short).add(expression.p.name, IntType.Short).add(this.encode(expression.value))
+    }
+
+    method encodeListIndex(ListIndexExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.IndexCollection).add(this.encode(expression.base)).add(this.encode(expression.index))
+    }
+
+    method encodeListAssignment(ListAssignExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.UpdateCollection).add(this.encode(expression.base)).add(this.encode(expression.index)).add(this.encode(expression.value))
+    }
+
+    method encodeMapAccess(MapAccessExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.IndexCollection).add(this.encode(expression.base)).add(this.encode(expression.key))
+    }
+
+    method encodeMapAssignment(MapAssignExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.UpdateCollection).add(this.encode(expression.base)).add(this.encode(expression.key)).add(this.encode(expression.value))
+    }
+
+    method encodeStringIndex(StringIndexExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.IndexCollection).add(this.encode(expression.base)).add(this.encode(expression.index))
+    }
+
+    method encodeClassDeclaration(ClassDeclareStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareClass)
+        bytes.add(statement.c.isStatic)
+        bytes.add(statement.c.type.toString(), IntType.Short).add(list<Type>(statement.c.parents).length, IntType.Short)
+        foreach(list<Type>(statement.c.parents) as parent){
+            bytes.add(parent.toString(), IntType.Short)
+        }
+        var body = new ByteList()
+        foreach(statement.c.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeClassInstantiation(ClassInstantiateExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.NewStatement).add(expression.c.type.toString(), IntType.Short).add(expression.arguments.length, IntType.Short)
+        foreach(expression.arguments as argument){
+            bytes.add(this.encode(argument))
+        }
+        return bytes
+    }
+
+    method encodeMethodDeclaration(MethodDeclareStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareMethod)
+        bytes.add(statement.m.isStatic)
+        bytes.add(statement.m.name, IntType.Short)
+        bytes.add(statement.m.parameters.length, IntType.Short)
+        foreach(statement.m.parameters as parameter){
+            bytes.add(encodeParameter(parameter))
+        }
+        bytes.add(statement.m.returnTypes.types.length, IntType.Short)
+        foreach(statement.m.returnTypes.types as returnType){
+            bytes.add(TypeUtils:shortName(returnType.toString()), IntType.Short)
+        }
+        var body = new ByteList()
+        foreach(CustomMethod(statement.m).code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodePropertyDeclaration(PropertyDeclareStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareProperty)
+        bytes.add(statement.p.isStatic)
+        bytes.add(statement.p.isThreadLocal)
+        bytes.add(statement.p.name, IntType.Short)
+        bytes.add(statement.p.types.types.length, IntType.Short)
+        foreach(statement.p.types.types as type){
+            bytes.add(TypeUtils:shortName(type.toString()), IntType.Short)
+        }
+        if(statement.p oftype CustomReactiveProperty){
+            bytes.add(1b)
+            if(CustomReactiveProperty(statement.p).getCode == null){
+                bytes.add(-1, IntType.Long)
+            }else{
+                var getCode = new ByteList()
+                foreach(CustomReactiveProperty(statement.p).getCode as s){
+                    getCode.add(this.encode(s))
+                }
+                bytes.add(getCode.length, IntType.Long)
+                bytes.add(getCode)
+            }
+            if(CustomReactiveProperty(statement.p).setCode == null){
+                bytes.add(-1, IntType.Long)
+            }else{
+                var setCode = new ByteList()
+                foreach(CustomReactiveProperty(statement.p).setCode as s){
+                    setCode.add(this.encode(s))
+                }
+                bytes.add(setCode.length, IntType.Long)
+                bytes.add(setCode)
+            }
+        }else{
+            bytes.add(0b)
+            if(CustomNormalProperty(statement.p).isStatic){
+                if(CustomNormalProperty(statement.p).defaultValue != null){
+                    bytes.add(this.encode(CustomNormalProperty(statement.p).defaultValue))
+                }
+            }
+        }        
+        return bytes
+    }
+
+    method encodeThis(ThisExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.ThisStatement)
+    }
+
+    method encodeEnumDeclaration(EnumDeclareStatement statement) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareEnum)
+        bytes.add(statement.e.type.toString(), IntType.Short)
+        bytes.add(map<string, EnumField>(statement.e.fields).length)
+        foreach(map<string, EnumField>(statement.e.fields) as field){
+            bytes.add(field.name, IntType.Short)
+            bytes.add(field.value)
+        }
+        return bytes
+    }
+
+    method encodeEnumFieldAccess(EnumFieldAccessExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.EnumField).add(expression.field.e.type.toString(), IntType.Short).add(expression.field.name, IntType.Short)
+    }
+
+    method encodeCallbackLiteral(CallbackLiteral literal) returns ByteList{
+        var bytes = new ByteList().add(Instruction.DeclareCallback)
+        bytes.add(literal.value.type.toString(), IntType.Short)
+        bytes.add(literal.value.parameters.length, IntType.Short)
+        foreach(literal.value.parameters as parameter){
+            bytes.add(encodeParameter(parameter))
+        }
+        bytes.add(literal.value.returnTypes.types.length, IntType.Short)
+        foreach(literal.value.returnTypes.types as returnType){
+            bytes.add(TypeUtils:shortName(returnType.toString()), IntType.Short)
+        }
+        var body = new ByteList()
+        foreach(literal.value.code as s){
+            body.add(this.encode(s))
+        }
+        bytes.add(body.length, IntType.Long)
+        bytes.add(body)
+        return bytes
+    }
+
+    method encodeImplementationCall(ImplementationCallExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.Implement).add(expression.call, IntType.Long).add(expression.arguments.length, IntType.Short)
+        foreach(expression.arguments as argument){
+            bytes.add(this.encode(argument))
+        }
+        return bytes
+    }
+
+    method encodeOfType(OfTypeExpression expression) returns ByteList{
+        var bytes = new ByteList().add(Instruction.OfType)
+        bytes.add(this.encode(expression.expression))
+        bytes.add(expression.type.toString(), IntType.Short)
+        return bytes
+    }
+
+    method encodeBreakStatement(BreakStatement statement) returns ByteList{
+        return new ByteList().add(Instruction.BreakStatement)
+        .add(false) // true would be legacy mode, which interprets if as a breakable/continuable statement
+        .add(statement.level)
+    }
+
+    method encodeContinueStatement(ContinueStatement statement) returns ByteList{
+        return new ByteList().add(Instruction.ContinueStatement)
+        .add(false) // true would be legacy mode, which interprets if as a breakable/continuable statement
+        .add(statement.level)
+    }
+
+    method encodeCast(CastExpression expression) returns ByteList{
+        return new ByteList().add(Instruction.Cast).add(this.encode(expression.value)).add(expression.type.toString(), IntType.Short)
+    }
+
+    method encodeThrowStatement(ThrowStatement statement) returns ByteList{
+        // TODO
+    }
+
+    method encodeCatchExpression(CatchExpression expression) returns ByteList{
+        // TODO
+    }
+
+    method encodeErrorPropagation(PropagateErrorExpression expression) returns ByteList{
+        // TODO
+    }
+
+    method encodeFileEmbedding(EmbedFileExpression expression) returns ByteList{
+        var bytes = list<Expression>[]
+        foreach(io.read_file_bytes(expression.file) as b){
+            bytes.add(new ByteLiteral(b, expression.location))
+        }
+		return encodeListLiteral(new ListLiteral(new Types([Type:fromString("byte")]), bytes, expression.location))
+    }
+
+    method encodeDiscard(Expression expression) returns ByteList{
+        return this.encode(expression)
+    }
+
+}

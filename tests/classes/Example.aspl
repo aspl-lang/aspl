@@ -1,0 +1,50 @@
+class Example extends ParentOne, ParentTwo {
+
+    [public]
+    property int number = 42
+    [public]
+    property bool isImportantProperty
+    [public]
+    property bool alwaysTrue{
+        get{
+            return true
+        }
+        set{
+            // do nothing
+        }
+    }
+
+    [static]
+    property bool someStaticProperty = true
+
+    [public]
+    method construct(){
+        print("Creating new instance of Example...")
+        assert number == 42
+        number = 43
+        assert number == 43
+        number = 42
+        assert someStaticProperty == true
+        someStaticProperty = false
+        assert someStaticProperty == false
+        someStaticProperty = true
+        assert getNumber() == 42
+        assert get10() == 10
+    }
+
+    [public]
+    method hello(){
+        print("Hello from example!")
+    }
+
+    [static]
+    method get10() returns int{
+        return 10
+    }
+
+    [public]
+    method getNumber() returns int{
+        return this.number
+    }
+    
+}

@@ -1,0 +1,17 @@
+// getwd returns the current working directory
+[public]
+function getwd() returns string{
+    return string(implement("os.get_working_directory"))
+}
+
+// chdir changes the current working directory to the specified path
+[public]
+function chdir(string path){
+    implement("os.change_working_directory", path)
+}
+
+// chmod changes the mode of the specified file to the specified mode
+[public]
+function chmod(string path, int mode){
+    implement("os.change_mode", path, mode)
+}

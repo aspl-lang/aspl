@@ -1,0 +1,24 @@
+[public]
+class HttpResponse {
+    
+    [readpublic]
+    property string text
+    [readpublic]
+    property map<string, list<string>> headers
+    [readpublic]
+    property int statusCode
+    [readpublic]
+    property string statusMessage
+    [readpublic]
+    property string httpVersion
+
+    [public]
+    method construct(string text, map<string, list<string>> headers, int statusCode, string statusMessage, string httpVersion) {
+        this.text = text
+        this.headers = headers
+        this.statusCode = statusCode
+        this.statusMessage = statusMessage
+        this.httpVersion = httpVersion
+    }
+
+}

@@ -1,0 +1,27 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class MapAssignExpression extends Expression {
+
+    [readpublic]
+    property Expression base
+    [readpublic]
+    property Expression key
+    [readpublic]
+    property Expression value
+
+    [public]
+    method construct(Expression base, Expression key, Expression value, Location? location){
+        parent(Node).construct(location)
+        this.base = base
+        this.key = key
+        this.value = value
+    }
+
+    [public]
+    method getType() returns Types{
+        return this.base.getType()
+    }
+
+}

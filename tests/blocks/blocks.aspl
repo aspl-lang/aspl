@@ -1,0 +1,8 @@
+var a = 0
+{
+    var b = "Hello"
+    print(b)
+    print(a)
+    a = 1
+}
+print(a)

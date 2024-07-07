@@ -1,0 +1,16 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class BreakStatement extends Statement{
+
+	[readpublic]
+	property int level
+	
+	method construct(int level, Location? location){
+        parent(Node).construct(location)
+		this.level = level
+	}
+	
+}

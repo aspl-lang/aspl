@@ -1,0 +1,169 @@
+import console
+
+[public]
+function error(string message){
+    // TODO: Use proper error handling for this
+    print(console.red("json.decode: " + message))
+    exit(1)
+}
+
+[public]
+function is_digit(string s) returns bool{
+    return s[0] == "0" || s[0] == "1" || s[0] == "2" || s[0] == "3" || s[0] == "4" || s[0] == "5" || s[0] == "6" || s[0] == "7" || s[0] == "8" || s[0] == "9"
+}
+
+function lex_token(string s) returns Token{
+    var int trimLength = 0
+    while(s[0] == " " || s[0] == "\n"){
+        s = s.after(0)
+        trimLength++
+    }
+    if(s.startsWith("null")){
+        return new Token(TokenType.Null, "null", "null".length + trimLength)
+    }elseif(s.startsWith("true")){
+        return new Token(TokenType.True, "true", "true".length + trimLength)
+    }elseif(s.startsWith("false")){
+        return new Token(TokenType.False, "false", "false".length + trimLength)
+    }elseif(s.startsWith("-") || s.startsWith("+")){
+        var result = s[0]
+        s = s.after(0)
+        repeat(s.length, i = 0){
+            if(is_digit(s[i])){
+                result += s[i]
+            }elseif(s[i] == "."){
+                result += s[i]
+            }else{
+                if(result.contains(".")){
+                    return new Token(TokenType.Float, result, result.length + trimLength)
+                }else{
+                    return new Token(TokenType.Integer, result, result.length + trimLength)
+                }
+            }
+        }
+        if(result.contains(".")){
+            return new Token(TokenType.Float, result, result.length + trimLength)
+        }else{
+            return new Token(TokenType.Integer, result, result.length + trimLength)
+        }
+    }elseif(is_digit(s[0])){
+        var result = ""
+        repeat(s.length, i = 0){
+            if(is_digit(s[i])){
+                result += s[i]
+            }elseif(s[i] == "."){
+                result += s[i]
+            }else{
+                if(result.contains(".")){
+                    return new Token(TokenType.Float, result, result.length + trimLength)
+                }else{
+                    return new Token(TokenType.Integer, result, result.length + trimLength)
+                }            
+            }
+        }
+        if(result.contains(".")){
+            return new Token(TokenType.Float, result, result.length + trimLength)
+        }else{
+            return new Token(TokenType.Integer, result, result.length + trimLength)
+        }
+    }elseif(s.startsWith("\"")){
+        var result = ""
+        s = s.after(0)
+        var int i = 0
+        while(i < s.length){
+            i++
+            if(s[i - 1] == "\\"){
+                result += s[i - 1]
+                result += s[i]
+                i++
+            }elseif(s[i - 1] == "\""){
+                return new Token(TokenType.String, result, result.length + trimLength + 2)
+            }else{
+                result += s[i - 1]
+            }
+        }
+        error("Unterminated string")
+    }elseif(s.startsWith("[")){
+        return new Token(TokenType.BracketOpen, "[", "[".length + trimLength)
+    }elseif(s.startsWith("]")){
+        return new Token(TokenType.BracketClose, "]", "]".length + trimLength)
+    }elseif(s.startsWith("{")){
+        return new Token(TokenType.BraceOpen, "{", "{".length + trimLength)
+    }elseif(s.startsWith("}")){
+        return new Token(TokenType.BraceClose, "}", "}".length + trimLength)
+    }elseif(s.startsWith(":")){
+        return new Token(TokenType.Colon, ":", ":".length + trimLength)
+    }elseif(s.startsWith(",")){
+        return new Token(TokenType.Comma, ",", ",".length + trimLength)
+    }
+    error("Unexpected character: " + s[0])
+}
+
+function lex(string data) returns list<Token>{
+    var list<Token> tokens = []
+    while(data.length > 0){
+        var Token token = lex_token(data)
+        tokens.add(token)
+        data = data.after(token.length - 1)
+    }
+    return tokens
+}
+
+[public]
+function decode_token(TokenList tokens) returns any{
+    while(!tokens.empty()){
+        if(tokens.peek().type == TokenType.Null){
+            tokens.shift()
+            return null
+        }elseif(tokens.peek().type == TokenType.True){
+            tokens.shift()
+            return true
+        }elseif(tokens.peek().type == TokenType.False){
+            tokens.shift()
+            return false
+        }elseif(tokens.peek().type == TokenType.Integer){
+            var int value = int(tokens.peek().value)
+            tokens.shift()
+            return value
+        }elseif(tokens.peek().type == TokenType.Float){
+            var float value = float(tokens.peek().value)
+            tokens.shift()
+            return value
+        }elseif(tokens.peek().type == TokenType.String){
+            var string value = tokens.peek().value
+            tokens.shift()
+            return value
+        }elseif(tokens.peek().type == TokenType.BracketOpen){
+            tokens.shift()
+            var list<any> result = []
+            while(tokens.peek().type != TokenType.BracketClose){
+                result.add(decode_token(tokens))
+                if(tokens.peek().type == TokenType.Comma){
+                    tokens.shift()
+                }
+            }
+            tokens.shift()
+            return result
+        }elseif(tokens.peek().type == TokenType.BraceOpen){
+            tokens.shift()
+            var map<string, any> result = {}
+            while(tokens.peek().type != TokenType.BraceClose){
+                var string key = string(decode_token(tokens))
+                tokens.shift()
+                result[key] = decode_token(tokens)
+                if(tokens.peek().type == TokenType.Comma){
+                    tokens.shift()
+                }
+            }
+            tokens.shift()
+            return result
+        }else{
+            error("Unexpected token: " + tokens.peek().type)
+        }
+    }
+}
+
+[public]
+function decode(string data) returns any{
+    var tokens = lex(data)
+    return decode_token(new TokenList(tokens))
+}

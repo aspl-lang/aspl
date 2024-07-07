@@ -1,0 +1,56 @@
+[public]
+class BinaryStream extends Stream{
+
+	property list<byte> bytes
+	
+	[public]
+	method construct(list<byte> bytes){
+		this.bytes = bytes
+	}
+	
+	[public]
+    method getBytes() returns list<byte>{
+		return bytes
+	}
+	
+	[public]
+    method peekByte() returns byte{
+		return bytes[this.position]
+	}
+	
+	[public]
+    method peekBytes(int count) returns list<byte>{
+		var l = readBytes(count)
+		this.position -= count
+		return l
+	}
+	
+	[public]
+    method readByte() returns byte{
+		var b = peekByte()
+		this.position++
+		return b
+	}
+	
+	[public]
+    method readBytes(int count) returns list<byte>{
+		var list<byte> l = list<byte>[]
+		repeat(count){
+			l.add(readByte())
+		}
+		return l
+	}
+	
+	[public]
+    method writeByte(byte b){
+		bytes.insert(this.position, b)
+		b++
+	}
+	
+	[public]
+    method writeBytes(list<byte> bytes){
+		bytes.insertElements(this.position, bytes)
+		this.position += bytes.length
+	}
+	
+}

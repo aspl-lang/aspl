@@ -1,0 +1,99 @@
+import bitconverter
+import math
+
+[public]
+function encode(string hex) returns int{
+    var n = 0
+    var i = 0
+    foreach(hex as d){
+        n += int(encode_digit(d) * math.pow(16, double(hex.length - i - 1)))
+        i++
+    }
+    return n
+}
+
+[public]
+function encode_digit(string hex) returns byte{
+    if(hex == "0"){
+        return 0b
+    }elseif(hex == "1"){
+        return 1b
+    }elseif(hex == "2"){
+        return 2b
+    }elseif(hex == "3"){
+        return 3b
+    }elseif(hex == "4"){
+        return 4b
+    }elseif(hex == "5"){
+        return 5b
+    }elseif(hex == "6"){
+        return 6b
+    }elseif(hex == "7"){
+        return 7b
+    }elseif(hex == "8"){
+        return 8b
+    }elseif(hex == "9"){
+        return 9b
+    }elseif(hex == "a"){
+        return 10b
+    }elseif(hex == "b"){
+        return 11b
+    }elseif(hex == "c"){
+        return 12b
+    }elseif(hex == "d"){
+        return 13b
+    }elseif(hex == "e"){
+        return 14b
+    }elseif(hex == "f"){
+        return 15b
+    }
+}
+
+[public]
+function decode(int n) returns string{
+    var hex = ""
+    var i = 0
+    while(n > 0){
+        hex += decode_digit(byte(n % 16))
+        n /= 16
+        i++
+    }
+    return hex.reverse()
+}
+
+[public]
+function decode_digit(byte b) returns string{
+    if(b == 0b){
+        return "0"
+    }elseif(b == 1b){
+        return "1"
+    }elseif(b == 2b){
+        return "2"
+    }elseif(b == 3b){
+        return "3"
+    }elseif(b == 4b){
+        return "4"
+    }elseif(b == 5b){
+        return "5"
+    }elseif(b == 6b){
+        return "6"
+    }elseif(b == 7b){
+        return "7"
+    }elseif(b == 8b){
+        return "8"
+    }elseif(b == 9b){
+        return "9"
+    }elseif(b == 10b){
+        return "a"
+    }elseif(b == 11b){
+        return "b"
+    }elseif(b == 12b){
+        return "c"
+    }elseif(b == 13b){
+        return "d"
+    }elseif(b == 14b){
+        return "e"
+    }elseif(b == 15b){
+        return "f"
+    }
+}

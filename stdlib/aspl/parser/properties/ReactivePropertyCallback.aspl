@@ -1,0 +1,18 @@
+import aspl.parser.utils
+import aspl.parser.properties
+
+[public]
+class ReactivePropertyCallback {
+
+    [readpublic]    
+    property Property p
+    [readpublic]
+    property Types returnTypes
+
+    [public]
+    method construct(Property p, Types returnTypes) {
+        this.p = p
+        this.returnTypes = returnTypes
+    }
+
+}

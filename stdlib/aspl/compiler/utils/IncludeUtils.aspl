@@ -1,0 +1,19 @@
+[public]
+[static]
+class IncludeUtils {
+    
+    [public]
+    [static]
+    [threadlocal]
+    property list<string> files
+
+    [public]
+    [static]
+    method include(string file) {
+        if(files.contains(file)) {
+            return
+        }
+        files.add(file)
+    }
+
+}

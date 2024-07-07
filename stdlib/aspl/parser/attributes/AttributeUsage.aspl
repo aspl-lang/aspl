@@ -1,0 +1,11 @@
+[public]
+[flags]
+enum AttributeUsage {
+    Function,
+    Callback,
+    Class,
+    Property,
+    Method,
+    Enum,
+    EnumField
+}

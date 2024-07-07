@@ -1,0 +1,181 @@
+import aspl.parser
+import aspl.parser.classes
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+[abstract]
+class Property {
+
+    [public]  
+    [static]
+    [threadlocal]
+    property map<string, map<string, Property>> properties = {}
+    
+    [readpublic]
+    property Type type
+    [readpublic]
+    property string name
+    [public]
+    property Types types
+    [readpublic]
+    property list<AttributeInstance> attributes
+    [readpublic]
+    property bool isStatic = false
+    [readpublic]
+    property bool isThreadLocal = false
+    [readpublic]
+    property bool isPublic = false
+    [readpublic]
+    property bool isReadPublic = false
+    [readpublic]
+    property bool fullyInitialized = true
+    [readpublic]
+    property bool createdFromAny = false
+
+    [public]
+    method construct(Type type, string name, Types types, list<AttributeInstance> attributes){
+        this.type = type
+        this.name = name
+        this.types = types
+        this.attributes = attributes
+    }
+
+    [public]
+    [static]
+    method init(){
+        new InternalProperty(Type:fromString("string"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+
+        new InternalProperty(Type:fromString("list"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+
+        new InternalProperty(Type:fromString("map"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+    }
+
+    [public]
+    method register(Location? location){
+        if(self:properties.containsKey(this.type.toString())){
+            if(self:properties[this.type.toString()].containsKey(name)){
+                if(self:properties[this.type.toString()][name].fullyInitialized){
+                    aspl.parser.utils.generic_error("Property '" + this.type.toString() + "." + this.name + "' already defined somewhere else", location)
+                }
+            }
+        }
+        if(!self:properties.containsKey(this.type.toString())){
+            self:properties[this.type.toString()] = {}
+        }
+        self:properties[this.type.toString()][this.name] = this
+    }
+
+    [public]
+    [static]
+    method exists(Type type, string name, bool checkParents = true) returns bool{
+        if(self:properties.containsKey(type.toString())){
+            if(self:properties[type.toString()].containsKey(name)){
+                return true
+            }
+        }
+        if(checkParents && Class:classes.containsKey(type.toString())){
+            foreach(Class:classes[type.toString()].parents as parent){
+                if(self:exists(parent, name)){
+                    return true
+                }
+            }
+        }
+        if(self:properties.containsKey("any")){
+            if(self:properties["any"].containsKey(name)){
+                return true
+            }
+        }
+        return false
+    }
+
+    [public]
+    [static]
+    method get(Type type, string name) returns Property{
+        if(self:properties.containsKey(type.toString())){
+            if(self:properties[type.toString()].containsKey(name)){
+                return self:properties[type.toString()][name]
+            }
+        }
+        if(Class:classes.containsKey(type.toString())){
+            foreach(Class:classes[type.toString()].parents as parent){
+                if(self:exists(parent, name)){
+                    return self:get(parent, name)
+                }
+            }
+        }
+        if(self:properties.containsKey("any")){
+            if(self:properties["any"].containsKey(name)){
+                return self:createPropertyFromAny(type, name)
+            }
+        }
+        aspl.parser.utils.fatal_error("Property '" + type.toString() + "." + name + "' not found (compiler bug)")
+    }
+
+    [public]
+    [static]
+    method getAllFor(Type type) returns list<Property>{
+        var map<string, Property> properties = {}
+        if(self:properties.containsKey(type.toString())){
+            foreach(self:properties[type.toString()] as p){
+                properties[p.name] = p
+            }
+        }
+        if(Class:classes.containsKey(type.toString())){
+            if(Class:classes[type.toString()].parents != null){ // TODO: This can (and will) fail when the parents are not loaded yet
+                foreach(Class:classes[type.toString()].parents as parent){
+                    foreach(self:getAllFor(parent) as p){
+                        if(!properties.containsKey(p.name)){
+                            properties[p.name] = p
+                        }
+                    }
+                }
+            }
+        }
+        if(self:properties.containsKey("any")){
+            foreach(self:properties["any"] as p){
+                if(!properties.containsKey(p.name)){
+                    properties[p.name] = self:createPropertyFromAny(type, p.name)
+                }
+            }
+        }
+        var list<Property> propertyList = list<Property>[]
+        foreach(properties as p){
+            propertyList.add(p)
+        }
+        return propertyList
+    }
+
+    [public]
+    [abstract]
+    method withType(Type type) returns Property
+
+    method setCreatedFromAny(bool createdFromAny = true){
+        this.createdFromAny = createdFromAny
+    }
+
+    [public]
+    [static]
+    method createPropertyFromAny(Type type, string name) returns Property{
+        var newProperty = self:properties["any"][name].withType(type)
+        newProperty.setCreatedFromAny()
+        if(!self:properties.containsKey(type.toString())){
+            self:properties[type.toString()] = {}
+        }
+        self:properties[type.toString()][name] = newProperty
+
+        var list<Type> propertyTypes = []
+        foreach(newProperty.types.types as t){
+            if(t.toString() == "T"){
+                propertyTypes.add(type)
+            }else{
+                propertyTypes.add(t)
+            }
+        }
+        newProperty.types = new Types(propertyTypes)
+        newProperty.register(null)
+
+        return newProperty
+    }
+    
+}

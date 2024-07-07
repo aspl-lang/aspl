@@ -1,0 +1,12 @@
+print("--- Hello World in different languages ---")
+print("Russian: Привет мир!")
+print("Ukrainian: Привіт світ!")
+print("Polish: Witaj świecie!")
+print("Chinese: 你好世界!")
+print("Japanese: こんにちは世界!")
+print("Korean: 안녕 세상!")
+print("Emoji: 👋🌍")
+
+assert "\u000a" == "\n"
+assert "\uc548" == "안"
+assert "\uc0c1" == "상"

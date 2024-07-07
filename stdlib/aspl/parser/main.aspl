@@ -1,0 +1,135 @@
+import aspl.parser.utils
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.ast.literals
+import aspl.parser.properties
+import aspl.parser.methods
+import aspl.parser.classes
+
+$if main{
+    import io
+
+    if(os.args().length < 2){
+        aspl.parser.utils.syntax_error("Usage: parser <file.aspl> or <directory>")
+    }
+    var string main = io.abs(os.args()[1])
+    var string mainDirectory = ""
+    if(io.exists_file(main)){
+        mainDirectory = io.full_directory_path(main)
+    }elseif(io.exists_directory(main)){
+        mainDirectory = main
+    }else{
+        aspl.parser.utils.fatal_error("Main is neither a valid file nor a valid directory: " + main)
+    }
+    Module:init(new Module(io.directory_name(mainDirectory), mainDirectory))
+}
+
+[public]
+function parse() returns ParserResult
+{
+    foreach(DirectoryUtils:index(Module:mainModule.directory) as file){
+        if(!Parser:importProcessedFiles.contains(file)){
+            Parser:importProcessedFiles.add(file)
+            var Parser parser = new Parser(Module:mainModule, file)
+            parser.parse(ParseMode.Import)
+        }
+    }
+    foreach(Module:modules as module){
+        foreach(DirectoryUtils:index(module.directory) as file){
+            var Parser parser = new Parser(module, file)
+            parser.parse(ParseMode.PreprocessTypes)
+        }
+    }
+    foreach(Module:modules as module){
+        foreach(DirectoryUtils:index(module.directory) as file){
+            var Parser parser = new Parser(module, file)
+            parser.parse(ParseMode.Preprocess)
+        }
+    }
+    foreach(ClassUtils:classesWithParsers as c => parser){
+        ClassUtils:handleParents(parser, Class:classes[c])
+    }
+    var list<Node> nodes = list<Node>[]
+    foreach(Module:modules as module){
+        foreach(DirectoryUtils:index(module.directory) as file){
+            var Parser parser = new Parser(module, file)
+            foreach(parser.parse().nodes as node){
+                nodes.add(node)
+            }
+        }
+    }
+    foreach(Class:classes as c){
+        var properties = Property:getAllFor(c.type)
+        if(properties.length > 0){
+            if(!Method:methods.containsKey(c.type.toString())){
+                Method:methods[c.type.toString()] = {}
+            }
+            if(!Method:methods[c.type.toString()].containsKey("construct")){
+                Method:methods[c.type.toString()]["construct"] = new CustomMethod(c.type, "construct", [], new Types([]), [], null, null, null)
+                var code = list<Node>(c.code)
+                code.add(new MethodDeclareStatement(Method:methods[c.type.toString()]["construct"], [], null))
+                c.code = code
+            }
+            var constructor = Method:methods[c.type.toString()]["construct"]
+            var code = list<Node>[]
+            foreach(properties as p){
+                if(p oftype CustomNormalProperty){
+                    if(!p.isStatic){
+                        if(CustomNormalProperty(p).defaultValue != null){
+                            code.add(new NonStaticPropertyAssignExpression(p, new ThisExpression(c, null), CustomNormalProperty(p).defaultValue, null))
+                        }else{
+                            if(Options:backend == "c"){
+                                code.add(new NonStaticPropertyAssignExpression(p, new ThisExpression(c, null), new NullLiteral(null), null)) // TODO: This is an ugly hack
+                            }
+                        }
+                    }
+                }
+            }
+            if(CustomMethod(constructor).code != null){
+                foreach(CustomMethod(constructor).code as statement){
+                    code.add(statement)
+                }
+            }
+            CustomMethod(constructor).code = code
+        }
+    }
+    if(ErrorUtils:hasCompilationErrors){
+        exit(1)
+    }
+    return new ParserResult(sort(nodes))
+}
+
+[public]
+function sort(list<Node> nodes) returns list<Node>
+{
+    var list<ClassDeclareStatement> classDeclarations = list<ClassDeclareStatement>[]
+    var list<EnumDeclareStatement> enumDeclarations = list<EnumDeclareStatement>[]
+    var list<FunctionDeclareStatement> functionDeclarations = list<FunctionDeclareStatement>[]
+    var list<Node> other = list<Node>[]
+    foreach(nodes as node){
+        if(node oftype ClassDeclareStatement){
+            classDeclarations.add(ClassDeclareStatement(node))
+        }elseif(node oftype EnumDeclareStatement){
+            enumDeclarations.add(EnumDeclareStatement(node))
+        }elseif(node oftype FunctionDeclareStatement){
+            functionDeclarations.add(FunctionDeclareStatement(node))
+        }else{
+            other.add(node)
+        }
+    }
+    var all = list<Node>[]
+    foreach(enumDeclarations as enumDeclaration){ // TODO: Does this order break anything? It is required for optional/default enum field values in the stack-based AIL backend
+        all.add(enumDeclaration)
+    }
+    foreach(classDeclarations as classDeclaration){
+        all.add(classDeclaration)
+    }
+    foreach(functionDeclarations as functionDeclaration){
+        all.add(functionDeclaration)
+    }
+    foreach(other as node){
+        all.add(node)
+    }
+    return all
+}

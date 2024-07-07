@@ -1,0 +1,6 @@
+// args returns the cli arguments passed to the currently running process
+// note: the first argument is usually the path to the executable
+[public]
+function args() returns list<string>{
+    return list<string>(implement("os.get_current_program_arguments"))
+}

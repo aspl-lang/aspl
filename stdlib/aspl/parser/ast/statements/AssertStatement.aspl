@@ -1,0 +1,16 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class AssertStatement extends Statement{
+
+	[readpublic]
+	property Expression expression
+	
+	method construct(Expression expression, Location? location){
+        parent(Node).construct(location)
+		this.expression = expression
+	}
+	
+}

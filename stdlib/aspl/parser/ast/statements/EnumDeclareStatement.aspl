@@ -1,0 +1,20 @@
+import aspl.parser.ast
+import aspl.parser.enums
+import aspl.parser.utils
+import aspl.parser.lexer
+
+[public]
+class EnumDeclareStatement extends Statement{
+
+	[readpublic]
+	property Enum e
+	[readpublic]
+	property list<Token> comments
+	
+	method construct(Enum e, list<Token> comments, Location? location){
+        parent(Node).construct(location)
+		this.e = e
+		this.comments = comments
+	}
+	
+}

@@ -1,0 +1,23 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+import aspl.parser.functions
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.callbacks
+
+[public]
+class ReturnStatement extends Statement{
+
+	[readpublic]
+	property Expression? value
+	[readpublic]
+	property Function|Method|Callback|ReactivePropertyCallback callable
+	
+	method construct(Expression? value, Function|Method|Callback|ReactivePropertyCallback callable, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+		this.callable = callable
+	}
+	
+}

@@ -1,0 +1,20 @@
+import aspl.parser.ast
+import aspl.parser.classes
+import aspl.parser.utils
+import aspl.parser.lexer
+
+[public]
+class ClassDeclareStatement extends Statement{
+
+	[readpublic]
+	property Class c
+	[readpublic]
+	property list<Token> comments
+	
+	method construct(Class c, list<Token> comments, Location? location){
+        parent(Node).construct(location)
+		this.c = c
+		this.comments = comments
+	}
+	
+}

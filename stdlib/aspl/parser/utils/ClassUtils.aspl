@@ -1,0 +1,128 @@
+import aspl.parser
+import aspl.parser.classes
+import aspl.parser.methods
+import aspl.parser.utils
+
+[public]
+[static]
+class ClassUtils {
+
+    [public]
+    [static]
+    [threadlocal]
+    property map<string, Parser> classesWithParsers = map<string, Parser>{}
+    [public]
+    [static]
+    [threadlocal]
+    property list<string> parentHandledTypes = list<string>[]
+
+    [public]
+    [static]
+    method handleParents(Parser parser, Class c){
+        self:parentHandledTypes.add(c.type.toString())
+        var list<Type> parents = []
+        foreach(c.parents as parent){
+            var p = Type:fromString(parent.toString(), parser)
+            if(self:parentHandledTypes.contains(p.toString())){
+                parents.add(p)
+                continue
+            }
+            if(!Class:classes.containsKey(p.toString())){
+                aspl.parser.utils.type_error("Cannot extend the unknown class " + p.toString(), c.location)
+            }
+            var pc = Class:classes[p.toString()]
+            self:handleParents(self:classesWithParsers[pc.type.toString()], pc)
+            parents.add(p)
+        }
+        c.parents = parents
+    }
+    
+    [public]
+    [static]
+    method throwOnInvalidInheritance(Class c, list<string> children, Location location){
+        if(c.parents != null){
+            foreach(c.parents as parentType){
+                if(!Class:classes.containsKey(parentType.toString())){
+                    aspl.parser.utils.type_error("Cannot extend the unknown class " + parentType.toString(), location)
+                }elseif(parentType.toString() == c.type.toString()){
+                    aspl.parser.utils.type_error("Class " + c.type.toString() + " cannot extend itself", location)
+                }elseif(children.contains(parentType.toString())){
+                    aspl.parser.utils.type_error("Class " + c.type.toString() + " cannot extend " + parentType.toString() + " because " + parentType.toString() + " already extends " + c.type.toString() + " (maybe check parents of parents?)", location)
+                }else{
+                    var childrenCopy = children.cloneShallow() // shallow is enough because the elements (strings) are immutable
+                    childrenCopy.add(c.type.toString())
+                    self:throwOnInvalidInheritance(Class:classes[parentType.toString()], childrenCopy, location)
+                }
+            }
+            var list<string> myParents = []
+            foreach(c.parents as parent){
+                myParents.add(parent.toString())
+            }
+            foreach(children as child){
+                foreach(Class:classes[child].parents as parent){
+                    if(myParents.contains(parent.toString())){
+                        aspl.parser.utils.type_error("Class " + child + " extends " + parent.toString() + " multiple times (maybe check parents of parents?)", null)
+                    }
+                }
+            }
+		}
+    }
+
+    [public]
+    [static]
+    method getAllParentsRecursively(Class c) returns list<Type>{
+        var parents = list<Type>[]
+        foreach(c.parents as parent){
+            parents.add(parent)
+            foreach(self:getAllParentsRecursively(Class:classes[parent.toString()]) as p){
+                parents.add(p)
+            }
+        }
+        return parents
+    }
+
+    [public]
+    [static]
+    method getAllAbstractMethods(Class c) returns list<string>{
+        var list<string> methods = []
+        foreach(c.parents as parent){
+            foreach(self:getAllAbstractMethods(Class:classes[parent.toString()]) as m){
+                if(!methods.contains(m)){
+                    methods.add(m)
+                }
+            }
+        }
+        if(Method:methods.containsKey(c.type.toString())){
+            foreach(Method:methods[c.type.toString()] as m){
+                if(m.isAbstract){
+                    if(!methods.contains(m.name)){
+                        methods.add(m.name)
+                    }
+                }elseif(!m.isAbstract){
+                    if(methods.contains(m.name)){
+                        methods.remove(m.name)
+                    }
+                }
+            }
+        }
+        return methods
+    }
+
+    [public]
+    [static]
+    method isParent(Class child, Class parent) returns bool{
+        if(child.parents == null){
+            return false
+        }
+        foreach(child.parents as parentType){
+            if(parentType.toString() == parent.type.toString()){
+                return true
+            }
+            if(self:isParent(Class:classes[parentType.toString()], parent)){
+                return true
+            }
+        }
+        return false
+    }
+
+}

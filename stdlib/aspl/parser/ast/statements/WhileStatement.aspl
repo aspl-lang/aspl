@@ -1,0 +1,20 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class WhileStatement extends Statement {
+
+    [readpublic]
+    property Expression condition
+    [readpublic]
+    property list<Node> code
+
+    [public]
+    method construct(Expression condition, list<Node> code, Location? location){
+        parent(Node).construct(location)
+        this.condition = condition
+        this.code = code
+    }
+    
+}

@@ -1,0 +1,3333 @@
+import aspl.parser.lexer
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.ast.statements
+import aspl.parser.ast.literals
+import aspl.parser.utils
+import aspl.parser.functions
+import aspl.parser.precedence
+import aspl.parser.variables
+import aspl.parser.methods
+import aspl.parser.properties
+import aspl.parser.classes
+import aspl.parser.enums
+import aspl.parser.attributes
+import aspl.parser.callbacks
+import math
+import io
+
+[public]
+class Parser{
+	
+	[public]
+	property Module module
+	[public]
+	property string file
+	[public]
+	property string currentNamespace{
+		get{
+			var modulePath = module.directory
+			if(modulePath.endsWith("/") || modulePath.endsWith("\\")){
+				modulePath = modulePath.before(modulePath.length - 1)
+			}
+			var relativePath = io.full_directory_path(io.abs(file)).after(modulePath.length - 1).replace("/", ".").replace("\\", ".")
+			if(relativePath.startsWith(".")){
+				relativePath = relativePath.after(0)
+			}
+			if(relativePath.endsWith(".")){
+				relativePath = relativePath.before(relativePath.length - 1)
+			}
+			var namespace = io.directory_name(module.directory) + "." + relativePath
+			while(namespace.endsWith(".")){
+				namespace = namespace.before(namespace.length - 1)
+			}
+			return namespace.toLower()
+		}
+	}
+	[public]
+	property Class? currentClass = null
+	property bool inStaticContext = false
+	[public]
+	property Enum? currentEnum = null
+	[public]
+	property Method? currentMethod = null
+	[public]
+	property list<AttributeInstance> attributeCache = list<AttributeInstance>[]
+	[static]
+	[threadlocal]
+	property map<string, ImportTable> importTables = map<string, ImportTable>{}
+	[public]
+	property ImportTable importTable{
+		get{
+			if(!self:importTables.containsKey(file)){
+				self:importTables[file] = new ImportTable()
+			}
+			return self:importTables[file]
+		}
+		set{
+			self:importTables[file] = value
+		}
+	}
+	property int loopDepth = 0
+
+	[static]
+	[threadlocal]
+	property bool initialized = false
+	[readpublic]
+	[static]
+	[threadlocal]
+	property list<string> importProcessedFiles = []
+
+	[readpublic]
+	property ParseMode? currentParseMode = null
+	
+    [public]
+	method construct(Module module, string file){
+		if(!Module:initialized){
+			aspl.parser.utils.fatal_error("Cannot construct a parser without initializing the modules first (parser.Module:init())")
+		}
+		this.module = module
+		this.file = file
+		if(!self:initialized){
+			self:initialized = true
+			Attribute:init()
+			GenericsUtils:init()
+			Function:init()
+			Method:init()
+			Property:init()
+		}
+	}
+	
+	[public]
+	method parse(ParseMode parseMode = ParseMode.Normal) returns ParseFileResult{
+		currentParseMode = parseMode
+
+		var TokenList tokens = new TokenList(list<Token>[])
+		if(Lexer:cache.containsKey(this.file)){
+			tokens = Lexer:cache[this.file].clone()
+		}else{
+			var Lexer lexer = new Lexer(this.file)
+			tokens = new TokenList(lexer.lex())
+			Lexer:cache[this.file] = tokens
+		}
+		Scope:pushBundle(null)
+		Scope:push()
+		var list<Node> nodes = []
+		if(parseMode == ParseMode.Import){
+			while(true){
+				if(tokens.length == 0){
+					break
+				}
+				var token = tokens.next()
+				if(token.type == TokenType.Identifier && token.value == "import"){
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after import", tokens.peek().location)
+					}
+					var string namespace = parseTypeIdentifier(tokens).identifier
+
+					var string module = namespace.split(".", 2)[0]
+					var path = ModuleUtils:getModulePath(module)
+					if(io.exists_directory(path)){
+						module = io.directory_name(path)
+					}
+					var moduleFound = true
+					if(!Module:modules.containsKey(module)){
+						if(io.exists_directory(path)){
+							var m = new Module(module, path)
+							Module:modules[module] = m
+							foreach(DirectoryUtils:index(m.directory) as file){
+								if(!self:importProcessedFiles.contains(file)){
+									self:importProcessedFiles.add(file)
+									var Parser parser = new Parser(m, file)
+									parser.parse(ParseMode.Import)
+								}
+							}
+						}else{
+							aspl.parser.utils.generic_error("Module '" + module + "' not found", tokens.peek().location)
+							moduleFound = false
+						}
+					}
+
+					if(moduleFound){
+						var namespaceWithoutModule = ""
+						if(namespace.split(".", 2).length > 1){
+							namespaceWithoutModule = namespace.split(".", 2)[1]
+						}
+						if(!io.exists_directory(Module:modules[module].directory + "/" + namespaceWithoutModule.replace(".", "/"))){
+							aspl.parser.utils.generic_error("Namespace '" + namespace + "' not found", tokens.peek().location)
+						}else{
+							importTable.importNamespace(namespace)
+						}
+					}
+				}
+			}
+		}elseif(parseMode == ParseMode.PreprocessTypes){
+			preProcessTypes(tokens)
+		}elseif(parseMode == ParseMode.Preprocess){
+			preProcess(tokens)
+		}elseif(parseMode == ParseMode.Normal){
+			while(true){
+				if(tokens.length == 0){
+					break
+				}
+				var node = parseToken(tokens.next(), tokens, true)
+				if(!(node oftype NopStatement)){
+					nodes.add(node)
+				}
+			}
+		}
+		Scope:pop()
+		Scope:popBundle()
+		currentParseMode = null
+		return new ParseFileResult(nodes)
+	}
+
+	method preProcessTypes(TokenList tokens){
+		while(true){
+			if(tokens.length == 0){
+				break
+			}
+			preProcessTypesToken(tokens.next(), tokens)
+		}
+	}
+
+	method preProcessTypesToken(Token token, TokenList tokens){
+		if(token.type == TokenType.Identifier){
+			if(token.value == "class"){
+				if(currentClass != null){
+					aspl.parser.utils.syntax_error("Cannot declare a class inside another class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected class name after 'class'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				var c = new Class(type, null, null, null, module, token.location)
+				Class:classes[type.toString()] = c
+			}elseif(token.value == "enum"){
+				if(currentEnum != null){
+					aspl.parser.utils.syntax_error("Cannot declare an enum inside another enum", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected enum name after 'enum'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after enum name", tokens.peek().location)
+				}
+				tokens.shift()
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				var e = new Enum(type, null, null, module, token.location)
+				Enum:enums[type.toString()] = e
+			}
+		}
+	}
+
+	method preProcess(TokenList tokens){
+		while(true){
+			if(tokens.length == 0){
+				break
+			}
+			preProcessToken(tokens.next(), tokens)
+		}
+	}
+
+	method preProcessToken(Token token, TokenList tokens){
+		if(token.type == TokenType.Identifier){
+			if(token.value == "function"){
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after 'function'", tokens.peek().location)
+				}
+				var identifier = tokens.next()
+				var list<Parameter> parameters = []
+				tokens.shift()
+				while(true){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						tokens.shift()
+						break
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+					}
+					var types = parseTypesIfAny(tokens)
+					if(types.types.length == 0){
+						if(tokens.peek(1).type == TokenType.Identifier){
+							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+						}
+					}
+					var parameter = tokens.next()
+					var Expression? defaultValue = null
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						defaultValue = new NullLiteral(tokens.peek().location)
+						TokenUtils:skipTokensTillSeparator(tokens)
+					}
+					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}else{
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+							break
+						}
+						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+					}
+				}
+				var returnTypes = new Types([])
+				if(tokens.peek().value == "returns"){
+					tokens.shift()
+					returnTypes = parseTypesIfAny(tokens)
+					if(returnTypes.types.length == 0){
+						if(tokens.peek(1).type == TokenType.BraceOpen){
+							aspl.parser.utils.syntax_error("Invalid return type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location)
+						}else{
+							aspl.parser.utils.syntax_error("Expected type identifier after 'returns'", tokens.peek().location)
+						}
+					}
+				}
+				var braceOpen = tokens.next()
+				if(braceOpen.type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after function parameters", braceOpen.location)
+				}
+				foreach(attributeCache as attribute){
+					if((attribute.attribute.usage && AttributeUsage.Function) == 0){
+						aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on functions", attribute.location)
+					}
+					foreach(attributeCache as other){
+						if(other.attribute.identifier != attribute.attribute.identifier){
+							if(!attribute.attribute.canPair(other.attribute)){
+								aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+							}
+						}
+					}
+				}
+				var f = new CustomFunction(IdentifierUtils:relativeToAbsoluteIdentifier(this, identifier.value), parameters, returnTypes, attributeCache.cloneShallow(), null, module, token.location, braceOpen.location)
+				attributeCache.clear()
+				while(true){
+					if(tokens.peek().type == TokenType.BraceClose){
+						tokens.shift()
+						break
+					}
+					preProcessToken(tokens.next(), tokens)
+				}
+				f.register(token.location)
+			}elseif(token.value == "method"){
+				if(currentClass == null){
+					aspl.parser.utils.syntax_error("Cannot declare a method outside of a class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after 'method'", tokens.peek().location)
+				}
+				var name = tokens.next()
+				if(Class(currentClass).isStatic && name.value == "construct"){
+					aspl.parser.utils.type_error("Static class " + Class(currentClass).type.toString() + " cannot have a constructor", token.location)
+				}
+				var list<Parameter> parameters = []
+				tokens.shift()
+				while(true){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						tokens.shift()
+						break
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+					}
+					var types = parseTypesIfAny(tokens)
+					if(types.types.length == 0){
+						if(tokens.peek(1).type == TokenType.Identifier){
+							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+						}
+					}
+					var parameter = tokens.next()
+					var Expression? defaultValue = null
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						defaultValue = new NullLiteral(tokens.peek().location)
+						TokenUtils:skipTokensTillSeparator(tokens)
+					}
+					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}else{
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+							break
+						}
+						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+					}
+				}
+				var returnTypes = new Types([])
+				if(tokens.peek().value == "returns"){
+					tokens.shift()
+					returnTypes = parseTypesIfAny(tokens)
+					if(returnTypes.types.length == 0){
+						if(tokens.peek(1).type == TokenType.BraceOpen){
+							aspl.parser.utils.fatal_error("Invalid return type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Expected type identifier after 'returns'", tokens.peek().location)
+						}
+					}
+				}
+				var braceOpen = tokens.peek()
+				foreach(attributeCache as attribute){
+					if((attribute.attribute.usage && AttributeUsage.Method) == 0){
+						aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on methods", attribute.location)
+					}elseif(attribute.attribute.identifier == "abstract" && !Class(currentClass).isAbstract){
+						aspl.parser.utils.type_error("Only methods in abstract classes can marked with 'abstract' attribute", attribute.location)
+					}
+					foreach(attributeCache as other){
+						if(other.attribute.identifier != attribute.attribute.identifier){
+							if(!attribute.attribute.canPair(other.attribute)){
+								aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+							}
+						}
+					}
+				}
+				var m = new CustomMethod(Class(currentClass).type, name.value, parameters, returnTypes, attributeCache.cloneShallow(), null, token.location, braceOpen.location)
+				if(Class(currentClass).isStatic && !m.isStatic){
+					aspl.parser.utils.type_error("Cannot declare a non-static method in a static class", token.location)
+				}
+				attributeCache.clear()
+				if(tokens.peek().type == TokenType.BraceOpen){
+					if(m.isAbstract){
+						aspl.parser.utils.syntax_error("Abstract methods cannot have a body", tokens.peek().location)
+					}
+					preProcessBlock(tokens)
+				}elseif(!m.isAbstract){
+					aspl.parser.utils.syntax_error("Non-abstract methods must have a body", tokens.peek().location)
+				}
+				m.register(token.location)
+			}elseif(token.value == "property"){
+				if(currentClass == null){
+					aspl.parser.utils.syntax_error("Cannot declare a property outside of a class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected property name after 'property'", tokens.peek().location)
+				}
+				var types = parseTypesIfAny(tokens)
+				var name = tokens.next()
+				if(types.types.length == 0){
+					aspl.parser.utils.warning("Expected type after property name in 'property' statement; will use 'any' for now", name.location)
+					types = new Types([Type:fromString("any")])
+				}
+				foreach(attributeCache as attribute){
+					if((attribute.attribute.usage && AttributeUsage.Property) == 0){
+						aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on properties", attribute.location)
+					}elseif(attribute.attribute.identifier == "threadlocal" && tokens.peek().type == TokenType.BraceOpen){
+						aspl.parser.utils.type_error("The attribute 'threadlocal' cannot be used on reactive properties", attribute.location)
+					}
+					foreach(attributeCache as other){
+						if(other.attribute.identifier != attribute.attribute.identifier){
+							if(!attribute.attribute.canPair(other.attribute)){
+								aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+							}
+						}
+					}
+				}
+				var Property? p = null
+				var potentialBraceOpen = tokens.peek()
+				if(potentialBraceOpen.type == TokenType.BraceOpen){
+					tokens.shift()
+					if(tokens.peek().type == TokenType.Identifier){
+						if(tokens.peek().value == "get"){
+							tokens.shift()
+							preProcessBlock(tokens)
+						}
+						if(tokens.peek().value == "set"){
+							tokens.shift()
+							preProcessBlock(tokens)
+						}
+					}
+					tokens.shift()
+					p = new CustomReactiveProperty(Class(currentClass).type, name.value, types, attributeCache.cloneShallow(), null, null, token.location, potentialBraceOpen.location)
+				}else{
+					p = new CustomNormalProperty(Class(currentClass).type, name.value, types, attributeCache.cloneShallow(), null, token.location, new Location(name.location.file, name.location.endLine, name.location.endLine, name.location.endColumn, name.location.endColumn + 1))
+				}
+				if(Class(currentClass).isStatic && !Property(p).isStatic){
+					aspl.parser.utils.type_error("Cannot declare a non-static property in a static class", token.location)
+				}
+				attributeCache.clear()
+				Property(p).register(token.location)
+			}
+			elseif(token.value == "class"){
+				if(currentClass != null){
+					aspl.parser.utils.syntax_error("Cannot declare a class inside another class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected class name after 'class'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				var list<Type> parents = []
+				if(tokens.peek().value == "extends"){
+					tokens.shift()
+					while(tokens.peek().type != TokenType.BraceOpen){
+						if(tokens.peek().type != TokenType.Identifier){
+							aspl.parser.utils.syntax_error("Expected class name after 'extends'", tokens.peek().location)
+						}
+						var t = tokens.peek()
+						var parent = parseTypeIdentifier(tokens).identifier
+						parents.add(Type:fromString(parent, this, t.location))
+						if(tokens.peek().type == TokenType.Comma){
+							tokens.shift()
+						}
+					}
+				}
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after class name", tokens.peek().location)
+				}
+				foreach(attributeCache as attribute){
+					if((attribute.attribute.usage && AttributeUsage.Class) == 0){
+						aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on classes", attribute.location)
+					}
+					foreach(attributeCache as other){
+						if(other.attribute.identifier != attribute.attribute.identifier){
+							if(!attribute.attribute.canPair(other.attribute)){
+								aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+							}
+						}
+					}
+				}
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				var c = new Class(type, parents, attributeCache.cloneShallow(), null, module, token.location)
+				attributeCache.clear()
+				Class:classes[type.toString()] = c
+				ClassUtils:classesWithParsers[type.toString()] = this
+				currentClass = c
+				preProcessBlock(tokens)
+				currentClass = null
+			}elseif(token.value == "enum"){
+				if(currentEnum != null){
+					aspl.parser.utils.syntax_error("Cannot declare an enum inside another enum", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected enum name after 'enum'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after enum name", tokens.peek().location)
+				}
+				tokens.shift()
+				foreach(attributeCache as attribute){
+					if((attribute.attribute.usage && AttributeUsage.Enum) == 0){
+						aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on enums", attribute.location)
+					}
+					foreach(attributeCache as other){
+						if(other.attribute.identifier != attribute.attribute.identifier){
+							if(!attribute.attribute.canPair(other.attribute)){
+								aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+							}
+						}
+					}
+				}
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				var e = new Enum(type, attributeCache.cloneShallow(), null, module, token.location)
+				attributeCache.clear()
+				Enum:enums[type.toString()] = e
+				currentEnum = e
+				var map<string, EnumField> fields = {}
+				while(true){
+					var field = tokens.next()
+					if(field.type == TokenType.BraceClose){
+						e.location = new Location(token.location.file, token.location.startLine, field.location.endLine, token.location.startColumn, field.location.endColumn)
+						break
+					}
+					if(AttributeUtils:parseAttributesIfAny(this, field, tokens)){
+						field = tokens.next()
+					}
+					if(field.type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected enum field name", field.location)
+					}
+					foreach(attributeCache as attribute){
+						if((attribute.attribute.usage && AttributeUsage.EnumField) == 0){
+							aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on enum fields", attribute.location)
+						}
+						foreach(attributeCache as other){
+							if(other.attribute.identifier != attribute.attribute.identifier){
+								if(!attribute.attribute.canPair(other.attribute)){
+									aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+								}
+							}
+						}
+					}
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						TokenUtils:skipTokensTillSeparator(tokens)
+					}
+					fields[field.value] = new EnumField(e, field.value, null, attributeCache, token.location)
+					attributeCache.clear()
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}elseif(tokens.peek().type != TokenType.BraceClose){
+						aspl.parser.utils.syntax_error("Expected ',' or '}' after enum field", tokens.peek().location)
+					}
+				}
+				e.fields = fields
+				currentEnum = null
+			}
+		}elseif(token.type == TokenType.BracketOpen){
+			if(tokens.peek().type == TokenType.Identifier){
+				var attributePeek = peekTypeIdentifier(tokens)
+				var isAttribute = true
+				if((tokens.peek(attributePeek.tokenCount).type == TokenType.BracketClose) || (tokens.peek(attributePeek.tokenCount).type == TokenType.ParenthesisOpen)){
+					if(!Attribute:exists(attributePeek.identifier)){
+						isAttribute = false
+					}
+				}else{
+					isAttribute = false
+				}
+				if(isAttribute){
+					var attribute = Attribute:get(IdentifierUtils:handleTypeIdentifier(parseTypeIdentifier(tokens).identifier))
+					var list<Expression> arguments = []
+					if(tokens.peek().type == TokenType.ParenthesisOpen){
+						tokens.shift()
+						foreach(attribute.parameters as parameter){
+							if(tokens.peek().type == TokenType.ParenthesisClose){
+								if(!parameter.optional){
+									aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.minimumParameterCount + ")", tokens.peek().location)
+								}
+								break
+							}
+							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+							if(!Type:matches(parameter.types, value.getType())){
+								aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+							}
+							arguments.add(value)
+							if(arguments.length < attribute.parameters.length && tokens.peek().type == TokenType.Comma){
+								tokens.shift()
+							}
+						}
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+						}else{
+							aspl.parser.utils.syntax_error("Expected ')' after attribute arguments", tokens.peek().location)
+						}
+					}elseif(attribute.parameters.length > 0 && !attribute.parameters[0].optional){
+						aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.minimumParameterCount + ")", tokens.peek().location)
+					}
+					if(tokens.peek().type == TokenType.BracketClose){
+						tokens.shift()
+					}else{
+						aspl.parser.utils.syntax_error("Expected ']' after attribute name", tokens.peek().location)
+					}
+					this.attributeCache.add(new AttributeInstance(attribute, arguments, token.location, list<Token>(token.comments)))
+				}
+			}
+		}
+	}
+
+	[public]
+	method parseToken(Token token, TokenList tokens, bool standalone = false, PrecedenceLevel precedenceLevel = PrecedenceLevel.None, Expression? previousExpression = null, Types? expectedTypes = null) returns Node{
+		if(token.type == TokenType.Byte){
+			if(token.value.endsWith("b")){
+				return applyOperators(new ByteLiteral(byte(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+			}else{
+				if(expectedTypes != null){
+					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+					}
+				}
+				return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.Integer){
+			if(expectedTypes != null){
+				if(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
+					return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
+					return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
+					return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
+					return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
+					return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+				}
+			}
+			return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Long){
+			if(token.value.endsWith("l")){
+				return applyOperators(new LongLiteral(long(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+			}else{
+				if(expectedTypes != null){
+					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+					}
+				}
+				return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.Float){
+			if(token.value.endsWith("f")){
+				return applyOperators(new FloatLiteral(float(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+			}else{
+				if(expectedTypes != null){
+					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+					}
+				}
+				return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.Double){
+			if(token.value.endsWith("d")){
+				return applyOperators(new DoubleLiteral(double(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+			}else{
+				if(expectedTypes != null){
+					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+					}
+				}
+				return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.String){
+			return applyOperators(new StringLiteral(token.value, StringToken(token).literalString, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Identifier){
+			if(token.value == "import"){
+				parseTypeIdentifier(tokens) // ignore the import statement as it has already been processed
+				return new NopStatement()
+			}
+			elseif(token.value == "null"){
+				return applyOperators(new NullLiteral(token.location), tokens, precedenceLevel)
+			}elseif(token.value == "false"){
+				return applyOperators(new BooleanLiteral(false, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "true"){
+				return applyOperators(new BooleanLiteral(true, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "assert"){
+				var expression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("bool")])))
+				if(!Type:matches(new Types([Type:fromString("bool")]), expression.getType())){
+					aspl.parser.utils.type_error("Condition in assert statement must be of type boolean, but expression of type '" + expression.getType().toString() + "' given", token.location)
+				}
+				return new AssertStatement(expression, token.location)
+			}elseif(token.value == "var"){
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after 'var'", tokens.peek().location)
+				}
+				var types = parseTypesIfAny(tokens)
+				var identifier = tokens.next()
+				if(tokens.peek().type != TokenType.Equals){
+					if(tokens.peek().type == TokenType.Identifier){
+						aspl.parser.utils.fatal_error("Unknown type '" + identifier.value + "'", identifier.location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+					}
+					aspl.parser.utils.syntax_error("Expected '=' after variable declaration", tokens.peek().location)
+				}
+				tokens.shift()
+				var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+				if(types.types.length == 0){
+					types = value.getType()
+				}else{
+					if(!Type:matches(types, value.getType())){
+						aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + types.toString() + "'", value.location)
+					}
+				}
+				var v = Variable:register(identifier.value, types, token.location)
+				return applyOperators(new VariableDeclareExpression(v, value, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "function"){
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after 'function'", tokens.peek().location)
+				}
+				var identifier = tokens.next()
+				Scope:pushBundle(null)
+				Scope:push()
+				var list<Parameter> parameters = []
+				tokens.shift()
+				while(true){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						tokens.shift()
+						break
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+					}
+					var types = parseTypesIfAny(tokens)
+					if(types.types.length == 0){
+						if(tokens.peek(1).type == TokenType.Identifier){
+							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+						}
+					}
+					var parameter = tokens.next()
+					var Expression? defaultValue = null
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+						if(!Expression(defaultValue).isConstant()){
+							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
+						}
+						if(!Type:matches(types, Expression(defaultValue).getType())){
+							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
+						}
+					}
+					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
+					Variable:register(parameter.value, types, token.location)
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}else{
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+							break
+						}
+						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+					}
+				}
+				var f = CustomFunction(Function:functions[IdentifierUtils:relativeToAbsoluteIdentifier(this, identifier.value)])
+				var returnTypes = new Types([])
+				if(tokens.peek().value == "returns"){
+					tokens.shift()
+					returnTypes = parseTypesIfAny(tokens)
+					if(returnTypes.types.length == 0){
+						if(tokens.peek(1).type == TokenType.BraceOpen){
+							aspl.parser.utils.generic_error("Invalid return type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Expected type identifier after 'returns'", tokens.peek().location)
+						}
+					}elseif(f.isPublic){
+						foreach(returnTypes.types as type){
+							if(!Type:isPublic(type)){
+								aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a return type of a public function", token.location) // TODO: Make this a generic_error after the grace period
+							}
+						}
+					}
+				}
+				f.parameters = parameters
+				f.returnTypes = returnTypes
+				Scope:getCurrentBundle().func = f
+				var statements = parseBlock(tokens, null, false)
+				f.code = statements
+				Scope:pop()
+				Scope:popBundle()
+				f.register(token.location)
+				var comments = list<Token>[]
+				foreach(f.attributes as attribute){
+					foreach(attribute.comments as comment){
+						comments.add(comment)
+					}
+				}
+				foreach(list<Token>(token.comments) as comment){
+					comments.add(comment)
+				}
+				return new FunctionDeclareStatement(f, comments, token.location)
+			}elseif(token.value == "method"){
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after 'method'", tokens.peek().location)
+				}
+				var name = tokens.next()
+				var m = CustomMethod(Method:methods[Class(currentClass).type.toString()][name.value])
+				Scope:pushBundle(null)
+				Scope:push()
+				var list<Parameter> parameters = []
+				tokens.shift()
+				while(true){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						tokens.shift()
+						break
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+					}
+					var types = parseTypesIfAny(tokens)
+					if(types.types.length == 0){
+						if(tokens.peek(1).type == TokenType.Identifier){
+							aspl.parser.utils.generic_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+						}
+					}elseif(currentClass?!.isPublic && m.isPublic){
+						foreach(types.types as type){
+							if(!Type:isPublic(type)){
+								aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a parameter type of a public method in a public class", token.location) // TODO: Make this a generic_error after the grace period
+							}
+						}
+					}
+					var parameter = tokens.next()
+					var Expression? defaultValue = null
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+						if(!Expression(defaultValue).isConstant()){
+							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
+						}
+						if(!Type:matches(types, Expression(defaultValue).getType())){
+							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
+						}
+					}
+					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
+					Variable:register(parameter.value, types, token.location)
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}else{
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+							break
+						}
+						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+					}
+				}
+				var returnTypes = new Types([])
+				if(tokens.peek().value == "returns"){
+					tokens.shift()
+					returnTypes = parseTypesIfAny(tokens)
+					if(returnTypes.types.length == 0){
+						if(tokens.peek(1).type == TokenType.BraceOpen){
+							aspl.parser.utils.generic_error("Invalid return type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Expected type identifier after 'returns'", tokens.peek().location)
+						}
+					}elseif(currentClass?!.isPublic && m.isPublic){
+						foreach(returnTypes.types as type){
+							if(!Type:isPublic(type)){
+								aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a return typr of a public method in a public class", token.location) // TODO: Make this a generic_error after the grace period
+							}
+						}
+					}
+				}
+				m.parameters = parameters
+				m.returnTypes = returnTypes
+				Scope:getCurrentBundle().func = m
+				var list<Node> statements = list<Node>[]
+				if(tokens.peek().type == TokenType.BraceOpen){
+					if(m.isAbstract){
+						aspl.parser.utils.syntax_error("Abstract methods cannot have a body", tokens.peek().location)
+					}
+					currentMethod = m
+					var oldStaticContextState = inStaticContext
+					inStaticContext = m.isStatic
+					statements = parseBlock(tokens, null, false)
+					inStaticContext = oldStaticContextState
+					currentMethod = null
+				}elseif(!m.isAbstract){
+					aspl.parser.utils.syntax_error("Non-abstract methods must have a body", tokens.peek().location)
+				}else{
+					statements = list<Node>[]
+				}
+				m.code = statements
+				Scope:pop()
+				Scope:popBundle()
+				m.register(token.location)
+				var comments = list<Token>[]
+				foreach(m.attributes as attribute){
+					foreach(attribute.comments as comment){
+						comments.add(comment)
+					}
+				}
+				foreach(list<Token>(token.comments) as comment){
+					comments.add(comment)
+				}
+				return new MethodDeclareStatement(m, comments, token.location)
+			}elseif(token.value == "return"){
+				// TODO: Disallow if inside error callback
+				if(Scope:getCurrentBundle().func == null){
+					aspl.parser.utils.generic_error("Cannot return when not inside a function", token.location)
+				}
+				elseif(tokens.peek() != null && tokens.peek().location.startLine == token.location.endLine){
+					var returnTypes = ReturnTypeUtils:getReturnTypes(Scope:getCurrentBundle().func)
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, returnTypes))
+					if(returnTypes.types.length == 0){
+						aspl.parser.utils.type_error("Cannot return a value from a function with no return type", token.location)
+					}
+					elseif(!Type:matches(returnTypes, value.getType())){
+						if(Scope:getCurrentBundle().func oftype Method){
+							aspl.parser.utils.type_error("Cannot return a value of type '" + value.getType().toString() + "' in the method " + Method(Scope:getCurrentBundle().func).type.toString() + "." + Method(Scope:getCurrentBundle().func).name + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}elseif(Scope:getCurrentBundle().func oftype ReactivePropertyCallback){
+							if(ReactivePropertyCallback(Scope:getCurrentBundle().func).p.isStatic){
+								aspl.parser.utils.type_error("Cannot return a value of type '" + value.getType().toString() + "' in " + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.type.toString() + ":" + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.name + " which has a type of '" + returnTypes.toString() + "'", token.location)
+							}else{
+								aspl.parser.utils.type_error("Cannot return a value of type '" + value.getType().toString() + "' in " + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.type.toString() + "." + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.name + " which has a type of '" + returnTypes.toString() + "'", token.location)
+							}
+						}elseif(Scope:getCurrentBundle().func oftype Callback){
+							aspl.parser.utils.type_error("Cannot return a value of type '" + value.getType().toString() + "' in a " + Callback(Scope:getCurrentBundle().func).type.toString() + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}else{
+							aspl.parser.utils.type_error("Cannot return a value of type '" + value.getType().toString() + "' in the function " + Function(Scope:getCurrentBundle().func).identifier + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}
+					}
+					return new ReturnStatement(value, Scope:getCurrentBundle().func, token.location)
+				}
+				return new ReturnStatement(null, Scope:getCurrentBundle().func, token.location)
+			}elseif(token.value == "fallback"){
+				if(!Options:enableErrorHandling){
+					aspl.parser.utils.generic_error("Experimental error handling ('-enableErrorHandling') is not enabled for this build", token.location)
+				}
+				// TODO: Check if inside error callback
+				elseif(tokens.peek() != null && tokens.peek().location.startLine == token.location.endLine){
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null))
+					// TODO: Maybe check the type?
+					return new FallbackStatement(value, token.location)
+				}else{
+					aspl.parser.utils.generic_error("No fallback value provided", token.location)
+				}
+			}elseif(token.value == "escape"){
+				if(!Options:enableErrorHandling){
+					aspl.parser.utils.generic_error("Experimental error handling ('-enableErrorHandling') is not enabled for this build", token.location)
+				}
+				// TODO: Check if inside error callback
+				if(Scope:getCurrentBundle().func == null){
+					aspl.parser.utils.generic_error("Cannot escape return when not inside a function", token.location)
+				}
+				elseif(tokens.peek() != null && tokens.peek().location.startLine == token.location.endLine){
+					var returnTypes = ReturnTypeUtils:getReturnTypes(Scope:getCurrentBundle().func)
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, returnTypes))
+					if(returnTypes.types.length == 0){
+						aspl.parser.utils.type_error("Cannot escape return a value from a function with no return type", token.location)
+					}
+					elseif(!Type:matches(returnTypes, value.getType())){
+						if(Scope:getCurrentBundle().func oftype Method){
+							aspl.parser.utils.type_error("Cannot escape return a value of type '" + value.getType().toString() + "' in the method " + Method(Scope:getCurrentBundle().func).type.toString() + "." + Method(Scope:getCurrentBundle().func).name + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}elseif(Scope:getCurrentBundle().func oftype ReactivePropertyCallback){
+							if(ReactivePropertyCallback(Scope:getCurrentBundle().func).p.isStatic){
+								aspl.parser.utils.type_error("Cannot escape return a value of type '" + value.getType().toString() + "' in " + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.type.toString() + ":" + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.name + " which has a type of '" + returnTypes.toString() + "'", token.location)
+							}else{
+								aspl.parser.utils.type_error("Cannot escape return a value of type '" + value.getType().toString() + "' in " + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.type.toString() + "." + ReactivePropertyCallback(Scope:getCurrentBundle().func).p.name + " which has a type of '" + returnTypes.toString() + "'", token.location)
+							}
+						}elseif(Scope:getCurrentBundle().func oftype Callback){
+							aspl.parser.utils.type_error("Cannot escape return a value of type '" + value.getType().toString() + "' in a " + Callback(Scope:getCurrentBundle().func).type.toString() + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}else{
+							aspl.parser.utils.type_error("Cannot escape return a value of type '" + value.getType().toString() + "' in the function " + Function(Scope:getCurrentBundle().func).identifier + " which has a return type of '" + returnTypes.toString() + "'", token.location)
+						}
+					}
+					return new EscapeStatement(value, token.location)
+				}
+				return new EscapeStatement(null, token.location)
+			}elseif(token.value == "callback"){
+				Scope:push(true)
+				var list<Parameter> parameters = []
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' (opening parenthesis) after 'callback'", tokens.peek().location)
+				}
+				tokens.shift()
+				while(true){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						tokens.shift()
+						break
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+					}
+					var types = parseTypesIfAny(tokens)
+					if(types.types.length == 0){
+						if(tokens.peek(1).type == TokenType.Identifier){
+							aspl.parser.utils.generic_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+						}
+					}
+					var parameter = tokens.next()
+					var Expression? defaultValue = null
+					if(tokens.peek().type == TokenType.Equals){
+						aspl.parser.utils.generic_error("Optional callback parameters are not yet supported", tokens.peek().location) // TODO
+						/*tokens.shift()
+						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+						if(!Expression(defaultValue).isConstant()){
+							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
+						}
+						if(!Type:matches(types, Expression(defaultValue).getType())){
+							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
+						}*/
+					}
+					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
+					Variable:register(parameter.value, types, token.location)
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}else{
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							tokens.shift()
+							break
+						}
+						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+					}
+				}
+				var returnTypes = new Types([])
+				if(tokens.peek().value == "returns"){
+					tokens.shift()
+					returnTypes = parseTypesIfAny(tokens)
+					if(returnTypes.types.length == 0){
+						if(tokens.peek(1).type == TokenType.BraceOpen){
+							aspl.parser.utils.generic_error("Invalid return type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+						}else{
+							aspl.parser.utils.syntax_error("Expected type identifier after 'returns'", tokens.peek().location)
+						}
+					}
+				}
+				var type = "callback"
+				if(parameters.length > 0 || returnTypes.types.length > 0){
+					type += "<"
+				}
+				foreach(parameters as parameter){
+					type += parameter.types.toString() + ", "
+				}
+				if(returnTypes.types.length > 0){
+					type += "returns " + returnTypes.toString() + ", "
+				}
+				if(parameters.length > 0 || returnTypes.types.length > 0){
+					type = type.before(type.length - 2) + ">"
+				}
+				var c = new Callback(Type:fromString(type, this, token.location), parameters, returnTypes, null, Scope:getCurrentBundle(), token.location)
+				var oldFunction = Scope:getCurrentBundle().func
+				Scope:getCurrentBundle().func = c
+				var statements = parseBlock(tokens, null, false)
+				Scope:getCurrentBundle().func = oldFunction
+				c.code = statements
+				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
+				Scope:pop()
+				Scope:passCapturedVariables(capturedVariables)
+				return applyOperators(new CallbackLiteral(c, capturedVariables, token.location), tokens, precedenceLevel)
+			}
+			elseif(token.value == "if" || token.value == "elseif"){ // see below for elseif implementation
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after '" + token.value + "'", tokens.peek().location)
+				}
+				tokens.shift()
+				var condition = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("bool")])))
+				if(!Type:matches(new Types([Type:fromString("bool")]), condition.getType())){
+					aspl.parser.utils.type_error("Condition in " + token.value + " statement must be of type boolean, but expression of type '" + condition.getType().toString() + "' given", token.location)
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after condition in " + token.value + " statement", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after condition in " + token.value + " statement", tokens.peek().location)
+				}
+				var code = parseBlock(tokens)
+				if(!tokens.empty()){
+					if(tokens.peek().value == "elseif"){
+						var next = parseToken(tokens.next(), tokens)
+						if(next oftype IfStatement){
+							return new IfElseIfStatement(condition, code, IfStatement(next), token.location)
+						}elseif(next oftype IfElseIfStatement){
+							return new IfElseIfStatement(condition, code, IfElseIfStatement(next), token.location)
+						}elseif(next oftype IfElseStatement){
+							return new IfElseIfStatement(condition, code, IfElseStatement(next), token.location)
+						}else{
+							aspl.parser.utils.syntax_error("'elseif' didn't generate if statement (compiler bug)", token.location)
+						}
+					}elseif(tokens.peek().value == "else"){
+						tokens.shift()
+						if(tokens.peek().value == "if"){
+							aspl.parser.utils.syntax_error("Use 'elseif' instead of 'else if'", tokens.peek().location)
+						}elseif(tokens.peek().type != TokenType.BraceOpen){
+							aspl.parser.utils.syntax_error("Expected '{' after 'else'", tokens.peek().location)
+						}
+						var elseCode = parseBlock(tokens)
+						return new IfElseStatement(condition, code, elseCode, token.location)
+					}
+				}
+				return new IfStatement(condition, code, token.location)
+			}
+			elseif(token.value == "while"){
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after 'while'", tokens.peek().location)
+				}
+				tokens.shift()
+				var condition = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("bool")])))
+				if(!Type:matches(new Types([Type:fromString("bool")]), condition.getType())){
+					aspl.parser.utils.type_error("Condition in while statement must be of type boolean, but expression of type '" + condition.getType().toString() + "' given", token.location)
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after condition in while statement", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after condition in while statement", tokens.peek().location)
+				}
+				loopDepth++
+				var code = parseBlock(tokens)
+				loopDepth--
+				return new WhileStatement(condition, code, token.location)
+			}
+			elseif(token.value == "repeat"){
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after 'repeat'", tokens.peek().location)
+				}
+				tokens.shift()
+				var iterations = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+				if(!Type:matches(new Types([Type:fromString("integer")]), iterations.getType())){
+					aspl.parser.utils.type_error("Amount in repeat statement must be of type 'integer', but expression of type '" + iterations.getType().toString() + "' given", token.location)
+				}
+				var string? variable = null
+				var int start = 1
+				if(tokens.peek().type == TokenType.Comma){
+					tokens.shift()
+					var variableToken = tokens.next()
+					if(variableToken.type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected variable name after ',' in repeat statement", variableToken.location)
+					}
+					if(variableToken.value == "_"){
+						aspl.parser.utils.warning("Unnecessary use of '_' as variable name in repeat statement", variableToken.location)
+					}else{
+						variable = variableToken.value
+					}
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var startExpression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+						if(!Type:matches(new Types([Type:fromString("integer")]), startExpression.getType())){
+							aspl.parser.utils.type_error("Start value in repeat statement must be of type 'integer', but expression of type '" + startExpression.getType().toString() + "' given", token.location)
+						}
+						if(!startExpression.isConstant()){
+							aspl.parser.utils.syntax_error("Start value in repeat statement must be constant", token.location)
+						}
+						start = int(startExpression.getConstantValue())
+					}else{
+						aspl.parser.utils.warning("Start value in repeat statement not specified, assuming " + start, token.location)
+					}
+				}
+				Scope:push()
+				if(variable != null){
+					Variable:register(string(variable), new Types([Type:fromString("integer")]), token.location)
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after iterations in repeat statement", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after iterations in repeat statement", tokens.peek().location)
+				}
+				loopDepth++
+				var code = parseBlock(tokens, null, false)
+				loopDepth--
+				Scope:pop()
+				return new RepeatStatement(iterations, variable, start, code, token.location)
+			}
+			elseif(token.value == "foreach"){
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after 'foreach'", tokens.peek().location)
+				}
+				tokens.shift()
+				var collection = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("list")])))
+				if(!(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true) || Type:matches(new Types([Type:fromString("map")]), collection.getType(), true) || Type:matches(new Types([Type:fromString("string")]), collection.getType()))){
+					aspl.parser.utils.type_error("Collection in foreach statement must be of type 'list', 'map' or 'string', but expression of type '" + collection.getType().toString() + "' given", token.location)
+				}
+				if(tokens.peek().value != "as"){
+					aspl.parser.utils.syntax_error("Expected 'as' after collection in foreach statement", tokens.peek().location)
+				}
+				tokens.shift()
+				var first = tokens.next()
+				if(first.type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected variable name after 'as' in foreach statement", first.location)
+				}
+				var Token? second = null
+				if(tokens.peek().type == TokenType.Assign){
+					tokens.shift()
+					second = tokens.next()
+					if(Token(second).type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected variable name after '=>' in foreach statement", Token(second).location)
+					}
+				}elseif(tokens.peek().type == TokenType.Comma){
+					aspl.parser.utils.syntax_error("Use '=>' instead of ',' when specifying key and value variables in foreach statements", tokens.peek().location)
+				}
+				Scope:push()
+				var string? key = null
+				var string? value = null
+				if(second != null){
+					if(first.value == "_"){
+						aspl.parser.utils.warning("Unnecessary use of '_' as key variable name in foreach statement", first.location)
+					}else{
+						key = first.value
+						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
+							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location)
+						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
+							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
+								Variable:register(string(key), new Types([]), token.location) // map<void> (due to a previous non-fatal error)
+							}else{
+								Variable:register(string(key), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+							}
+						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
+							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location)
+						}
+					}
+					if(Token(second).value != "_"){
+						value = Token(second).value
+						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
+							if(Type:getGenericTypes(collection.getType().toString()).length < 1){
+								Variable:register(string(value), new Types([]), token.location) // list<void> (due to a previous non-fatal error)
+							}else{
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+							}
+						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
+							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
+								Variable:register(string(value), new Types([]), token.location) // map<void> (due to a previous non-fatal error)
+							}else{
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location)
+							}
+						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
+							Variable:register(string(value), new Types([Type:fromString("string")]), token.location)
+						}
+					}
+				}else{
+					if(first.value == "_"){
+						aspl.parser.utils.warning("Unnecessary use of '_' as value variable name in foreach statement", first.location)
+					}else{
+						value = first.value
+						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
+							if(Type:getGenericTypes(collection.getType().toString()).length < 1){
+								Variable:register(string(value), new Types([]), token.location)
+							}else{
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+							}
+						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
+							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
+								Variable:register(string(value), new Types([]), token.location)
+							}else{
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location)
+							}
+						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
+							Variable:register(string(value), new Types([Type:fromString("string")]), token.location)
+						}
+					}
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after variable names in foreach statement", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after variable names in foreach statement", tokens.peek().location)
+				}
+				loopDepth++
+				var code = parseBlock(tokens, null, false)
+				loopDepth--
+				Scope:pop()
+				return new ForeachStatement(collection, key, value, code, token.location)
+			}
+			elseif(token.value == "implement"){
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after 'implement'", tokens.peek().location)
+				}
+				tokens.shift()
+				var call = tokens.next()
+				if(call.type != TokenType.String){
+					aspl.parser.utils.syntax_error("Expected implementation call identifier (string) as first argument to 'implement'", call.location)
+				}
+				var list<Expression> args = []
+				if(tokens.peek().type == TokenType.Comma){
+					tokens.shift()
+					while(true){
+						var arg = tokens.peek()
+						if(arg.type == TokenType.ParenthesisClose){
+							break
+						}
+						tokens.shift()
+						args.add(aspl.parser.utils.verify_expression(parseToken(arg, tokens)))
+						if(tokens.peek().type == TokenType.Comma){
+							tokens.shift()
+						}
+					}
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after arguments for 'implement'", tokens.peek().location)
+				}
+				tokens.shift()
+				ImplementationCallUtils:usedImplementationCalls[call.value] = args.length
+				return applyOperators(new ImplementationCallExpression(call.value, args, token.location), tokens, precedenceLevel)
+			}
+			elseif(token.value == "oftype"){
+				if(previousExpression == null){
+					aspl.parser.utils.syntax_error("Expected expression before 'oftype'", token.location)
+				}
+				var typeIdentifierFirstToken = tokens.peek()
+				var typeIdentifier = parseTypeIdentifier(tokens).identifier
+				if(!Type:existsByName(this, typeIdentifier)){
+					aspl.parser.utils.type_error("Type '" + typeIdentifier + "' does not exist", token.location)
+				}
+				var type = Type:fromString(typeIdentifier, this, typeIdentifierFirstToken.location)
+				/*
+				TODO: The below code is false-positive when type extends Expression(previousExpression).getType()
+				if(!Type:matches(new Types([type]), Expression(previousExpression).getType())){
+					aspl.parser.utils.warning("Expression of type '" + Expression(previousExpression).getType().toString() + "' will never be of type '" + type.toString() + "'", token.location)
+				}*/
+				return applyOperators(new OfTypeExpression(Expression(previousExpression), type, token.location), tokens, precedenceLevel)
+			}
+			elseif(token.value == "break" || token.value == "break_no_legacy"){ // TODO: Remove break_no_legacy when old codebases have been updated
+				var level = 1
+				if(tokens.peek().type == TokenType.Integer){
+					var levelExpression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+					if(!Type:matches(new Types([Type:fromString("integer")]), levelExpression.getType())){
+						aspl.parser.utils.type_error("Break level must be of type integer, but expression of type '" + levelExpression.getType().toString() + "' given", token.location)
+					}
+					if(!levelExpression.isConstant()){
+						aspl.parser.utils.generic_error("Break level must be known at compile time", token.location)
+					}
+					level = int(levelExpression.getConstantValue())
+				}
+				if(this.loopDepth < 1){
+					aspl.parser.utils.generic_error("Cannot use 'break' outside of a loop", token.location)
+				}elseif(level < 1){
+					aspl.parser.utils.generic_error("Break level must be greater than 0", token.location)
+				}elseif(level > this.loopDepth){
+					aspl.parser.utils.generic_error("Break level must be less than or equal to " + this.loopDepth + " because it is in only that many nested loops", token.location)
+				}
+				return new BreakStatement(level, token.location)
+			}
+			elseif(token.value == "continue" || token.value == "continue_no_legacy"){ // TODO: Remove continue_no_legacy when old codebases have been updated
+				var level = 1
+				if(tokens.peek().type == TokenType.Integer){
+					var levelExpression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+					if(!Type:matches(new Types([Type:fromString("integer")]), levelExpression.getType())){
+						aspl.parser.utils.type_error("Continue level must be of type integer, but expression of type '" + levelExpression.getType().toString() + "' given", token.location)
+					}
+					if(!levelExpression.isConstant()){
+						aspl.parser.utils.generic_error("Continue level must be known at compile time", token.location)
+					}
+					level = int(levelExpression.getConstantValue())
+				}
+				if(this.loopDepth < 1){
+					aspl.parser.utils.generic_error("Cannot use 'continue' outside of a loop", token.location)
+				}elseif(level < 1){
+					aspl.parser.utils.generic_error("Continue level must be greater than 0", token.location)
+				}elseif(level > this.loopDepth){
+					aspl.parser.utils.generic_error("Continue level must be less than or equal to " + this.loopDepth + " because it is in only that many nested loops", token.location)
+				}
+				return new ContinueStatement(level, token.location)
+			}
+			elseif(token.value == "class"){
+				if(currentClass != null){
+					aspl.parser.utils.syntax_error("Cannot declare a class inside another class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected class name after 'class'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				var list<Type> parents = []
+				if(tokens.peek().value == "extends"){
+					tokens.shift()
+					while(tokens.peek().type != TokenType.BraceOpen){
+						if(tokens.peek().type != TokenType.Identifier){
+							aspl.parser.utils.syntax_error("Expected class name after 'extends'", tokens.peek().location)
+						}
+						var t = tokens.peek()
+						var parent = parseTypeIdentifier(tokens).identifier
+						if(Type:existsByName(this, parent)){
+							var type = Type:fromString(parent, this, t.location)
+							if(!Class:classes.containsKey(type.toString())){
+								aspl.parser.utils.type_error("Cannot extend the unknown class '" + parent + "'", tokens.peek().location)
+							}else{
+								parents.add(type)
+							}
+						}else{
+							aspl.parser.utils.type_error("Cannot extend the unknown class '" + parent + "'", tokens.peek().location)
+						}
+						if(tokens.peek().type == TokenType.Comma){
+							tokens.shift()
+						}
+					}
+				}
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after class name", tokens.peek().location)
+				}
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				ClassUtils:throwOnInvalidInheritance(Class:classes[type.toString()], [], token.location)
+				var c = Class:classes[type.toString()]
+				currentClass = c
+				c.parents = parents
+				c.code = parseBlock(tokens)
+				currentClass = null
+				if(!c.isAbstract){
+					var stillAbstractMethods = ClassUtils:getAllAbstractMethods(c)
+					if(stillAbstractMethods.length > 0){
+						aspl.parser.utils.type_error("The class " + c.type.toString() + " does not implement the following abstract methods from its parents: " + stillAbstractMethods.join(", "))
+					}
+				}
+				var comments = list<Token>[]
+				foreach(c.attributes as attribute){
+					foreach(attribute.comments as comment){
+						comments.add(comment)
+					}
+				}
+				foreach(list<Token>(token.comments) as comment){
+					comments.add(comment)
+				}
+				return new ClassDeclareStatement(c, comments, token.location)
+			}
+			elseif(token.value == "enum"){
+				if(currentClass != null){
+					aspl.parser.utils.syntax_error("Cannot declare an enum inside another enum", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected enum name after 'enum'", tokens.peek().location)
+				}
+				var name = tokens.next().value
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after enum name", tokens.peek().location)
+				}
+				tokens.shift()
+				attributeCache.clear()
+				var type = Type:fromString(currentNamespace + "." + name, this, token.location)
+				var e = Enum:enums[type.toString()]
+				currentEnum = e
+				var map<string, EnumField> fields = {}
+				while(true){
+					if(e.isFlags && fields.length > 31){
+						aspl.parser.utils.generic_error("Cannot declare more than 32 fields in the enum \"" + e.type.toString() + "\", because it has the \"flags\" attribute", tokens.peek().location)
+					}
+					var field = tokens.next()
+					if(field.type == TokenType.BraceClose){
+						break
+					}
+					if(AttributeUtils:parseAttributesIfAny(this, field, tokens)){
+						field = tokens.next()
+					}
+					if(field.type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected enum field name", field.location)
+					}
+					if(fields.containsKey(field.value)){
+						aspl.parser.utils.generic_error("Enum field '" + field.value + "' already declared", field.location)
+					}
+					foreach(attributeCache as attribute){
+						if((attribute.attribute.usage && AttributeUsage.EnumField) == 0){
+							aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used on enum fields", attribute.location)
+						}
+						foreach(attributeCache as other){
+							if(other.attribute.identifier != attribute.attribute.identifier){
+								if(!attribute.attribute.canPair(other.attribute)){
+									aspl.parser.utils.type_error("The attribute '" + attribute.attribute.identifier + "' cannot be used together with the attribute '" + other.attribute.identifier + "'", attribute.location)
+								}
+							}
+						}
+					}
+					var value = fields.length
+					if(tokens.peek().type == TokenType.Equals){
+						if(e.isFlags){
+							aspl.parser.utils.generic_error("Cannot specify custom field values for enums with the 'flags' attribute", tokens.peek().location)
+						}
+						tokens.shift()
+						var v = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+						if(!v.isConstant()){
+							aspl.parser.utils.generic_error("Value of enum field must be constant")
+						}elseif(!Type:matches(new Types([Type:fromString("integer")]), v.getType())){
+							aspl.parser.utils.type_error("Value of enum field must be an integer")
+						}else{
+							value = int(v.getConstantValue())
+						}
+					}elseif(e.isFlags){
+						value = int(math.pow(2d, double(fields.length)))
+					}
+					fields[field.value] = new EnumField(e, field.value, value, attributeCache, token.location)
+					attributeCache.clear()
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}elseif(tokens.peek().type != TokenType.BraceClose){
+						aspl.parser.utils.syntax_error("Expected ',' or '}' after enum field", tokens.peek().location)
+					}
+				}
+				e.fields = fields
+				currentEnum = null
+				var comments = list<Token>[]
+				foreach(list<AttributeInstance>(e.attributes) as attribute){
+					foreach(attribute.comments as comment){
+						comments.add(comment)
+					}
+				}
+				foreach(list<Token>(token.comments) as comment){
+					comments.add(comment)
+				}
+				return new EnumDeclareStatement(e, comments, token.location)
+			}elseif(token.value == "new"){
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected class identifier after 'new'", tokens.peek().location)
+				}
+				var identifierFirstToken = tokens.peek()
+				var unhandledIdentifier = parseTypeIdentifier(tokens).identifier
+				var type = Type:fromString(unhandledIdentifier, this, identifierFirstToken.location)
+				if(!Class:classes.containsKey(type.toString())){
+					aspl.parser.utils.fatal_error("Class '" + unhandledIdentifier + "' not found", token.location)
+				}
+				var c = Class:classes[type.toString()]
+				if(tokens.peek().type != TokenType.ParenthesisOpen){
+					aspl.parser.utils.syntax_error("Expected '(' after class identifier in 'new' expression", tokens.peek().location)
+				}
+				tokens.shift()
+				if(c.isAbstract){
+					aspl.parser.utils.generic_error("Cannot instantiate the abstract class " + type.toString(), token.location)
+				}
+				if(c.isStatic){
+					aspl.parser.utils.generic_error("Cannot instantiate the static class " + type.toString(), token.location)
+				}
+				var list<Expression> arguments = []
+				if(Method:methods.containsKey(c.type.toString())){
+					if(Method:exists(c.type, "construct")){
+						var constructor = Method:get(c.type, "construct")
+						foreach(constructor.parameters as parameter){
+							if(tokens.peek().type == TokenType.ParenthesisClose){
+								if(!parameter.optional){
+									aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + constructor.type.toString() + "." + constructor.name + "' (expected " + constructor.minimumParameterCount + ")", tokens.peek().location)
+								}
+								break
+							}
+							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+							if(!Type:matches(parameter.types, value.getType())){
+								aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+							}
+							arguments.add(value)
+							if(arguments.length < constructor.parameters.length && tokens.peek().type == TokenType.Comma){
+								tokens.shift()
+							}
+						}
+						if(!constructor.isPublic && module.id != c.module.id){
+							aspl.parser.utils.warning("Cannot instantiate the class '" + c.type.identifier + "' that has a private constructor here", token.location) // TODO: Make this a generic_error after the grace period
+						}
+					}
+				}
+				tokens.shift()
+				foreach(c.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							aspl.parser.utils.warning("Class " + c.type.toString() + " is deprecated: " + attribute.arguments[0].getConstantValue(), identifierFirstToken.location)
+						}else{
+							aspl.parser.utils.warning("Class " + c.type.toString() + " is deprecated", identifierFirstToken.location)
+						}
+					}
+				}
+				if(!c.isPublic && module.id != c.module.id){
+					aspl.parser.utils.warning("Cannot instantiate the private class '" + c.type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new ClassInstantiateExpression(c, arguments, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "property"){
+				if(currentClass == null){
+					aspl.parser.utils.generic_error("Cannot declare a property outside of a class", token.location)
+				}
+				if(tokens.peek().type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected property name after 'property'", tokens.peek().location)
+				}
+				var types = parseTypesIfAny(tokens)
+				var name = tokens.next()
+				var Expression? defaultValue = null
+				attributeCache.clear()
+				if(tokens.peek().type == TokenType.Equals){
+					tokens.shift()
+					defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+				}
+				elseif(tokens.peek().type == TokenType.BraceOpen){
+					tokens.shift()
+					var p = CustomReactiveProperty(Property:properties[Class(currentClass).type.toString()][name.value])
+					var bool isStatic = false
+					foreach(p.attributes as attribute){
+						if(attribute.attribute.identifier == "static"){
+							isStatic = true
+						}
+					}
+					if(currentClass?!.isPublic && p.isPublic){
+						foreach(types.types as type){
+							if(!Type:isPublic(type)){
+								aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a type of a public property in a public class", token.location) // TODO: Make this a generic_error after the grace period
+							}
+						}
+					}
+					var list<Node>? getCode = null
+					var list<Node>? setCode = null
+					if(tokens.peek().type == TokenType.Identifier){
+						if(tokens.peek().value == "get"){
+							tokens.shift()
+							Scope:pushBundle(new ReactivePropertyCallback(p, types))
+							Scope:push()
+							var oldStaticContextState = inStaticContext
+							inStaticContext = p.isStatic
+							getCode = parseBlock(tokens)
+							inStaticContext = oldStaticContextState
+							Scope:pop()
+							Scope:popBundle()
+						}
+						if(tokens.peek().value == "set"){
+							tokens.shift()
+							Scope:pushBundle(new ReactivePropertyCallback(p, new Types([])))
+							Scope:push()
+							Variable:register("value", types, token.location)
+							var oldStaticContextState = inStaticContext
+							inStaticContext = p.isStatic
+							setCode = parseBlock(tokens)
+							inStaticContext = oldStaticContextState
+							Scope:pop()
+							Scope:popBundle()
+						}
+					}
+					if(getCode == null && setCode == null){
+						aspl.parser.utils.generic_error("Expected 'get', 'set' or both in reactive property declaration", tokens.peek().location)
+					}
+					tokens.shift()
+					p.getCode = getCode
+					p.setCode = setCode
+					p.register(token.location)
+					var comments = list<Token>[]
+					foreach(p.attributes as attribute){
+						foreach(attribute.comments as comment){
+							comments.add(comment)
+						}
+					}
+					foreach(list<Token>(token.comments) as comment){
+						comments.add(comment)
+					}
+					return new PropertyDeclareStatement(p, comments, token.location)
+				}
+				if(types.types.length == 0){
+					if(defaultValue == null){
+						aspl.parser.utils.syntax_error("Expected type after property name in 'property' statement", name.location)
+					}
+					types = Expression(defaultValue).getType()
+				}else{
+					if(defaultValue != null){
+						if(!Type:matches(types, Expression(defaultValue).getType())){
+							aspl.parser.utils.generic_error("Cannot assign a default value of type '" + Expression(defaultValue).getType().toString() + "' to a property of type '" + types.toString() + "'", Expression(defaultValue).location)
+						}
+					}else{
+						if(Type:matches(types, new Types([Type:fromString("null")]))){
+							defaultValue = new NullLiteral(token.location)
+						}else{
+							if(types.types.length > 1){
+								var allComplexTypes = true
+								foreach(types.types as type){
+									if(!Class:classes.containsKey(type.toString()) && !Enum:enums.containsKey(type.toString())){
+										allComplexTypes = false
+									}
+								}
+								if(allComplexTypes){
+									defaultValue = null
+								}else{
+									aspl.parser.utils.generic_error("Cannot infer a default value for a property with multiple types", name.location)
+								}
+							}else{
+								defaultValue = types.types[0].getDefaultValue(token.location)
+							}
+						}
+					}
+				}
+				var p = CustomNormalProperty(Property:properties[Class(currentClass).type.toString()][name.value])
+				var bool isStatic = false
+				var bool isThreadLocal = false
+				foreach(p.attributes as attribute){
+					if(attribute.attribute.identifier == "static"){
+						isStatic = true
+					}elseif(attribute.attribute.identifier == "threadlocal"){
+						isThreadLocal = true
+					}
+				}
+				if(isThreadLocal && !isStatic){
+					aspl.parser.utils.type_error("The attribute 'threadlocal' can only be used on static properties", token.location)
+				}
+				if(currentClass?!.isPublic && p.isPublic){
+					foreach(types.types as type){
+						if(!Type:isPublic(type)){
+							aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a type of a public property in a public class", token.location) // TODO: Make this a generic_error after the grace period
+						}
+					}
+				}
+				p.defaultValue = defaultValue
+				p.register(token.location)
+				var comments = list<Token>[]
+				foreach(p.attributes as attribute){
+					foreach(attribute.comments as comment){
+						comments.add(comment)
+					}
+				}
+				foreach(list<Token>(token.comments) as comment){
+					comments.add(comment)
+				}
+				return new PropertyDeclareStatement(p, comments, token.location)
+			}elseif(token.value == "this"){
+				if(currentClass == null){
+					aspl.parser.utils.generic_error("Cannot use the 'this' keyword outside of a class", token.location)
+				}
+				if(inStaticContext){
+					aspl.parser.utils.generic_error("Cannot use the 'this' keyword in a static context", token.location)
+				}
+				Scope:passCapturedVariables(["this"])
+				return applyOperators(new ThisExpression(Class(currentClass), token.location), tokens, precedenceLevel)
+			}elseif(token.value == "parent" && tokens.peek().type == TokenType.ParenthesisOpen){
+				if(currentClass == null){
+					aspl.parser.utils.generic_error("Cannot use the 'parent' keyword outside of a class", token.location)
+				}
+				if(inStaticContext){
+					aspl.parser.utils.generic_error("Cannot use the 'parent' keyword in a static context", token.location)
+				}
+				if(currentClass?!.parents == null || currentClass?!.parents?!.length == 0){ // TODO: Can .parents ever be null at this point?
+					aspl.parser.utils.generic_error("Cannot use the 'parent' keyword in a class that does not extend any other classes", token.location)
+				}
+				tokens.shift()
+				var parentType = Type:fromString(parseTypeIdentifier(tokens).identifier, this, token.location)
+				if(!Class:classes.containsKey(parentType.toString())){
+					aspl.parser.utils.type_error("Class '" + parentType.toString() + "' does not exist", token.location)
+				}
+				var parentClass = Class:classes[parentType.toString()]
+				if(!ClassUtils:isParent(currentClass?!, parentClass)){
+					aspl.parser.utils.generic_error("Cannot use the 'parent' keyword with a class that is not a parent of the current class", token.location)
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					aspl.parser.utils.syntax_error("Expected ')' after the parent class type in 'parent' expression", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.Dot){
+					aspl.parser.utils.syntax_error("Expected '.' after 'parent' expression", tokens.peek().location)
+				}
+				return applyOperators(new ParentExpression(parentClass, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "throw"){
+				var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+				if(!(value oftype ClassInstantiateExpression) || !ClassInstantiateExpression(value).c.isError){
+					aspl.parser.utils.type_error("Only errors can be thrown", value.location)
+				}
+				if(!ErrorUtils:canCallableThrow(Scope:getCurrentBundle().func)){
+					aspl.parser.utils.generic_error("Cannot throw an error in a callable without the [throws] attribute", token.location)
+				}
+				return new ThrowStatement(ClassInstantiateExpression(value), token.location)
+			}elseif(token.value == "catch"){
+            	if(!Options:enableErrorHandling){
+					aspl.parser.utils.generic_error("Experimental error handling ('-enableErrorHandling') is not enabled for this build", token.location)
+				}
+				if(previousExpression == null){
+					aspl.parser.utils.syntax_error("The " + token.value + " statement can only be used on expressions directly, i.e.: foo() catch { ... }", token.location)
+				}
+				if(!ErrorUtils:canExpressionThrow(previousExpression)){
+					aspl.parser.utils.syntax_error("Cannot catch an error from an expression that is not error-prone", token.location)
+				}
+				var string? variable = null
+				if(tokens.peek().type == TokenType.Identifier){
+					variable = tokens.next().value
+				}
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after variable in " + token.value + " statement", tokens.peek().location)
+				}
+				Scope:push(true)
+				if(variable != null){
+					Variable:register(variable?!, new Types([Type:fromString("any")]), token.location)
+				}
+				var code = parseBlock(tokens)
+				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
+				Scope:pop()
+				Scope:passCapturedVariables(capturedVariables)
+				return applyOperators(new CatchExpression(previousExpression?!, variable, code, capturedVariables, standalone, token.location), tokens, precedenceLevel) // TODO: The standalone variable will always be false here
+			}elseif(Variable:exists(token.value)){
+				if(!tokens.empty()){
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, Variable:get(token.value).types))
+						if(!Type:matches(Variable:get(token.value).types, value.getType())){
+							aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
+						}
+						return applyOperators(new VariableAssignExpression(Variable:get(token.value), value, token.location), tokens, precedenceLevel)
+					}
+				}
+				return applyOperators(new VariableAccessExpression(Variable:get(token.value), token.location), tokens, precedenceLevel)
+			}
+			var typeIdentifier = peekTypeIdentifier(tokens, token)
+			if(tokens.length > typeIdentifier.tokenCount && (tokens.peek(typeIdentifier.tokenCount).type == TokenType.ParenthesisOpen) && Type:existsByName(this, typeIdentifier.identifier)){
+				parseTypeIdentifier(tokens, token)
+				var target = Type:fromString(typeIdentifier.identifier, this, token.location)
+				tokens.shift()
+				var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+				tokens.shift()
+				if(!value.getType().canCast(target)){
+					aspl.parser.utils.type_error("Cannot cast from type '" + value.getType().toString() + "' to type '" + target.toString() + "'", value.location)
+				}
+				return applyOperators(new CastExpression(value, target, token.location), tokens, precedenceLevel)
+			}
+			if(tokens.length > typeIdentifier.tokenCount && tokens.peek(typeIdentifier.tokenCount).type == TokenType.Colon){
+				if(!Type:existsByName(this, typeIdentifier.identifier)){
+					aspl.parser.utils.fatal_error("Unknown type '" + typeIdentifier.identifier + "'", typeIdentifier.location)
+				}
+				var type = Type:fromString(typeIdentifier.identifier, this, typeIdentifier.location)
+				tokens.shift(typeIdentifier.tokenCount + 1)
+				var name = tokens.next()
+				if(name.type != TokenType.Identifier){
+					aspl.parser.utils.syntax_error("Expected identifier after ':'", name.location)
+				}
+				if(tokens.length > 0 && tokens.peek().type == TokenType.ParenthesisOpen){
+					if(!Method:exists(type, name.value, false)){
+						aspl.parser.utils.fatal_error("Unknown method " + type.toString() + ":" + name.value, name.location)
+					}
+					var newThread = false
+					if(tokens.peek().type == TokenType.Plus){
+						newThread = true
+						tokens.shift()
+					}
+					var m = Method:get(type, name.value)
+					if(!m.isStatic){
+						aspl.parser.utils.generic_error("Cannot call the non-static method " + type.toString() + "." + name.value + " statically", name.location)
+					}
+					tokens.shift()
+					var list<Expression> arguments = []
+					foreach(m.parameters as parameter){
+						if(tokens.peek().type == TokenType.ParenthesisClose){
+							if(!parameter.optional){
+								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
+							}
+							break
+						}
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+						if(!Type:matches(parameter.types, value.getType())){
+							aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+						}
+						arguments.add(value)
+						if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
+							tokens.shift()
+						}
+					}
+					foreach(m.attributes as attribute){
+						if(attribute.attribute.identifier == "deprecated"){
+							if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							}else{
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated", name.location)
+							}
+						}
+					}
+					
+					if(!Class:classes[m.type.toString()].isPublic && module.id != Class:classes[m.type.toString()].module.id){
+						aspl.parser.utils.warning("Cannot call a method from the private class '" + Class:classes[m.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+					}
+					if(m oftype CustomMethod && !m.isPublic && (currentClass == null || !Type:matches(new Types([m.type]), new Types([currentClass?!.type])))){
+						aspl.parser.utils.warning("Cannot call the private method '" + m.type.identifier + ":" + m.name + "' here", token.location) // TODO: Make this a generic_error after the grace period
+					}
+					var node = new StaticMethodCallExpression(m, type, arguments, newThread, token.location)
+					if(tokens.peek().type != TokenType.ParenthesisClose){
+						if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+							aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
+						}else{
+							aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
+						}
+					}else{
+						tokens.shift()
+					}
+					return applyOperators(node, tokens, precedenceLevel)
+				}else{
+					if(Enum:enums.containsKey(type.toString())){
+						aspl.parser.utils.syntax_error("Enums fields are accessed with a '.' (dot) instead of a ':' (colon), so use " + typeIdentifier.identifier + "." + name.value + " instead of " + typeIdentifier.identifier + ":" + name.value, name.location)
+					}
+					if(!Property:exists(type, name.value, false)){
+						aspl.parser.utils.fatal_error("Unknown property " + type.toString() + ":" + name.value, name.location)
+					}
+					var p = Property:get(type, name.value)
+					if(!p.isStatic){
+						aspl.parser.utils.generic_error("Cannot access the non-static property " + type.toString() + "." + name.value + " statically", name.location)
+					}
+					if(!tokens.empty()){
+						if(tokens.peek().type == TokenType.Equals){
+							tokens.shift()
+							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
+							if(!Type:matches(p.types, value.getType())){
+								aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + p.types.toString() + "'", value.location)
+							}
+							if(!Class:classes[p.type.toString()].isPublic && module.id != Class:classes[p.type.toString()].module.id){
+								aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+							}
+							foreach(p.attributes as attribute){
+								if(attribute.attribute.identifier == "deprecated"){
+									if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+									}else{
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated", name.location)
+									}
+								}
+							}
+							if(p.isReadPublic){
+								if(currentClass != null && !Type:matches(new Types([p.type]), new Types([currentClass?!.type]))){
+									aspl.parser.utils.warning("Cannot assign to the property " + p.type.identifier + ":" + p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+								}
+							}elseif(!p.isPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
+								aspl.parser.utils.warning("Cannot assign to the private property " + p.type.identifier + ":" + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+							}
+							return applyOperators(new StaticPropertyAssignExpression(p, type, value, token.location), tokens, precedenceLevel)
+						}
+					}
+					if(!Class:classes[p.type.toString()].isPublic && module.id != Class:classes[p.type.toString()].module.id){
+						aspl.parser.utils.warning("Cannot access a property from the private class '" + Class:classes[p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+					}
+					foreach(p.attributes as attribute){
+						if(attribute.attribute.identifier == "deprecated"){
+							if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+								aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							}else{
+								aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated", name.location)
+							}
+						}
+					}
+					if(!p.isPublic && !p.isReadPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
+						aspl.parser.utils.warning("Cannot access the private property " + p.type.identifier + ":" + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+					}
+					return applyOperators(new StaticPropertyAccessExpression(p, type, token.location), tokens, precedenceLevel)
+				}
+			}else{
+				if(typeIdentifier.identifier.contains(".")){
+					var enumIdentifierParts = typeIdentifier.identifier.split(".")
+					var fieldToken = tokens.peek(typeIdentifier.tokenCount - 2)
+					var field = enumIdentifierParts[enumIdentifierParts.length - 1]
+					enumIdentifierParts.removeAt(enumIdentifierParts.length - 1)
+					var enumIdentifier = enumIdentifierParts.join(".")
+					var type = Type:fromString(enumIdentifier, this, typeIdentifier.location)
+					if(Enum:enums.containsKey(type.toString())){
+						parseTypeIdentifier(tokens, token)
+						if(!map<string, aspl.parser.enums.EnumField>(Enum:enums[type.toString()].fields).containsKey(field)){
+							aspl.parser.utils.syntax_error("Unknown enum field " + type.toString() + "." + field, fieldToken.location)
+						}
+						if(!Enum:enums[type.toString()].isPublic && module.id != Enum:enums[type.toString()].module.id){
+							aspl.parser.utils.warning("Cannot access the private enum " + type.toString() + " here", token.location) // TODO: Make this a generic_error after the grace period
+						}
+						return applyOperators(new EnumFieldAccessExpression(map<string, aspl.parser.enums.EnumField>(Enum:enums[type.toString()].fields)[field], token.location), tokens, precedenceLevel)
+					}
+				}
+			}
+			if(token.value == "list"){
+				if(tokens.peek().type != TokenType.LessThan){
+					aspl.parser.utils.syntax_error("Expected '<' after 'list'", tokens.peek().location)
+				}
+				tokens.shift()
+				var Types type = parseTypesIfAny(tokens)
+				if(tokens.peek().type != TokenType.GreaterThan){
+					aspl.parser.utils.syntax_error("Expected '>' after list type", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BracketOpen){
+					aspl.parser.utils.syntax_error("Expected '[' after list type", tokens.peek().location)
+				}
+				tokens.shift()
+				var list<Expression> values = []
+				while(tokens.peek().type != TokenType.BracketClose){
+					var v = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, type))
+					if(!Type:matches(type, v.getType())){
+						aspl.parser.utils.type_error("Cannot add a value of type '" + v.getType().toString() + "' to a list of with the value type '" + type.toString() + "'", v.location)
+					}
+					values.add(v)
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				tokens.shift()
+				return applyOperators(new ListLiteral(type, values, token.location), tokens, precedenceLevel)
+			}elseif(token.value == "map"){
+				if(tokens.peek().type != TokenType.LessThan){
+					aspl.parser.utils.syntax_error("Expected '<' after 'map'", tokens.peek().location)
+				}
+				tokens.shift()
+				var Types keyType = parseTypesIfAny(tokens)
+				if(tokens.peek().type != TokenType.Comma){
+					aspl.parser.utils.syntax_error("Expected ',' after key type", tokens.peek().location)
+				}
+				tokens.shift()
+				var Types valueType = parseTypesIfAny(tokens)
+				if(tokens.peek().type != TokenType.GreaterThan){
+					aspl.parser.utils.syntax_error("Expected '>' after value type", tokens.peek().location)
+				}
+				tokens.shift()
+				if(tokens.peek().type != TokenType.BraceOpen){
+					aspl.parser.utils.syntax_error("Expected '{' after map types", tokens.peek().location)
+				}
+				tokens.shift()
+				var list<Pair> pairs = []
+				while(tokens.peek().type != TokenType.BraceClose){
+					var k = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, keyType))
+					if(tokens.peek().type != TokenType.Assign){
+						aspl.parser.utils.syntax_error("Expected '=>' after key in map declaration", tokens.peek().location)
+					}
+					tokens.shift()
+					var v = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, valueType))
+					if(!Type:matches(keyType, k.getType())){
+						aspl.parser.utils.type_error("Cannot add a key of type '" + k.getType().toString() + "' to a map of with the key type '" + keyType.toString() + "'", k.location)
+					}
+					if(!Type:matches(valueType, v.getType())){
+						aspl.parser.utils.type_error("Cannot add a value of type '" + v.getType().toString() + "' to a map of with the value type '" + valueType.toString() + "'", v.location)
+					}
+					pairs.add(new Pair(k, v))
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				tokens.shift()
+				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, precedenceLevel)
+			}
+			if(Function:exists(IdentifierUtils:handleFunctionIdentifier(this, peekFunctionIdentifier(tokens, token).identifier)) && ((tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount).type == TokenType.ParenthesisOpen) || ((tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount).type == TokenType.Plus) && (tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount + 1).type == TokenType.ParenthesisOpen)))){
+				var identifierFirstToken = tokens.peek()
+				var identifierData = parseFunctionIdentifier(tokens, token)
+				var func = Function:get(IdentifierUtils:handleFunctionIdentifier(this, identifierData.identifier))
+				var compileIdentifier = func.identifier
+				if(func oftype InternalFunction){
+					compileIdentifier = "_" + compileIdentifier
+				}
+				var newThread = false
+				if(tokens.peek().type == TokenType.Plus){
+					newThread = true
+					tokens.shift()
+				}
+				tokens.shift()
+				var list<Expression> arguments = []
+				foreach(func.parameters as parameter){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						if(!parameter.optional){
+							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for function '" + func.identifier + "' (expected " + func.minimumParameterCount + ")", tokens.peek().location)
+						}
+						break
+					}
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+					if(!Type:matches(parameter.types, value.getType())){
+						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+					}
+					arguments.add(value)
+					if(arguments.length < func.parameters.length && tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				foreach(func.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							aspl.parser.utils.warning("Function " + func.identifier + " is deprecated: " + attribute.arguments[0].getConstantValue(), identifierFirstToken.location)
+						}else{
+							aspl.parser.utils.warning("Function " + func.identifier + " is deprecated", identifierFirstToken.location)
+						}
+					}
+				}
+				if(func oftype CustomFunction && !func.isPublic && module.id != CustomFunction(func).module.id){
+					aspl.parser.utils.warning("Cannot call the private function '" + func.identifier + "' here", identifierFirstToken.location) // TODO: Make this a generic_error after the grace period
+				}
+				var node = new FunctionCallExpression(compileIdentifier, func, arguments, newThread, token.location)
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+						aspl.parser.utils.fatal_error("Too many arguments given for function '" + func.identifier + "' (expected " + func.parameters.length + ")", tokens.peek().location)
+					}else{
+						aspl.parser.utils.syntax_error("Expected ')' after arguments in function call", tokens.peek().location)
+					}
+				}else{
+					tokens.shift()
+				}
+				return applyOperators(node, tokens, precedenceLevel)
+			}elseif(currentClass != null && Method:exists(Class(currentClass).type, token.value) && ((tokens.peek().type == TokenType.ParenthesisOpen) || (tokens.length > 1 && (tokens.peek().type == TokenType.Plus) && (tokens.peek(1).type == TokenType.ParenthesisOpen)))){
+				var name = token
+				var newThread = false
+				if(tokens.peek().type == TokenType.Plus){
+					newThread = true
+					tokens.shift()
+				}
+				var m = Method:get(Class(currentClass).type, name.value)
+				tokens.shift()
+				var list<Expression> arguments = []
+				foreach(m.parameters as parameter){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						if(!parameter.optional){
+							if(m.isStatic){
+								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
+							}else{
+								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
+							}
+						}
+						break
+					}
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+					if(!Type:matches(parameter.types, value.getType())){
+						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+					}
+					arguments.add(value)
+					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				foreach(m.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							if(m.isStatic){
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							}else{
+								aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							}
+						}else{
+							if(m.isStatic){
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated", name.location)
+							}else{
+								aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated", name.location)
+							}
+						}
+					}
+				}
+				var Expression? node = null
+				if(m.isStatic){
+					node = new StaticMethodCallExpression(m, Class(currentClass).type, arguments, newThread, token.location)
+				}else{
+					Scope:passCapturedVariables(["this"])
+					node = new NonStaticMethodCallExpression(m, new ThisExpression(Class(currentClass), token.location), null, arguments, newThread, token.location)
+				}
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+						if(m.isStatic){
+							aspl.parser.utils.fatal_error("Too many arguments given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
+						}else{
+							aspl.parser.utils.fatal_error("Too many arguments given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
+						}
+					}else{
+						aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
+					}
+				}else{
+					tokens.shift()
+				}
+				return applyOperators(Expression(node), tokens, precedenceLevel)
+			}elseif(currentClass != null && Property:exists(Class(currentClass).type, token.value)){
+				var p = Property:get(Class(currentClass).type, token.value)
+				if(!tokens.empty()){
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
+						if(!Type:matches(p.types, value.getType())){
+							aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + p.types.toString() + "'", value.location)
+						}
+						foreach(p.attributes as attribute){
+							if(attribute.attribute.identifier == "deprecated"){
+								if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+									if(p.isStatic){
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+									}else{
+										aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+									}
+								}else{
+									if(p.isStatic){
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated", token.location)
+									}else{
+										aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", token.location)
+									}
+								}
+							}
+						}
+						if(p.isStatic){
+							return applyOperators(new StaticPropertyAssignExpression(p, p.type, value, token.location), tokens, precedenceLevel)
+						}else{
+							Scope:passCapturedVariables(["this"])
+							return applyOperators(new NonStaticPropertyAssignExpression(p, new ThisExpression(Class(currentClass), token.location), value, token.location), tokens, precedenceLevel)
+						}
+					}
+				}
+				foreach(p.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							if(p.isStatic){
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+							}else{
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+							}
+						}else{
+							if(p.isStatic){
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", token.location)
+							}else{
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", token.location)
+							}
+						}
+					}
+				}
+				if(p.isStatic){
+					return applyOperators(new StaticPropertyAccessExpression(p, Class(currentClass).type, token.location), tokens, precedenceLevel)
+				}else{
+					Scope:passCapturedVariables(["this"])
+					return applyOperators(new NonStaticPropertyAccessExpression(p, new ThisExpression(Class(currentClass), token.location), token.location), tokens, precedenceLevel)
+				}
+			}
+		}elseif(token.type == TokenType.ParenthesisOpen){
+			var result = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None))
+			if(tokens.peek().type == TokenType.ParenthesisClose){
+				tokens.shift()
+				return applyOperators(result, tokens, precedenceLevel)
+			}else{
+				aspl.parser.utils.syntax_error("Expected closing parenthesis", tokens.peek().location)
+			}
+		}elseif(token.type == TokenType.CheckEquals){
+			return applyOperators(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckEquals)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.CheckNotEquals){
+			return applyOperators(new NegateExpression(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckNotEquals)), token.location), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Negate){
+			if(previousExpression == null){
+				return applyOperators(new NegateExpression(aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Negate, null, new Types([Type:fromString("bool")]))), token.location), tokens, precedenceLevel)
+			}
+			if(!Options:enableErrorHandling){
+				aspl.parser.utils.generic_error("Experimental error handling ('-enableErrorHandling') is not enabled for this build", token.location)
+			}
+			if(!ErrorUtils:canExpressionThrow(previousExpression)){
+				aspl.parser.utils.syntax_error("Cannot propagate an error from an expression that is not error-prone", token.location)
+			}
+			if(!ErrorUtils:canCallableThrow(Scope:getCurrentBundle().func)){
+				aspl.parser.utils.syntax_error("Cannot propagate an error in a callable that does not declare the [throws] attribute", token.location)
+			}
+			return applyOperators(new PropagateErrorExpression(previousExpression, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.And){
+			var a = Expression(previousExpression)
+			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.And))
+			if(a.getType().toString() != b.getType().toString()){
+				aspl.parser.utils.type_error("Cannot use the '&&' (and) operator on values of the types " + a.getType().toString() + " and " + b.getType().toString(), token.location)
+			}
+			if(Enum:enums.containsKey(a.getType().toString())){
+				if(!Enum:enums[a.getType().toString()].isFlags){
+					aspl.parser.utils.type_error("The '&&' (and) operator can only be used with enums that have the 'flags' attribute", token.location)
+				}
+			}
+			return applyOperators(new AndExpression(a, b, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Or){
+			var a = Expression(previousExpression)
+			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Or))
+			if(a.getType().toString() != b.getType().toString()){
+				aspl.parser.utils.type_error("Cannot use the '||' (or) operator on values of the types " + a.getType().toString() + " and " + b.getType().toString(), token.location)
+			}
+			if(Enum:enums.containsKey(a.getType().toString())){
+				if(!Enum:enums[a.getType().toString()].isFlags){
+					aspl.parser.utils.type_error("The '||' (or) operator can only be used with enums that have the 'flags' attribute", token.location)
+				}
+			}
+			return applyOperators(new OrExpression(a, b, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Xor){
+			var a = Expression(previousExpression)
+			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Xor))
+			if(a.getType().toString() != b.getType().toString()){
+				aspl.parser.utils.type_error("Cannot use the '^' (xpr) operator on values of the types " + a.getType().toString() + " and " + b.getType().toString(), token.location)
+			}
+			if(Enum:enums.containsKey(a.getType().toString())){
+				if(!Enum:enums[a.getType().toString()].isFlags){
+					aspl.parser.utils.type_error("The '^' (xor) operator can only be used with enums that have the 'flags' attribute", token.location)
+				}
+			}
+			return applyOperators(new XorExpression(a, b, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Plus){
+			if(previousExpression == null){
+				return applyOperators(new PlusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, precedenceLevel)
+			}
+			return applyOperators(new PlusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.PlusEquals){
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+			if(previousExpression oftype VariableAccessExpression){
+				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '+=' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.PlusPlus){
+			if(previousExpression oftype VariableAccessExpression){
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '++' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.Minus){
+			if(previousExpression == null){
+				return applyOperators(new MinusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, precedenceLevel)
+			}
+			return applyOperators(new MinusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.MinusEquals){
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+			if(previousExpression oftype VariableAccessExpression){
+				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '-=' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.MinusMinus){
+			if(previousExpression oftype VariableAccessExpression){
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '--' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.Asterisk){
+			if(previousExpression == null){
+				var pointer = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Reference))
+				if(!pointer.getType().isPointer()){
+					aspl.parser.utils.syntax_error("Cannot dereference a value of type '" + pointer.getType().toString() + "' (not a pointer)", pointer.location)
+				}
+				return applyOperators(new DereferenceExpression(pointer, token.location), tokens, precedenceLevel)
+			}
+			return applyOperators(new MultiplyExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Asterisk)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.MultiplyEquals){
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+			if(previousExpression oftype VariableAccessExpression){
+				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MultiplyExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '*=' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.Slash){
+			return applyOperators(new DivideExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Slash)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.DivideEquals){
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+			if(previousExpression oftype VariableAccessExpression){
+				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new DivideExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '/=' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.Modulo){
+			return applyOperators(new ModuloExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Modulo)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.ModuloEquals){
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+			if(previousExpression oftype VariableAccessExpression){
+				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new ModuloExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
+					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
+						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+					}
+				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
+				}
+				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
+					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(StaticPropertyAccessExpression(previousExpression).p.isReadPublic && currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type]))){
+					aspl.parser.utils.warning("Cannot assign to the property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
+					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("The '%=' operator must be used on something assignable, e.g. a variable", token.location)
+		}elseif(token.type == TokenType.LessThan){
+			return applyOperators(new LessThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThan)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.LessThanOrEqual){
+			return applyOperators(new LessThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThanOrEqual)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.GreaterThan){
+			return applyOperators(new GreaterThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThan)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.GreaterThanOrEqual){
+			return applyOperators(new GreaterThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThanOrEqual)), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Ampersand){
+			if(previousExpression == null){
+				var expression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Reference))
+				if(!(expression oftype VariableAccessExpression || expression oftype NonStaticPropertyAccessExpression || expression oftype StaticPropertyAccessExpression)){
+					aspl.parser.utils.syntax_error("The '&' operator must be used on something holding an object reference, e.g. a variable", token.location)
+				}
+				return applyOperators(new ReferenceExpression(expression, token.location), tokens, precedenceLevel)
+			}
+			aspl.parser.utils.syntax_error("Unxpected '&'", token.location)
+		}elseif(token.type == TokenType.Dot){
+			if(previousExpression == null){
+				aspl.parser.utils.syntax_error("Unexpected '" + token.value + "'", token.location)
+			}
+			var name = tokens.next()
+			if(name.type == TokenType.ParenthesisOpen || (tokens.length > 0 && name.type == TokenType.Plus && tokens.peek().type == TokenType.ParenthesisOpen)){
+				if(!Type:matches(new Types([Type:fromString("callback")]), Expression(previousExpression).getType(), true)){
+					aspl.parser.utils.syntax_error("Only callbacks can be invoked using the .(...) syntax", token.location)
+				}
+				var newThread = false
+				if(name.type == TokenType.Plus){
+					newThread = true
+					tokens.shift()
+				}
+				var m = Method:get(Expression(previousExpression).getType().toType(), "invoke")
+				var list<Expression> arguments = []
+				foreach(m.parameters as parameter){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						if(!parameter.optional){
+							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ".invoke' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
+						}
+						break
+					}
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+					if(!Type:matches(parameter.types, value.getType())){
+						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+					}
+					arguments.add(value)
+					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				var node = new NonStaticMethodCallExpression(m, Expression(previousExpression), null, arguments, newThread, token.location)
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+						aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + ".invoke' (expected " + m.parameters.length + ")", tokens.peek().location)
+					}else{
+						aspl.parser.utils.syntax_error("Expected ')' after arguments in callback invocation", tokens.peek().location)
+					}
+				}else{
+					tokens.shift()
+				}
+				return applyOperators(node, tokens, precedenceLevel)
+			}
+			if(name.type != TokenType.Identifier){
+				aspl.parser.utils.syntax_error("Expected identifier after '.'", name.location)
+			}
+			if(tokens.length > 0 && (tokens.peek().type == TokenType.ParenthesisOpen || (tokens.length > 1 && tokens.peek().type == TokenType.Plus && tokens.peek(1).type == TokenType.ParenthesisOpen))){
+				if(!Method:exists(Expression(previousExpression).getType().toType(), name.value)){
+					aspl.parser.utils.fatal_error("Unknown method " + Expression(previousExpression).getType().toType().toString() + "." + name.value, name.location)
+				}
+				var newThread = false
+				if(tokens.peek().type == TokenType.Plus){
+					newThread = true
+					tokens.shift()
+				}
+				var m = Method:get(Expression(previousExpression).getType().toType(), name.value)
+				if(m.isStatic){
+					aspl.parser.utils.type_error("Cannot call the static method " + Expression(previousExpression).getType().toType().toString() + ":" + name.value + " non-statically", name.location)
+				}
+				tokens.shift()
+				var list<Expression> arguments = []
+				foreach(m.parameters as parameter){
+					if(tokens.peek().type == TokenType.ParenthesisClose){
+						if(!parameter.optional){
+							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
+						}
+						break
+					}
+					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+					if(!Type:matches(parameter.types, value.getType())){
+						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+					}
+					arguments.add(value)
+					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				foreach(m.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+						}else{
+							aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated", name.location)
+						}
+					}
+				}
+				if(m oftype CustomMethod && !m.isPublic && (currentClass == null || !Type:matches(new Types([m.type]), new Types([currentClass?!.type])))){
+					aspl.parser.utils.warning("Cannot call the private method '" + m.type.identifier + "." + m.name + "' here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				var Class? exactClass = null
+				if(previousExpression oftype ParentExpression){
+					exactClass = ParentExpression(previousExpression).c
+				}
+				var node = new NonStaticMethodCallExpression(m, Expression(previousExpression), exactClass, arguments, newThread, token.location)
+				if(tokens.peek().type != TokenType.ParenthesisClose){
+					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+						aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
+					}else{
+						aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
+					}
+				}else{
+					tokens.shift()
+				}
+				return applyOperators(node, tokens, precedenceLevel)
+			}else{
+				if(!Property:exists(Expression(previousExpression).getType().toType(), name.value)){
+					aspl.parser.utils.fatal_error("Unknown property " + Expression(previousExpression).getType().toType().toString() + "." +  name.value + "", name.location)
+				}
+				var p = Property:get(Expression(previousExpression).getType().toType(), name.value)
+				if(p.isStatic){
+					aspl.parser.utils.type_error("Cannot access the static property " + p.type.toString() + ":" + p.name + " non-statically", name.location)
+				}
+				if(!tokens.empty()){
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
+						if(!Type:matches(p.types, value.getType())){
+							aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + p.types.toString() + "'", value.location)
+						}
+						foreach(p.attributes as attribute){
+							if(attribute.attribute.identifier == "deprecated"){
+								if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+									aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+								}else{
+									aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", name.location)
+								}
+							}
+						}
+						if(p.isReadPublic){
+							if(currentClass != null && !Type:matches(new Types([p.type]), new Types([currentClass?!.type]))){
+								aspl.parser.utils.warning("Cannot assign to the property " + p.type.identifier + "." + p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
+							}
+						}elseif(!p.isPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
+							aspl.parser.utils.warning("Cannot assign to the private property " + p.type.identifier + "." + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+						}
+						return applyOperators(new NonStaticPropertyAssignExpression(p, Expression(previousExpression), value, token.location), tokens, precedenceLevel)
+					}
+				}
+				foreach(p.attributes as attribute){
+					if(attribute.attribute.identifier == "deprecated"){
+						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+							aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+						}else{
+							aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", name.location)
+						}
+					}
+				}
+				if(!p.isPublic && !p.isReadPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
+					aspl.parser.utils.warning("Cannot access the private property " + p.type.identifier + "." + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
+				}
+				return applyOperators(new NonStaticPropertyAccessExpression(p, Expression(previousExpression), token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.BracketOpen){
+			if(AttributeUtils:parseAttributesIfAny(this, token, tokens)){
+				return new NopStatement()
+			}
+			if(previousExpression != null){
+				if(Type:matches(new Types([Type:fromString("list")]), Expression(previousExpression).getType(), true)){
+					var index = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+					if(!Type:matches(new Types([Type:fromString("integer")]), index.getType())){
+						aspl.parser.utils.syntax_error("Cannot index a list with a value of type '" + index.getType().toString() + "' (must be integer)", index.location)
+					}
+					if(tokens.peek().type == TokenType.BracketClose){
+						tokens.shift()
+					}else{
+						aspl.parser.utils.syntax_error("Expected ']' after index", tokens.peek().location)
+					}
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var Types? types = null
+						foreach(Expression(previousExpression).getType().types as type){
+							if(Type:getGenericTypes(type.toString()).length > 0){
+								types = Type:getGenericTypes(type.toString())[0]
+							}
+						}
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, Types(types)))
+						foreach(Expression(previousExpression).getType().types as type){
+							if(Type:getGenericTypes(type.toString()).length > 0){
+								if(!Type:matches(Type:getGenericTypes(type.toString())[0], value.getType())){
+									aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a list of the type '" + type.toString() + "'", value.location)
+								}
+							}
+						}
+						return applyOperators(new ListAssignExpression(Expression(previousExpression), index, value, token.location), tokens, precedenceLevel)
+					}
+					return applyOperators(new ListIndexExpression(Expression(previousExpression), index, token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(new Types([Type:fromString("map")]), Expression(previousExpression).getType(), true)){
+					var k = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
+					foreach(Expression(previousExpression).getType().types as type){
+						if(Type:getGenericTypes(type.toString()).length > 0){
+							if(!Type:matches(Type:getGenericTypes(type.toString())[0], k.getType())){
+								aspl.parser.utils.type_error("Cannot access a map with the key type '" + type.toString() + "' with a key of the type '" + k.getType().toString() + "'", k.location)
+							}
+						}
+					}
+					if(tokens.peek().type == TokenType.BracketClose){
+						tokens.shift()
+					}else{
+						aspl.parser.utils.syntax_error("Expected ']' after map access", tokens.peek().location)
+					}
+					if(tokens.peek().type == TokenType.Equals){
+						tokens.shift()
+						var Types? types = null
+						foreach(Expression(previousExpression).getType().types as type){
+							if(Type:getGenericTypes(type.toString()).length > 0){
+								types = Type:getGenericTypes(type.toString())[1]
+							}
+						}
+						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, Types(types)))
+						foreach(Expression(previousExpression).getType().types as type){
+							if(Type:getGenericTypes(type.toString()).length > 1){
+								if(!Type:matches(Type:getGenericTypes(type.toString())[1], value.getType())){
+									aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a map with the value type '" + type.toString() + "'", value.location)
+								}
+							}
+						}
+						return applyOperators(new MapAssignExpression(Expression(previousExpression), k, value, token.location), tokens, precedenceLevel)
+					}
+					return applyOperators(new MapAccessExpression(Expression(previousExpression), k, token.location), tokens, precedenceLevel)
+				}elseif(Type:matches(new Types([Type:fromString("string")]), Expression(previousExpression).getType())){
+					var index = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
+					if(!Type:matches(new Types([Type:fromString("integer")]), index.getType())){
+						aspl.parser.utils.syntax_error("Cannot index a string with a value of type '" + index.getType().toString() + "' (must be integer)", index.location)
+					}
+					if(tokens.peek().type == TokenType.BracketClose){
+						tokens.shift()
+					}else{
+						aspl.parser.utils.syntax_error("Expected ']' after index", tokens.peek().location)
+					}
+					if(tokens.peek().type == TokenType.Equals){
+						aspl.parser.utils.syntax_error("Cannot modify a string", tokens.peek().location)
+					}
+					return applyOperators(new StringIndexExpression(Expression(previousExpression), index, token.location), tokens, precedenceLevel)
+				}else{
+					aspl.parser.utils.syntax_error("Cannot index a value of the type '" + Expression(previousExpression).getType().toString() + "'", token.location)
+				}
+			}
+			var Types? type = null
+			var list<Expression> values = []
+			while(tokens.peek().type != TokenType.BracketClose){
+				var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, type))
+				if(type == null){
+					type = value.getType()
+				}
+				if(!Type:matches(type, value.getType())){
+					aspl.parser.utils.type_error("Cannot add a value of type '" + value.getType().toString() + "' to a list of type '" + Types(type).toString() + "'", value.location)
+				}
+				values.add(value)
+				if(tokens.peek().type == TokenType.Comma){
+					tokens.shift()
+				}
+			}
+			if(type == null){
+				var found = false
+				if(expectedTypes != null){
+					foreach(Types(expectedTypes).types as t){
+						if(Type:matches(new Types([Type:fromString("list")]), new Types([t]), true)){
+							if(Type:getGenericTypes(t.toString()).length > 0){
+								type = Type:getGenericTypes(t.toString())[0]
+							}else{
+								type = new Types([])
+							}
+							found = true
+							break
+						}
+					}
+				}
+				if(!found){
+					aspl.parser.utils.type_error("List type not specified", token.location)
+					type = new Types([])
+				}
+			}
+			tokens.shift()
+			return applyOperators(new ListLiteral(Types(type), values, token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.BraceOpen){
+			if(standalone){
+				return new BlockStatement(parseBlock(tokens, token), false, token.location)
+			}else{
+				var Types? keyType = null
+				var Types? valueType = null
+				var list<Pair> pairs = []
+				while(tokens.peek().type != TokenType.BraceClose){
+					var k = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, keyType))
+					if(keyType == null){
+						keyType = k.getType()
+					}
+					if(tokens.peek().type != TokenType.Assign){
+						aspl.parser.utils.syntax_error("Expected '=>' after key in map declaration", tokens.peek().location)
+					}
+					tokens.shift()
+					var v = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, valueType))
+					if(valueType == null){
+						valueType = v.getType()
+					}
+					if(!Type:matches(keyType, k.getType())){
+						aspl.parser.utils.type_error("Cannot add a key of type '" + k.getType().toString() + "' to a map of with the key type '" + Types(keyType).toString() + "'", k.location)
+					}
+					if(!Type:matches(valueType, v.getType())){
+						aspl.parser.utils.type_error("Cannot add a value of type '" + v.getType().toString() + "' to a map of with the value type '" + Types(valueType).toString() + "'", v.location)
+					}
+					pairs.add(new Pair(k, v))
+					if(tokens.peek().type == TokenType.Comma){
+						tokens.shift()
+					}
+				}
+				tokens.shift()
+				if(keyType == null){
+					var found = false
+					if(expectedTypes != null){
+						foreach(Types(expectedTypes).types as t){
+							if(Type:matches(new Types([Type:fromString("map")]), new Types([t]), true)){
+								if(Type:getGenericTypes(t.toString()).length > 0){
+									keyType = Type:getGenericTypes(t.toString())[0]
+								}else{
+									keyType = new Types([])
+									valueType = new Types([])
+								}
+								if(Type:getGenericTypes(t.toString()).length > 1){
+									valueType = Type:getGenericTypes(t.toString())[1]
+								}else{
+									valueType = new Types([])
+								}
+								found = true
+								break
+							}
+						}
+					}
+					if(!found){
+						aspl.parser.utils.type_error("Map key type not specified", token.location)
+						keyType = new Types([])
+					}
+				}
+				if(valueType == null){
+					aspl.parser.utils.type_error("Map value type not specified", token.location)
+					valueType = new Types([])
+				}
+				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, precedenceLevel)
+			}
+		}elseif(token.type == TokenType.QuestionAndExclamationMark){
+			if(previousExpression == null){
+				aspl.parser.utils.syntax_error("Unexpected ?! (can only be used after nullable expressions)", token.location)
+			}
+			if(!Type:matches(Expression(previousExpression).getType(), new Types([Type:fromString("null")]))){
+				aspl.parser.utils.type_error("The ?! operator can only be used on nullable expressions (expression of type " + Expression(previousExpression).getType().toString() + " given)", token.location)
+			}
+			return applyOperators(new CastExpression(Expression(previousExpression), Expression(previousExpression).getType().withoutType(Type:fromString("null")).toType(), token.location), tokens, precedenceLevel)
+		}elseif(token.type == TokenType.Dollar){
+			if(tokens.peek().type == TokenType.Identifier){
+				if(tokens.peek().value == "if"){
+					tokens.shift()
+					var bool negate = false
+					if(tokens.peek().type == TokenType.Negate){
+						negate = true
+						tokens.shift()
+					}
+					if(tokens.peek().type != TokenType.Identifier){
+						aspl.parser.utils.syntax_error("Expected identifier after compile-time if ($if)", tokens.peek().location)
+					}
+					var string condition = tokens.next().value
+					if(tokens.peek().type != TokenType.BraceOpen){
+						aspl.parser.utils.syntax_error("Expected { after condition in compile-time if ($if)")
+					}
+					var brace = tokens.peek()
+					var block = parseBlock(tokens)
+					var list<Node>? elseBlock = null
+					if(!tokens.empty()){
+						if(tokens.peek().type == TokenType.Dollar){
+							if(tokens.length > 1 && tokens.peek(1).type == TokenType.Identifier && tokens.peek(1).value == "else"){
+								tokens.shift()
+								tokens.shift()
+								if(tokens.peek().type != TokenType.BraceOpen){
+									aspl.parser.utils.syntax_error("Expected { after else in compile-time if ($if)")
+								}
+								elseBlock = parseBlock(tokens)
+							}elseif(tokens.peek().value == "elseif"){
+								aspl.parser.utils.syntax_error("Compile-time elseif is not supported yet")
+							}
+						}elseif(tokens.peek().type == TokenType.Identifier && tokens.peek().value == "else"){
+							aspl.parser.utils.syntax_error("Use `$else` instead if regular `else` after compile-time if ($if)")
+						}
+					}
+					if((Options:getConditionCompilationSymbols().contains(condition) || (condition == "main" && module == Module:mainModule)) != negate){
+						return new BlockStatement(block, true, brace.location)
+					}
+					if(elseBlock != null){
+						return new BlockStatement(list<Node>(elseBlock), true, brace.location)
+					}else{
+						return new NopStatement()
+					}
+				}elseif(tokens.peek().value == "embed"){
+					tokens.shift()
+					if(tokens.peek().type != TokenType.ParenthesisOpen){
+						aspl.parser.utils.syntax_error("Expected ( after compile-time embed ($embed)")
+					}
+					tokens.shift()
+					if(tokens.peek().type != TokenType.String){
+						aspl.parser.utils.syntax_error("Expected string after compile-time embed ($embed)")
+					}
+					var string file = io.join_path([io.full_directory_path(io.abs(file)), tokens.next().value])
+					if(tokens.peek().type != TokenType.ParenthesisClose){
+						aspl.parser.utils.syntax_error("Expected ) after compile-time embed ($embed)")
+					}
+					tokens.shift()
+					return applyOperators(new EmbedFileExpression(file, token.location), tokens, precedenceLevel)
+				}elseif(tokens.peek().value == "include"){
+					tokens.shift()
+					if(tokens.peek().type != TokenType.ParenthesisOpen){
+						aspl.parser.utils.syntax_error("Expected ( after compile-time include ($include)")
+					}
+					tokens.shift()
+					if(tokens.peek().type != TokenType.String){
+						aspl.parser.utils.syntax_error("Expected string after compile-time include ($include)")
+					}
+					var string file = io.join_path([io.full_directory_path(io.abs(file)), tokens.next().value])
+					if(tokens.peek().type != TokenType.ParenthesisClose){
+						aspl.parser.utils.syntax_error("Expected ) after compile-time include ($include)")
+					}
+					tokens.shift()
+					return new IncludeFileStatement(file, token.location)
+				}elseif(tokens.peek().value == "link"){
+					tokens.shift()
+					if(tokens.peek().type != TokenType.ParenthesisOpen){
+						aspl.parser.utils.syntax_error("Expected ( after compile-time link ($link)")
+					}
+					tokens.shift()
+					if(tokens.peek().type != TokenType.String){
+						aspl.parser.utils.syntax_error("Expected string after compile-time link ($link)")
+					}
+					var string library = tokens.next().value // TODO: Also support files as libraries
+					if(tokens.peek().type != TokenType.ParenthesisClose){
+						aspl.parser.utils.syntax_error("Expected ) after compile-time link ($link)")
+					}
+					tokens.shift()
+					return new LinkLibraryStatement(library, token.location)
+				}
+			}
+		}
+		aspl.parser.utils.syntax_error("Unexpected token '" + token.value + "' (" + token.type + ")", token.location)
+	}
+
+	method applyOperators(Expression expression, TokenList tokens, PrecedenceLevel currentLevel) returns Expression{
+		if(ErrorUtils:canExpressionThrow(expression) && (tokens.empty() || (tokens.peek().type != TokenType.Negate && tokens.peek().value != "catch"))){ // TODO: Move this somewhere else for performance & readability
+			aspl.parser.utils.syntax_error("Expected '!' or 'catch' after invocation of an error-prone callable", expression.location)
+		}
+		if(tokens.empty()){
+			return expression
+		}
+		var nextToken = tokens.peek()
+		if(currentLevel < PrecedenceUtils:GetTokenPrecendenceLevel(nextToken)){
+			var result = parseToken(nextToken, tokens, false, PrecedenceUtils:GetTokenPrecendenceLevel(tokens.next()), expression)
+			if(result oftype Expression){
+				return applyOperators(Expression(result), tokens, currentLevel)
+			}
+		}
+		return expression
+	}
+
+	method peekFunctionIdentifier(TokenList tokens, Token? first = null) returns IdentifierResult{
+		var identifier = ""
+		var i = 0
+		if(first != null){
+			identifier = Token(first).value
+		}else{
+			if(tokens.peek().type != TokenType.Identifier){
+				return new IdentifierResult("", 0, null)
+			}
+			first = tokens.peek()
+			identifier = Token(first).value
+			i++
+		}
+		while(true){
+			if(tokens.length - 1 < i || tokens.peek(i).type != TokenType.Dot){
+				break
+			}
+			i++
+			identifier += "." + tokens.peek(i).value
+			i++
+		}
+		return new IdentifierResult(identifier, i, Token(first).location)
+	}
+
+	method parseFunctionIdentifier(TokenList tokens, Token? first = null) returns IdentifierResult{
+		var identifier = ""
+		var i = 0
+		if(first != null){
+			identifier = Token(first).value
+		}else{
+			if(tokens.peek().type != TokenType.Identifier){
+				return new IdentifierResult("", 0, null)
+			}
+			first = tokens.next()
+			identifier = Token(first).value
+			i++
+		}
+		while(true){
+			if(tokens.length == 0 || tokens.peek().type != TokenType.Dot){
+				break
+			}
+			tokens.shift()
+			i++
+			identifier += "." + tokens.next().value
+			i++
+		}
+		return new IdentifierResult(identifier, i, Token(first).location)
+	}
+
+	[public]
+	method peekTypeIdentifier(TokenList tokens, Token? first = null) returns IdentifierResult{
+		var identifier = ""
+		var i = 0
+		if(first != null){
+			identifier = Token(first).value
+		}else{
+			if(tokens.peek().type != TokenType.Identifier){
+				return new IdentifierResult("", 0, null)
+			}
+			first = tokens.peek()
+			identifier = Token(first).value
+			i++
+		}
+		while(true){
+			if(tokens.length - 1 < i){
+				break
+			}
+			if(tokens.peek(i).type == TokenType.LessThan){
+				var genericIdentifier = "<"
+				var tokenCountWithoutGeneric = i
+				i++
+				while(true){
+					if(tokens.length - 1 < i){
+						i -= tokenCountWithoutGeneric
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}
+					if(tokens.peek(i).value == "returns"){
+						genericIdentifier += "returns "
+						i++
+					}
+					var peeked = peekTypeIdentifier(tokens.in(i), null)
+					genericIdentifier += peeked.identifier
+					i += peeked.tokenCount
+					if(tokens.peek(i).type == TokenType.Pipe){
+						genericIdentifier += "|"
+						i++
+					}elseif(tokens.peek(i).type == TokenType.Comma){
+						genericIdentifier += ", "
+						i++
+					}elseif(tokens.peek(i).type == TokenType.GreaterThan){
+						genericIdentifier += ">"
+						identifier += genericIdentifier
+						i++
+						if(tokens.peek(i).type == TokenType.Asterisk){
+							while(tokens.length > i && tokens.peek(i).type == TokenType.Asterisk){
+								identifier += "*"
+								i++
+							}
+						}
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}else{
+						i -= tokenCountWithoutGeneric
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}
+				}
+				genericIdentifier += ">"
+				identifier += genericIdentifier
+				i++
+				break
+			}
+			if(tokens.peek(i).type == TokenType.Asterisk){
+				while(tokens.length > i && tokens.peek(i).type == TokenType.Asterisk){
+					identifier += "*"
+					i++
+				}
+				break
+			}elseif(tokens.peek(i).type != TokenType.Dot){
+				break
+			}
+			i++
+			identifier += "." + tokens.peek(i).value
+			i++
+		}
+		return new IdentifierResult(identifier, i, Token(first).location)
+	}
+
+	[public]
+	method parseTypeIdentifier(TokenList tokens, Token? first = null) returns IdentifierResult{
+		var identifier = ""
+		var i = 0
+		if(first != null){
+			identifier = Token(first).value
+		}else{
+			if(tokens.peek().type != TokenType.Identifier){
+				return new IdentifierResult("", 0, null)
+			}
+			first = tokens.next()
+			identifier = Token(first).value
+			i++
+		}
+		while(true){
+			if(tokens.length == 0){
+				break
+			}
+			if(tokens.peek().type == TokenType.LessThan){
+				var genericIdentifier = "<"
+				var tokensWithoutGeneric = tokens.clone()
+				var tokenCountWithoutGeneric = i
+				tokens.shift()
+				i++
+				while(true){
+					if(tokens.empty()){
+						tokens.set(tokensWithoutGeneric)
+						i -= tokenCountWithoutGeneric
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}
+					if(tokens.peek().value == "returns"){
+						genericIdentifier += "returns "
+						tokens.shift()
+						i++
+					}
+					var parsed = parseTypeIdentifier(tokens, null)
+					genericIdentifier += parsed.identifier
+					i += parsed.tokenCount
+					if(tokens.peek().type == TokenType.Pipe){
+						genericIdentifier += "|"
+						tokens.shift()
+						i++
+					}elseif(tokens.peek().type == TokenType.Comma){
+						genericIdentifier += ", "
+						tokens.shift()
+						i++
+					}elseif(tokens.peek().type == TokenType.GreaterThan){
+						genericIdentifier += ">"
+						identifier += genericIdentifier
+						tokens.shift()
+						i++
+						if(tokens.peek().type == TokenType.Asterisk){
+							while(tokens.length > 0 && tokens.peek().type == TokenType.Asterisk){
+								identifier += "*"
+								tokens.shift()
+								i++
+							}
+						}
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}else{
+						tokens.set(tokensWithoutGeneric)
+						i -= tokenCountWithoutGeneric
+						return new IdentifierResult(identifier, i, Token(first).location)
+					}
+				}
+				genericIdentifier += ">"
+				identifier += genericIdentifier
+				tokens.shift()
+				i++
+				break
+			}
+			if(tokens.peek().type == TokenType.Asterisk){
+				while(tokens.length > 0 && tokens.peek().type == TokenType.Asterisk){
+					identifier += "*"
+					tokens.shift()
+					i++
+				}
+				break
+			}elseif(tokens.peek().type != TokenType.Dot){
+				break
+			}
+			tokens.shift()
+			i++
+			identifier += "." + tokens.next().value
+			i++
+		}
+		return new IdentifierResult(identifier, i, Token(first).location)
+	}
+	
+	method parseTypesIfAny(TokenList tokens, Token? first = null) returns Types{
+		var Location location = tokens.peek().location
+		if(first != null){
+			location = first?!.location
+		}
+		var list<Type> types = []
+		if(Type:existsByName(this, peekTypeIdentifier(tokens, first).identifier)){
+			types.add(Type:fromString(parseTypeIdentifier(tokens, first).identifier, this, location))
+			while(true){
+				if(tokens.peek().type != TokenType.Pipe){
+					if(tokens.peek().type == TokenType.QuestionMark){
+						types.add(Type:fromString("null"))
+						tokens.shift()
+					}else{
+						break
+					}
+				}else{
+					tokens.shift()
+					if(Type:existsByName(this, peekTypeIdentifier(tokens).identifier)){
+						types.add(Type:fromString(parseTypeIdentifier(tokens).identifier, this, location))
+					}else{
+						aspl.parser.utils.syntax_error("Expected valid type identifier after '|'", tokens.peek().location)
+					}
+				}
+			}
+		}
+		return new Types(types)
+	}
+
+	method parseBlock(TokenList tokens, Token? first = null, bool pushScope = true) returns list<Node>{
+		if(pushScope){
+			Scope:push()
+		}
+		var list<Node> statements = []
+		if(first == null){
+			first = tokens.next()
+		}
+		var token = Token(first)
+		if(token.type != TokenType.BraceOpen){
+			aspl.parser.utils.syntax_error("Expected opening brace, got '" + token.value + "' (" + token.type + ")", token.location)
+		}
+		while(!tokens.empty()){
+			token = tokens.next()
+			if(token.type == TokenType.BraceClose){
+				if(pushScope){
+					Scope:pop()
+				}
+				return statements
+			}
+			var statement = parseToken(token, tokens, true)
+			if(!(statement oftype NopStatement)){
+				statements.add(statement)
+			}
+		}
+		aspl.parser.utils.syntax_error("Expected closing brace", token.location)
+	}
+
+	method preProcessBlock(TokenList tokens, Token? first = null, bool pushScope = true){
+		if(pushScope){
+			Scope:push()
+		}
+		if(first == null){
+			first = tokens.next()
+		}
+		var token = Token(first)
+		if(token.type != TokenType.BraceOpen){
+			aspl.parser.utils.syntax_error("Expected opening brace, got '" + token.value + "' (" + token.type + ")", token.location)
+		}
+		var bracesIndent = 0
+		while(!tokens.empty()){
+			token = tokens.peek()
+			if(token.type == TokenType.BraceOpen){
+				bracesIndent++
+			}elseif(token.type == TokenType.BraceClose){
+				if(bracesIndent == 0){
+					tokens.shift()
+					if(pushScope){
+						Scope:pop()
+					}
+					return
+				}
+				bracesIndent--
+			}
+			preProcessToken(tokens.next(), tokens)
+		}
+		aspl.parser.utils.syntax_error("Expected closing brace", token.location)
+	}
+	
+}

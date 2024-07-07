@@ -1,0 +1,4 @@
+[public]
+function create_symlink(string origin, string target){
+    implement("io.create_symlink", origin, target)
+}

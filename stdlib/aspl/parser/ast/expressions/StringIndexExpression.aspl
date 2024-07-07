@@ -1,0 +1,34 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class StringIndexExpression extends Expression {
+
+    [readpublic]
+    property Expression base
+    [readpublic]
+    property Expression index
+
+    [public]
+    method construct(Expression base, Expression index, Location location){
+        parent(Node).construct(location)
+        this.base = base
+        this.index = index
+    }
+
+    [public]
+    method getType() returns Types{
+        return new Types([Type:fromString("string")])
+    }
+
+    [public]
+    method isConstant() returns bool{
+        return this.base.isConstant() && this.index.isConstant()
+    }
+
+    [public]
+    method getConstantValue() returns any{
+        return string(this.base.getConstantValue())[int(this.index.getConstantValue())]
+    }
+
+}

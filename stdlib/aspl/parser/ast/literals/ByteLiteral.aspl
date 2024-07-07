@@ -1,0 +1,29 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+class ByteLiteral extends Literal{
+
+	[readpublic]
+	property byte value
+
+	method construct(byte value, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("byte")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		return value
+	}
+
+}

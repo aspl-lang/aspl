@@ -1,0 +1,61 @@
+import aspl.parser
+import aspl.parser.utils
+
+[public]
+class Variable {
+    
+    [readpublic]
+    property string identifier
+    [readpublic]
+    property Types types
+
+    [public]
+    method construct(string identifier, Types types) {
+        this.identifier = identifier
+        this.types = types
+    }
+
+    [public]
+    [static]
+    method register(string identifier, Types types, Location? location) returns Variable{
+        if(self:exists(identifier)){
+            aspl.parser.utils.generic_error("Variable '" + identifier + "' already defined somewhere else", location)
+        }
+        var v = new Variable(identifier, types)
+        Scope:getCurrent().variables[identifier] = v
+        return v
+    }
+
+    [public]
+    [static]
+    method exists(string identifier) returns bool{
+        foreach(Scope:getCurrentBundle().scopes as scope){ // TODO: Reverse order
+            if(scope.variables.containsKey(identifier)){
+                return true
+            }
+        }
+        return false
+    }
+
+    [public]
+    [static]
+    method get(string identifier) returns Variable{
+        var Scope? closureScope = null
+        var i = Scope:getCurrentBundle().scopes.length
+        while(i > 0){
+            i--
+            var scope = Scope:getCurrentBundle().scopes[i]
+            if(scope.variables.containsKey(identifier)){
+                if(closureScope != null && !closureScope?!.capturedVariables.contains(identifier)){
+                    closureScope?!.capturedVariables.add(identifier)
+                }
+                return scope.variables[identifier]
+            }
+            if(scope.closure && closureScope == null){ // at the end to prevent capturing variables from the current scope
+                closureScope = scope
+            }
+        }
+        aspl.parser.utils.fatal_error("Variable " + identifier + "' not found (compiler bug)")
+    }
+
+}

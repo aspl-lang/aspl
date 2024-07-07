@@ -1,0 +1,59 @@
+import aspl.parser
+import aspl.parser.utils
+import aspl.parser.ast
+import aspl.parser.attributes
+
+[public]
+class Class {
+
+    [public]
+    [static]
+    [threadlocal]
+    property map<string, Class> classes = map<string, Class>{}
+    
+    [readpublic]
+    property Type type
+    [public]
+    property list<Type>? parents
+    [readpublic]
+    property list<AttributeInstance>? attributes
+    [readpublic]
+    property bool isAbstract = false
+    [readpublic]
+    property bool isStatic = false
+    [readpublic]
+    property bool isPublic = false
+    [readpublic]
+    property bool isError = false
+    [public]
+    property list<Node>? code
+    [readpublic]
+    property Module module
+    [readpublic]
+    property Location location
+    
+    [public]
+    method construct(Type type, list<Type>? parents, list<AttributeInstance>? attributes, list<Node>? code, Module module, Location location) {
+        this.type = type
+        this.parents = parents
+        this.attributes = attributes
+        if(attributes != null){
+            foreach(attributes as attribute){
+                // Caching these for performance reasons
+                if(attribute.attribute.identifier == "abstract"){
+                    isAbstract = true
+                }elseif(attribute.attribute.identifier == "static"){
+                    isStatic = true
+                }elseif(attribute.attribute.identifier == "public"){
+                    isPublic = true
+                }elseif(attribute.attribute.identifier == "error"){
+                    isError = true
+                }
+            }
+        }
+        this.code = code
+        this.module = module
+        this.location = location
+    }
+
+}

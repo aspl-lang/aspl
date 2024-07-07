@@ -1,0 +1,9 @@
+[public]
+function encode(string s) returns string{
+    return string(implement("encoding.base64.encode", s))
+}
+
+[public]
+function decode(string s) returns string{
+    return string(implement("encoding.base64.decode", s))
+}

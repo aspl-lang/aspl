@@ -1,0 +1,4 @@
+[public]
+function glob(string pattern) returns list<string>{
+    return list<string>(implement("io.glob.search", pattern))
+}

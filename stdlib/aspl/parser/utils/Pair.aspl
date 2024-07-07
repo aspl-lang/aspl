@@ -1,0 +1,17 @@
+import aspl.parser.ast.expressions
+
+[public]
+class Pair {
+    
+    [readpublic]
+    property Expression k
+    [readpublic]
+    property Expression v
+
+    [public]
+    method construct(Expression k, Expression v) {
+        this.k = k
+        this.v = v
+    }
+
+}

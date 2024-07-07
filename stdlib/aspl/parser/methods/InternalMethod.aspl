@@ -1,0 +1,22 @@
+import aspl.parser.utils
+import aspl.parser.attributes
+
+[public]
+class InternalMethod extends Method{
+
+    [public]
+    method construct(Type type, string name, list<Parameter> parameters, Types returnTypes, list<AttributeInstance> attributes){
+        parent(Method).construct(type, name, parameters, returnTypes, attributes)
+        this.isAbstract = false
+        this.isStatic = false
+        this.isPublic = true
+        this.canThrow = false
+        this.fullyInitialized = false
+    }
+
+    [public]
+    method withType(Type type) returns Method{
+        return new self(type, this.name, this.parameters, this.returnTypes, this.attributes)
+    }
+
+}

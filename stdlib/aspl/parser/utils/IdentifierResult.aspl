@@ -1,0 +1,18 @@
+[public]
+class IdentifierResult {
+    
+    [readpublic]
+    property string identifier
+    [readpublic]
+    property int tokenCount
+    [readpublic]
+    property Location? location
+
+    [public]
+    method construct(string identifier, int tokenCount, Location? location) {
+        this.identifier = identifier
+        this.tokenCount = tokenCount
+        this.location = location
+    }
+
+}

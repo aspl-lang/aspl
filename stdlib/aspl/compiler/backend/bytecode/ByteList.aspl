@@ -1,0 +1,95 @@
+import encoding.utf8
+import bitconverter
+import aspl.compiler.backend.bytecode.ail
+import aspl.compiler.backend.bytecode.twail
+
+[public]
+class ByteList {
+
+    [public]
+    property list<byte> bytes = []
+    [public]
+    property int length{
+        get{
+            return bytes.length
+        }
+    }
+
+    [public]
+    method add(any value, IntType type = IntType.Int) returns self{
+        if(value oftype byte){
+            bytes.add(byte(value))
+        }elseif(value oftype list<byte>){
+            foreach(list<byte>(value) as b){
+                bytes.add(b)
+            }
+        }elseif(value oftype self){
+            bytes.insertElements(bytes.length, self(value).bytes)
+        }elseif(value oftype aspl.compiler.backend.bytecode.ail.Instruction){ // TODO: This class should not be specialised for any backend
+            bytes.add(byte(int(aspl.compiler.backend.bytecode.ail.Instruction(value))))
+        }elseif(value oftype aspl.compiler.backend.bytecode.twail.Instruction){ // TODO: This class should not be specialised for any backend
+            bytes.add(byte(int(aspl.compiler.backend.bytecode.twail.Instruction(value))))
+        }elseif(value oftype string){
+            if(type == IntType.Short){
+                foreach(bitconverter.short_to_bytes(string(value).length) as b){
+                    bytes.add(b)
+                }
+            }elseif(type == IntType.Int){
+                foreach(bitconverter.int_to_bytes(string(value).length) as b){
+                    bytes.add(b)
+                }
+            }elseif(type == IntType.Long){
+                foreach(bitconverter.long_to_bytes(long(string(value).length)) as b){
+                    bytes.add(b)
+                }
+            }
+            foreach(encoding.utf8.encode(string(value)) as c){
+                bytes.add(c)
+            }
+        }elseif(value oftype bool){
+            if(bool(value)){
+                bytes.add(1b)
+            }else{
+                bytes.add(0b)
+            }
+        }elseif(value oftype int){
+            if(type == IntType.Short){
+                foreach(bitconverter.short_to_bytes(int(value)) as b){
+                    bytes.add(b)
+                }
+            }elseif(type == IntType.Long){
+                foreach(bitconverter.long_to_bytes(long(value)) as b){
+                    bytes.add(b)
+                }
+            }else{
+                foreach(bitconverter.int_to_bytes(int(value)) as b){
+                    bytes.add(b)
+                }
+            }
+        }
+        elseif(value oftype long){
+            foreach(bitconverter.long_to_bytes(long(value)) as b){
+                bytes.add(b)
+            }
+        }
+        elseif(value oftype float){
+            foreach(bitconverter.float_to_bytes(float(value)) as b){
+                bytes.add(b)
+            }
+        }
+        elseif(value oftype double){
+            foreach(bitconverter.double_to_bytes(double(value)) as b){
+                bytes.add(b)
+            }
+        }
+        return this
+    }
+
+    /*
+    TODO: Readd this when custom cast methods are implemented in the new compiler
+    [public]
+    method cast(string) returns string{
+        return encoding.utf8.decode(bytes)
+    }*/
+
+}

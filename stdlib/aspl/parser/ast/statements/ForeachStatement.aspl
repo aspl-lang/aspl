@@ -1,0 +1,26 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class ForeachStatement extends Statement {
+
+    [readpublic]
+    property Expression collection
+    [readpublic]
+    property string? key
+    [readpublic]
+    property string? value
+    [readpublic]
+    property list<Node> code
+
+    [public]
+    method construct(Expression collection, string? key, string? value, list<Node> code, Location? location){
+        parent(Node).construct(location)
+        this.collection = collection
+        this.key = key
+        this.value = value
+        this.code = code
+    }
+    
+}

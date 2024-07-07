@@ -1,0 +1,29 @@
+import aspl.parser.ast
+import aspl.parser.functions
+import aspl.parser.utils
+
+[public]
+class ImplementationCallExpression extends Expression{
+
+	[readpublic]
+	property string call
+	[readpublic]
+	property list<Expression> arguments
+	
+	method construct(string call, list<Expression> arguments, Location? location){
+        parent(Node).construct(location)
+		this.call = call
+		this.arguments = arguments
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([Type:fromString("any")])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+	
+}

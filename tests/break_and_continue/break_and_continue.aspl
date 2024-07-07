@@ -1,0 +1,23 @@
+// TODO: Enable this test again (break & continue levels are currently not supported in all backends)
+/*var x = 0
+var y = 0
+var z = 0
+repeat(10){
+    if(x == 5){
+        while(true){
+            if(z == 10){
+                break 2
+            }
+            z++
+        }
+    }
+    x++
+    if(x == 3){
+        continue
+    }
+    y++
+}
+assert x == 5
+assert y == 4
+assert z == 10*/
+assert true // required last statement in file

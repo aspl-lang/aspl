@@ -1,0 +1,13 @@
+[abstract]
+class Parent extends GrandParentOne, GrandParentTwo {
+    
+    [public]
+    [abstract]
+    method one()
+
+    [public]
+    method two(){
+        print("parent: two")
+    }
+
+}

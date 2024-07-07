@@ -1,0 +1,7 @@
+import encoding.utf8
+import bitconverter
+
+[public]
+function int_to_char(int codepoint) returns string{
+    return string(implement("chars.int_to_char", codepoint))
+}

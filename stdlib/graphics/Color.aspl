@@ -1,0 +1,53 @@
+import rand
+
+[public]
+class Color{
+
+	[readpublic]
+	property byte r
+	[readpublic]
+	property byte g
+	[readpublic]
+	property byte b
+	[readpublic]
+	property byte a
+	
+	[public]
+	[deprecated("Use fromARGB instead")]
+	method construct(byte a, byte r, byte g, byte b){
+		this.r = r
+		this.g = g
+		this.b = b
+		this.a = a
+	}
+
+	[public]
+	[static]
+	method fromRGBA(byte r, byte g, byte b, byte a) returns self{
+		return new self(a, r, g, b)
+	}
+
+	[public]
+	[static]
+	method fromRGB(byte r, byte g, byte b) returns self{
+		return self:fromRGBA(r, g, b, 255)
+	}
+
+	[public]
+	[static]
+	method fromARGB(byte a, byte r, byte g, byte b) returns self{
+		return self:fromRGBA(r, g, b, a)
+	}
+
+	[public]
+	method toString() returns string{
+		return "graphics.Color(r: " + string(r)	 + ", g: " + string(g) + ", b: " + string(b) + ", a: " + string(a) + ")"
+	}
+	
+	[public]
+	[static]
+	method random() returns Color{
+		return self:fromRGB(rand.byte(), rand.byte(), rand.byte())
+	}
+	
+}

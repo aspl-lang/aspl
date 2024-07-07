@@ -1,0 +1,2 @@
+var e = new Example()
+assert e.m == {"Hello" => "World"}

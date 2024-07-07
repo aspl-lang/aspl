@@ -1,0 +1,12 @@
+var a = 0
+var b = 0
+assert a == b
+var c = 1
+assert a != c
+assert b != c
+assert c == 1
+var d = "hello"
+assert d == "hello"
+assert d != "world"
+assert d != "hello world"
+assert d != a

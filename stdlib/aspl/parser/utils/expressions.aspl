@@ -1,0 +1,15 @@
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+
+[public]
+function verify_expression(Node node) returns Expression{
+    if(!(node oftype Expression)){
+        if(node oftype Statement){
+            generic_error("Expected expression, but got statement", node.location)
+        }else{
+            generic_error("Expected expression", node.location)
+        }
+    }
+    return Expression(node)
+}

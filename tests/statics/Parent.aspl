@@ -1,0 +1,20 @@
+[static]
+class Parent {
+
+    [public]
+    [static]
+    property int first = 42
+    
+    [public]
+    [static]
+    method one(){
+        print("parent: one")
+    }
+
+    [public]
+    [static]
+    method two(){
+        print("parent: two")
+    }
+
+}

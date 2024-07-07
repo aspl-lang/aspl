@@ -1,0 +1,31 @@
+import aspl.parser.ast
+import aspl.parser.enums
+import aspl.parser.utils
+
+[public]
+class EnumFieldAccessExpression extends Expression {
+    
+	[readpublic]
+	property EnumField field
+	
+	method construct(EnumField field, Location? location){
+        parent(Node).construct(location)
+		this.field = field
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([this.field.e.type])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return true
+	}
+
+	[public]
+	method getConstantValue() returns any{
+		return field.value
+	}
+
+}

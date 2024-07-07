@@ -1,0 +1,9 @@
+[public]
+enum ParseMode {
+
+    Normal,
+    Preprocess,
+    PreprocessTypes,
+    Import
+
+}

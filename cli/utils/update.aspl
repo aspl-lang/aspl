@@ -1,0 +1,108 @@
+import internet
+import json
+import io
+import encoding.base64
+import zip
+import os
+
+function download_templates(){
+    var githubToken = fetch_github_token()
+    var asset = fetch_asset_id("templates.zip")
+    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Authorization" => ["token " + githubToken], "Accept" => ["application/octet-stream"]})
+    io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), response.text)
+    zip.unzip(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), ".")
+    io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]))
+}
+
+// download_executable downloads the latest aspl cli executable
+// Warning: this function never returns and starts a new process instead
+function download_executable(){
+    var githubToken = fetch_github_token()
+    var assetName = "aspl"
+    $if windows{
+        assetName += "_windows"
+        $if amd64{
+            assetName += "_x86_64"
+        }
+        $if i386{
+            assetName += "_x86"
+        }
+        $if arm64{
+            assetName += "_arm64"
+        }
+        assetName += ".exe"
+    }
+    $if linux{
+        assetName += "_linux"
+        $if amd64{
+            assetName += "_x86_64"
+        }
+        $if i386{
+            assetName += "_x86"
+        }
+        $if arm32{
+            assetName += "_arm32"
+        }
+        $if arm64{
+            assetName += "_arm64"
+        }
+    }
+    $if macos{
+        assetName += "_macos"
+        $if amd64{
+            assetName += "_x86_64"
+        }
+        $if i386{
+            assetName += "_x86"
+        }
+        $if arm64{
+            assetName += "_arm64"
+        }
+    }
+    var asset = fetch_asset_id(assetName)
+    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Authorization" => ["token " + githubToken], "Accept" => ["application/octet-stream"]})
+    $if windows{
+        io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), response.text)
+        os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), ["internal-update-1"])
+    }$else{
+        io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), response.text)
+        os.execute("chmod +x " + io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]))
+        os.execvp("./" + io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), ["internal-update-1"])
+    }
+    exit(0)
+}
+
+function fetch_github_token() returns string{
+    if(io.exists_file("github.token")){
+        return io.read_file("github.token").trim()
+    }
+    print(console.red("aspl update: github token not found, please create a file named github.token in the current directory and put your github token in it"))
+    exit(1)
+}
+
+function fetch_asset_id(string name) returns string{
+    var githubToken = fetch_github_token()
+    var sha = ""
+    var asset = ""
+    {
+        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/contents/latest.txt", "", {"Authorization" => ["token " + githubToken]})
+        var contents = map<string, any>(json.decode(response.text))
+        var content = string(contents["content"]).trim()
+        if(content.endsWith("\\n")){
+            content = content.before(content.length - 2)
+        }
+        sha = encoding.base64.decode(content).trim()
+    }
+    {
+        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/tags/SHA-" + sha, "", {"Authorization" => ["token " + githubToken]})
+        var contents = map<string, any>(json.decode(response.text))
+        var assets = list<any>(contents["assets"])
+        foreach(assets as a){
+            if(map<string, any>(a)["name"] == name){
+                asset = string(map<string, any>(a)["id"])
+                break
+            }
+        }
+    }
+    return asset
+}

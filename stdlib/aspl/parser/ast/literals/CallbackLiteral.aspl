@@ -1,0 +1,28 @@
+import aspl.parser.ast
+import aspl.parser.utils
+import aspl.parser.callbacks
+
+class CallbackLiteral extends Literal{
+
+	[readpublic]
+	property Callback value
+	[readpublic]
+	property list<string> capturedVariables
+
+	method construct(Callback value, list<string> capturedVariables, Location? location){
+        parent(Node).construct(location)
+		this.value = value
+		this.capturedVariables = capturedVariables
+	}
+	
+	[public]
+	method getType() returns Types{
+		return new Types([this.value.type])
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+
+}

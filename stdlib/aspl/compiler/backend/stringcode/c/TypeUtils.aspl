@@ -1,0 +1,23 @@
+[public]
+[static]
+class TypeUtils {
+    
+    [public]
+    [static]
+    method shortName(string s) returns string{
+        if(s == "integer"){
+            return "int"
+        }elseif(s == "boolean"){
+            return "bool"
+        }else{
+            return s
+        }
+    }
+    
+    [public]
+    [static]
+    method typeToCIdentifier(string type) returns string{
+        return type.replace(".", "$").replace("|", "_OR_").replace("<", "_").replace(">", "_").replace(", ", "_").replace(" ", "_")
+    }
+
+}

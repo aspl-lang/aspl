@@ -1,0 +1,8 @@
+var x = callback(list<int> number) returns int|float{
+    return number[0] * 2
+}
+var callback<list<int>, returns int|float> c = x
+print(c)
+assert c.invoke([100]) == c.([100])
+assert c.([20]) == 40
+assert c.([-10]) == -20

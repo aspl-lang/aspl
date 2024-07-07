@@ -1,0 +1,33 @@
+// Original code taken and translated from: https://www.geeksforgeeks.org/julia-fractal-python/
+
+import graphics
+
+var int width = 500
+var int height = 500
+var float zoom = 1f
+
+var Canvas canvas = new Canvas(500, 500)
+canvas.fill(new Color(255b, 255b, 255b, 255b), false)
+
+var float cX = -0.7
+var float cY = 0.27015
+var float moveX = 0f
+var float moveY = 0f
+var int maxIterations = 255
+
+repeat(width, x = 0){
+    repeat(height, y = 0){
+        var zx = 1.5 * (x - width / 2f) / (0.5 * zoom * width) + moveX
+        var zy = 1.5 * (y - height / 2f) / (0.5 * zoom * height) + moveY
+        var int i = maxIterations
+        while((zx * zx + zy * zy) < 4 && i > 1){
+            var temp = zx * zx - zy * zy + cX
+            zy = 2 * zx * zy + cY
+            zx = temp
+            i--
+        }
+        canvas.setPixel(x, y, Color:fromRGB(byte(i * 4), byte(i * 4), byte(i * 4)))
+    }
+}
+
+canvas.save("julia_set.png")

@@ -1,0 +1,11 @@
+function f(integer x) returns int|float{
+    return x
+}
+
+function pretty_print(any x){
+    print("---")
+    print(x)
+    print("---")
+}
+
+pretty_print(f(3))

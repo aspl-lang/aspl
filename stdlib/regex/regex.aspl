@@ -1,0 +1,39 @@
+[public]
+function find_first(string pattern, string haystack) returns Match?{
+	var data = implement("regex.find_first", pattern, haystack)
+	if(data == null){
+		return null
+	}
+	var list<int|string> match = list<int|string>(data)
+	return new Match(int(match[0]), int(match[1]), string(match[2]))
+}
+
+[public]
+function match_string(string pattern, string haystack) returns Match?{
+	var data = implement("regex.match", pattern, haystack)
+	if(data == null){
+		return null
+	}
+	var list<int|string> match = list<int|string>(data)
+	return new Match(int(match[0]), int(match[1]), string(match[2]))
+}
+
+[public]
+function replace_first(string pattern, string replace, string haystack) returns string{
+	return string(implement("regex.replace_first", pattern, replace, haystack))
+}
+
+[public]
+function find_all(string pattern, string haystack) returns list<Match>{
+	var list<list<int|string>> data = list<list<int|string>>(implement("regex.find_all", pattern, haystack))
+	var list<Match> matches = []
+	foreach(data as match){
+		matches.add(new Match(int(match[0]), int(match[1]), string(match[2])))
+	}
+	return matches
+}
+
+[public]
+function replace_all(string pattern, string replace, string haystack) returns string{
+	return string(implement("regex.replace_all", pattern, replace, haystack))
+}

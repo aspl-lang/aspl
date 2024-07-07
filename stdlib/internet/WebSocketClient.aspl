@@ -1,0 +1,51 @@
+[public]
+class WebSocketClient{
+
+	property any handle
+
+	[public]
+    property callback onConnect = callback(){}
+	[public]
+    property callback<string> onMessage = callback(string message){}
+	[public]
+    property callback<string> onError = callback(string error){}
+	[public]
+    property callback<int, string> onClose = callback(int code, string reason){}
+	[readpublic]
+    property bool connected = false
+	
+	[public]
+	method construct(string uri){
+		handle = implement("internet.web_socket_client.new", uri)
+		implement("internet.web_socket_client.set_on_connect", handle, callback(){
+			this.connected = true
+			onConnect.()
+		})
+		implement("internet.web_socket_client.set_on_message", handle, callback(string message){
+			onMessage.(message)
+		})
+		implement("internet.web_socket_client.set_on_error", handle, callback(string error){
+			onError.(error)
+		})
+		implement("internet.web_socket_client.set_on_close", handle, callback(int code, string reason){
+			onClose.(code, reason)
+			this.connected = false
+		})
+	}
+
+	[public]
+    method connect(){
+		implement("internet.web_socket_client.connect", handle)
+	}
+	
+	[public]
+    method send(string content){
+		implement("internet.web_socket_client.send", handle, content)
+	}
+
+	[public]
+    method disconnect(int code, string reason){
+		implement("internet.web_socket_client.disconnect", handle, code, reason)
+	}
+	
+}

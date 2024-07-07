@@ -1,0 +1,15 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class LinkLibraryStatement extends Statement{
+
+	[readpublic]
+	property string library
+	
+	method construct(string library, Location? location){
+        parent(Node).construct(location)
+		this.library = library
+	}
+	
+}

@@ -1,0 +1,20 @@
+import aspl.parser.ast
+import aspl.parser.methods
+import aspl.parser.utils
+import aspl.parser.lexer
+
+[public]
+class MethodDeclareStatement extends Statement{
+
+	[readpublic]
+	property Method m
+	[readpublic]
+	property list<Token> comments
+	
+	method construct(Method m, list<Token> comments, Location? location){
+        parent(Node).construct(location)
+		this.m = m
+		this.comments = comments
+	}
+	
+}

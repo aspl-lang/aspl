@@ -1,0 +1,23 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+// This class is for all nodes that may be used as expressions
+[public]
+[abstract]
+class Expression extends Node{
+
+	[public]
+	[abstract]
+	method getType() returns Types
+
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+	
+	[public]
+	method getConstantValue() returns any{
+		aspl.parser.utils.fatal_error("This expression is not constant")
+	}
+
+}

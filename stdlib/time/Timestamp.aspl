@@ -1,0 +1,30 @@
+[public]
+class Timestamp {
+    
+    [readpublic]
+    property long nanoseconds // since the Unix epoch
+    [public]
+    property long microseconds{
+        get{
+            return nanoseconds / 1000
+        }
+    }
+    [public]
+    property long milliseconds{
+        get{
+            return nanoseconds / 1000000
+        }
+    }
+    [public]
+    property long seconds{
+        get{
+            return nanoseconds / 1000000000
+        }
+    }
+
+    [public]
+    method construct(long nanoseconds){
+        this.nanoseconds = nanoseconds
+    }
+
+}

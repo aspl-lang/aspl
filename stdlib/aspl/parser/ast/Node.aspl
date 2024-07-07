@@ -1,0 +1,16 @@
+import aspl.parser
+import aspl.parser.utils
+
+[public]
+[abstract]
+class Node{
+
+	[readpublic]
+	property Location? location = null
+
+    [public]
+	method construct(Location? location){
+		this.location = location
+	}
+	
+}

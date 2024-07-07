@@ -1,0 +1,41 @@
+import io
+
+[public]
+[static]
+class DirectoryUtils {
+    
+    [public]
+    [static]
+    method index(string dir) returns list<string>{
+        var list<string> files = []
+        foreach(io.glob(io.join_path([dir, "*"])) as file){
+            if(file.endsWith("/") || file.endsWith("\\")){
+                var folder = io.abs(file)
+                $if windows{
+                    folder = io.abs(io.join_path([dir, file])) // io.glob() does not include the directory on Windows (see https://github.com/vlang/v/issues/15448)
+                }
+                if(!folder.startsWith(dir)){
+                    continue // TODO: bug in the glob implementation on Linux; TODO: is this still up to date?
+                }
+                if(folder.endsWith(".git") || folder.endsWith(".git/") || folder.endsWith(".git\\")){
+                    continue
+                }
+                foreach(DirectoryUtils:index(folder) as f){
+                    if(!files.contains(f)){
+                        files.add(f)
+                    }
+                }
+            }elseif(file.endsWith(".aspl")){
+                var f = io.abs(file)
+                $if windows{
+                    f = io.abs(io.join_path([dir, file])) // io.glob() does not include the directory on Windows (see https://github.com/vlang/v/issues/15448)
+                }
+                if(!files.contains(f)){
+                    files.add(f)
+                }
+            }
+        }
+        return files
+    }
+
+}

@@ -1,0 +1,63 @@
+import console
+
+import aspl.parser.classes
+
+[public]
+function notice(string message, Location? location = null){
+    if(location == null){
+        print(console.yellow("Notice: " + message))
+    }else{
+        print(console.yellow("Notice: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+}
+
+[public]
+function warning(string message, Location? location = null){
+    if(location == null){
+        print(console.yellow("Warning: " + message))
+    }else{
+        print(console.yellow("Warning: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+}
+
+[public]
+function fatal_error(string message, Location? location = null){
+    if(location == null){
+        print(console.red("Error: " + message))
+    }else{
+        print(console.red("Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+    ErrorUtils:hasCompilationErrors = true
+    exit(1)
+}
+
+[public]
+function syntax_error(string message, Location? location = null){
+    if(location == null){
+        print(console.red("Syntax Error: " + message))
+    }else{
+        print(console.red("Syntax Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+    ErrorUtils:hasCompilationErrors = true
+    exit(1)
+}
+
+[public]
+function generic_error(string message, Location? location = null){
+    if(location == null){
+        print(console.red("Error: " + message))
+    }else{
+        print(console.red("Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+    ErrorUtils:hasCompilationErrors = true
+}
+
+[public]
+function type_error(string message, Location? location = null){
+    if(location == null){
+        print(console.red("Type Error: " + message))
+    }else{
+        print(console.red("Type Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+    }
+    ErrorUtils:hasCompilationErrors = true
+}

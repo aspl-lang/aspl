@@ -1,0 +1,23 @@
+[public]
+class Location{
+
+	[readpublic]
+	property string file
+	[readpublic]
+	property int startLine
+	[readpublic]
+	property int endLine
+	[readpublic]
+	property int startColumn
+	[readpublic]
+	property int endColumn
+	
+	method construct(string file, int startLine, int endLine, int startColumn, int endColumn){
+		this.file = file
+		this.startLine = startLine
+		this.endLine = endLine
+		this.startColumn = startColumn
+		this.endColumn = endColumn
+	}
+	
+}

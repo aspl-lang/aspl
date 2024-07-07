@@ -1,0 +1,24 @@
+var a = false
+if(true){
+    a = true
+}elseif(true){
+    assert false // unreachable because of previous if
+}else{
+    assert false // unreachable because of previous if
+}
+if(false){
+    assert false // unreachable because condition is false
+}elseif(false){
+    assert false // unreachable because condition is false
+}else{
+    assert a
+}
+var b = false
+if(false){
+    assert false // unreachable because condition is false
+}elseif(true){
+    b = true
+}else{
+    b = false // unreachable because of previous elseif
+}
+assert b

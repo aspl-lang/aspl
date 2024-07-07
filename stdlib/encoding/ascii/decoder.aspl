@@ -1,0 +1,15 @@
+import encoding.utf8
+
+[public]
+function decode(list<byte> bytes) returns string{
+    var s = ""
+    foreach(bytes as b){
+        s += decode_char(b)
+    }
+    return s
+}
+
+[public]
+function decode_char(byte b) returns string{
+    return encoding.utf8.decode([b])
+}

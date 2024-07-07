@@ -1,0 +1,2244 @@
+import aspl.compiler
+import aspl.compiler.backend
+import aspl.compiler.backend.stringcode
+import aspl.compiler.utils
+import aspl.parser
+import aspl.parser.ast
+import aspl.parser.ast.statements
+import aspl.parser.ast.expressions
+import aspl.parser.ast.literals
+import aspl.parser.functions
+import aspl.parser.properties
+import aspl.parser.methods
+import aspl.parser.classes
+import aspl.parser.enums
+import aspl.parser.utils
+import encoding.utf8
+import io
+import strings
+
+[public]
+class CBackend extends StringcodeBackend {
+
+    property int tempVariableId = 0
+    property list<CallbackDeclaration> callbackDeclarations
+    property list<string> callbackInvokeFunctionHandledTypes
+    property list<MethodDeclareStatement> methodDeclarations
+    property list<PropertyDeclareStatement> staticNormalPropertyDeclarations
+    property list<PropertyDeclareStatement> reactivePropertyDeclarations
+    property list<PropertyDeclareStatement> staticReactivePropertyDeclarations
+    property list<EnumDeclareStatement> enumDeclarations
+    property bool insideClassDeclaration
+    property map<string, Method> constructors
+    property map<string, Function> threadFunctionWrappers
+    property list<string> threadCallbackWrappers
+    property list<EmbedFileExpression> fileEmbeds
+    property list<CatchBlockDeclaration> catchBlockDeclarations
+
+    [public]
+    method compile(ParserResult result) returns CompilationResult{
+        var functionDeclarationsHeadersOutput = new StringBuilder()
+        foreach(result.nodes as node){
+            if(node oftype FunctionDeclareStatement){ // TODO: Also find functions nested in other nodes
+                functionDeclarationsHeadersOutput.append(this.encodeFunctionDeclarationHeader(FunctionDeclareStatement(node)))
+                functionDeclarationsHeadersOutput.append("\n")
+            }
+        }
+        functionDeclarationsHeadersOutput.append("\n")
+        foreach(Class:classes as c){
+            foreach(c.code as node){
+                this.encode(node, true) // register methods etc.
+            }
+        }
+        var generalOutput = new StringBuilder()
+        var mainBlockBegan = false
+        foreach(result.nodes as node){
+            if(!(node oftype ClassDeclareStatement || node oftype EnumDeclareStatement || node oftype MethodDeclareStatement || node oftype PropertyDeclareStatement || node oftype FunctionDeclareStatement)){
+                if(!mainBlockBegan){
+                    if(Options:targetOs == "android"){
+                        generalOutput.append("sapp_desc sokol_main(int argc, char* argv[]){\n")
+                    }else{
+                        generalOutput.append("int main(int argc, char** argv){\n")
+                    }
+                    indentLevel++
+                    mainBlockBegan = true
+
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_argc = argc;\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_argv = argv;\n")
+                    if(Options:targetOs == "windows"){
+                        repeat(indentLevel){
+                            generalOutput.append("\t")
+                        }
+                        generalOutput.append("aspl_setup_windows_console();\n")
+                    }
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_gc();\n")
+                    if(Options:useSsl){
+                        repeat(indentLevel){
+                            generalOutput.append("\t")
+                        }
+                        generalOutput.append("aspl_setup_ssl();\n")
+                    }
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_enums();\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_parent_pointers();\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_method_pointers();\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_reactive_properties();\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_static_properties();\n")
+                    generalOutput.append("\n")
+                    repeat(indentLevel){
+                        generalOutput.append("\t")
+                    }
+                    generalOutput.append("aspl_setup_embeds();\n")
+                    generalOutput.append("\n")
+                    if(Options:enableErrorHandling){
+                        repeat(indentLevel){
+                            generalOutput.append("\t")
+                        }
+                        generalOutput.append("try{\n")
+                        indentLevel++
+                    }
+                }
+            }
+            generalOutput.append(this.encode(node, true))
+            generalOutput.append("\n")
+        }
+        if(mainBlockBegan){
+            if(Options:enableErrorHandling){
+                indentLevel--
+                repeat(indentLevel){
+                    generalOutput.append("\t")
+                }
+                generalOutput.append("}catch{\n")
+                indentLevel++
+                repeat(indentLevel){
+                    generalOutput.append("\t")
+                }
+                generalOutput.append("ASPL_PANIC(\"Uncaught %s error\", ASPL_ACCESS(aspl_current_error).value.classInstance->typePtr);\n")
+                indentLevel--
+                repeat(indentLevel){
+                    generalOutput.append("\t")
+                }
+                generalOutput.append("}\n")
+            }
+            repeat(indentLevel){
+                generalOutput.append("\t")
+            }
+            if(Options:targetOs == "android"){
+                generalOutput.append("return aspl_global_sapp_desc;\n")
+            }else{
+                generalOutput.append("return 0;\n")
+            }
+            indentLevel--
+            repeat(indentLevel){
+                generalOutput.append("\t")
+            }
+            generalOutput.append("}")
+        }
+        var includeOutput = new StringBuilder()
+        foreach(IncludeUtils:files as file){
+            includeOutput.append("#include \"").append(file).append("\"\n")
+        }
+        if(IncludeUtils:files.length > 0){
+            includeOutput.append("\n")
+        }
+        var newClassDeclarationHeadersOutput = new StringBuilder()
+        foreach(Class:classes as c){
+            newClassDeclarationHeadersOutput.append("ASPL_OBJECT_TYPE aspl_new_" + TypeUtils:typeToCIdentifier(c.type.identifier) + "(")
+            if(constructors.containsKey(c.type.identifier)){
+                var constructor = constructors[c.type.identifier]
+                if(constructor.parameters.length > 0){
+                    var i = 0
+                    foreach(constructor.parameters as parameter){
+                        newClassDeclarationHeadersOutput.append("ASPL_OBJECT_TYPE* " + parameter.name)
+                        if(i < constructor.parameters.length - 1){
+                            newClassDeclarationHeadersOutput.append(", ")
+                        }
+                        i++
+                    }
+                }
+            }
+            newClassDeclarationHeadersOutput.append(");\n")
+        }
+        var enumDeclarationsOutput = new StringBuilder()
+        foreach(this.enumDeclarations as declaration){
+            enumDeclarationsOutput.append("ASPL_Enum* aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append(";\n")
+        }
+        if(this.enumDeclarations.length > 0){
+            enumDeclarationsOutput.append("\n")
+        }
+        var methodDeclarationsHeadersOutput = new StringBuilder()
+        foreach(this.methodDeclarations as declaration){
+            methodDeclarationsHeadersOutput.append(this.encodeMethodDeclarationHeader(declaration))
+            methodDeclarationsHeadersOutput.append("\n")
+        }
+        if(this.methodDeclarations.length > 0){
+            methodDeclarationsHeadersOutput.append("\n")
+        }
+        var threadFunctionWrappersOutput = new StringBuilder()
+        foreach(this.threadFunctionWrappers as identifier => func){
+            threadFunctionWrappersOutput.append("int aspl_function_" + identifier.replace(".", "$") + "_thread_wrapper(void* args){\n")
+            indentLevel++
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("struct GC_stack_base sb;\n")
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("GC_get_stack_base(&sb);\n")
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("GC_register_my_thread(&sb);\n")
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("aspl_function_" + identifier.replace(".", "$") + "(")
+            var i = 0
+            foreach(func.parameters as parameter){
+                threadFunctionWrappersOutput.append("((ASPL_OBJECT_TYPE**)args)[" + i + "]")
+                if(i < func.parameters.length - 1){
+                    threadFunctionWrappersOutput.append(", ")
+                }
+                i++
+            }
+            threadFunctionWrappersOutput.append(");\n")
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("GC_unregister_my_thread();\n")
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("return 0;\n")
+            indentLevel--
+            repeat(indentLevel){
+                threadFunctionWrappersOutput.append("\t")
+            }
+            threadFunctionWrappersOutput.append("}\n")
+        }
+        if(this.threadFunctionWrappers.length > 0){
+            threadFunctionWrappersOutput.append("\n")
+        }
+        var threadCallbackWrappersOutput = new StringBuilder()
+        foreach(this.threadCallbackWrappers as identifier){
+            threadCallbackWrappersOutput.append("int aspl_" + TypeUtils:typeToCIdentifier(identifier) + "_invoke_thread_wrapper(void* args){\n")
+            indentLevel++
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("struct GC_stack_base sb;\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("GC_get_stack_base(&sb);\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("GC_register_my_thread(&sb);\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("ASPL_OBJECT_TYPE closure = *(((ASPL_OBJECT_TYPE**)args)[0]);\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("ASPL_ClosureMap* closure_map = ASPL_ACCESS(closure).value.callback->closure_map;\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("aspl_" + TypeUtils:typeToCIdentifier(identifier) + "_invoke(closure")
+            var genericTypes = Type:getGenericTypesIdentifiers(identifier)
+            if(genericTypes.length > 0){
+                threadCallbackWrappersOutput.append(", ")
+            }
+            var i = 0
+            while(i < genericTypes.length){
+                threadCallbackWrappersOutput.append("((ASPL_OBJECT_TYPE**)args)[").append(string(i + 1)).append("]")
+                if(i < genericTypes.length - 1){
+                    threadCallbackWrappersOutput.append(", ")
+                }
+                i++
+            }
+            threadCallbackWrappersOutput.append(");\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("GC_unregister_my_thread();\n")
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("return 0;\n")
+            this.indentLevel--
+            repeat(indentLevel){
+                threadCallbackWrappersOutput.append("\t")
+            }
+            threadCallbackWrappersOutput.append("}\n")
+        }
+        if(this.threadCallbackWrappers.length > 0){
+            threadCallbackWrappersOutput.append("\n")
+        }
+        var staticNormalPropertyDeclarationsOutput = new StringBuilder()
+        foreach(this.staticNormalPropertyDeclarations as declaration){
+            staticNormalPropertyDeclarationsOutput.append(this.encodeStaticNormalPropertyDeclaration(declaration))
+            staticNormalPropertyDeclarationsOutput.append("\n")
+        }
+        if(this.staticNormalPropertyDeclarations.length > 0){
+            staticNormalPropertyDeclarationsOutput.append("\n")
+        }
+        var reactivePropertyDeclarationHeadersOutput = new StringBuilder()
+        foreach(this.reactivePropertyDeclarations as declaration){
+            reactivePropertyDeclarationHeadersOutput.append(this.encodeReactivePropertyDeclarationHeader(declaration))
+            reactivePropertyDeclarationHeadersOutput.append("\n")
+        }
+        if(this.reactivePropertyDeclarations.length > 0){
+            reactivePropertyDeclarationHeadersOutput.append("\n")
+        }
+        var staticReactivePropertyDeclarationHeadersOutput = new StringBuilder()
+        foreach(this.staticReactivePropertyDeclarations as declaration){
+            staticReactivePropertyDeclarationHeadersOutput.append(this.encodeStaticReactivePropertyDeclarationHeader(declaration))
+            staticReactivePropertyDeclarationHeadersOutput.append("\n")
+        }
+        if(this.staticReactivePropertyDeclarations.length > 0){
+            staticReactivePropertyDeclarationHeadersOutput.append("\n")
+        }
+        var reactivePropertyDeclarationsOutput = new StringBuilder()
+        foreach(this.reactivePropertyDeclarations as declaration){
+            reactivePropertyDeclarationsOutput.append(this.encodeReactivePropertyDeclaration(declaration))
+            reactivePropertyDeclarationsOutput.append("\n")
+        }
+        if(this.reactivePropertyDeclarations.length > 0){
+            reactivePropertyDeclarationsOutput.append("\n")
+        }
+        var staticReactivePropertyDeclarationsOutput = new StringBuilder()
+        foreach(this.staticReactivePropertyDeclarations as declaration){
+            staticReactivePropertyDeclarationsOutput.append(this.encodeStaticReactivePropertyDeclaration(declaration))
+            staticReactivePropertyDeclarationsOutput.append("\n")
+        }
+        if(this.staticReactivePropertyDeclarations.length > 0){
+            staticReactivePropertyDeclarationsOutput.append("\n")
+        }
+        var newClassDeclarationsOutput = new StringBuilder()
+        foreach(Class:classes as c){
+            newClassDeclarationsOutput.append("ASPL_OBJECT_TYPE aspl_new_" + TypeUtils:typeToCIdentifier(c.type.identifier) + "(")
+            if(constructors.containsKey(c.type.identifier)){
+                var constructor = constructors[c.type.identifier]
+                if(constructor.parameters.length > 0){
+                    var i = 0
+                    foreach(constructor.parameters as parameter){
+                        newClassDeclarationsOutput.append("ASPL_OBJECT_TYPE* " + parameter.name)
+                        if(i < constructor.parameters.length - 1){
+                            newClassDeclarationsOutput.append(", ")
+                        }
+                        i++
+                    }
+                }
+            }
+            newClassDeclarationsOutput.append("){\n")
+            indentLevel++
+            var indentStub = ""
+            repeat(indentLevel){
+                indentStub += "\t"
+            }
+            newClassDeclarationsOutput.append(indentStub + "ASPL_OBJECT_TYPE obj = ASPL_ALLOC_OBJECT();\n")
+            newClassDeclarationsOutput.append(indentStub + "ASPL_ACCESS(obj).kind = ASPL_OBJECT_KIND_CLASS_INSTANCE;\n")
+            newClassDeclarationsOutput.append(indentStub + "ASPL_ClassInstance* instance = ASPL_MALLOC(sizeof(ASPL_ClassInstance));\n")
+            newClassDeclarationsOutput.append(indentStub + "instance->typePtr = \"" + c.type.identifier + "\";\n")
+            newClassDeclarationsOutput.append(indentStub + "instance->typeLen = " + TypeUtils:typeToCIdentifier(c.type.identifier).length + ";\n")
+            newClassDeclarationsOutput.append(indentStub + "instance->properties = hashmap_str_to_voidptr_new_hashmap((hashmap_str_to_voidptr_HashMapConfig){.initial_capacity = 1});\n")
+            if(Options:enableErrorHandling){
+                var isError = "0"
+                if(c.isError){
+                    isError = "1"
+                }
+                newClassDeclarationsOutput.append(indentStub + "instance->isError = " + isError + ";\n")
+            }
+            newClassDeclarationsOutput.append(indentStub + "ASPL_ACCESS(obj).value.classInstance = instance;\n")
+            if(constructors.containsKey(c.type.identifier)){
+                newClassDeclarationsOutput.append(indentStub + "aspl_method_" + TypeUtils:typeToCIdentifier(c.type.identifier) + "_construct(C_REFERENCE(obj)")
+                var constructor = constructors[c.type.identifier]
+                if(constructor.parameters.length > 0){
+                    newClassDeclarationsOutput.append(", ")
+                    var i = 0
+                    foreach(constructor.parameters as parameter){
+                        newClassDeclarationsOutput.append(parameter.name)
+                        if(i < constructor.parameters.length - 1){
+                            newClassDeclarationsOutput.append(", ")
+                        }
+                        i++
+                    }
+                }
+                newClassDeclarationsOutput.append(");\n")
+            }
+            newClassDeclarationsOutput.append(indentStub + "return obj;\n")
+            indentLevel--
+            newClassDeclarationsOutput.append("}\n")
+        }
+        var methodDeclarationsOutput = new StringBuilder()
+        foreach(this.methodDeclarations as declaration){
+            methodDeclarationsOutput.append(this.encodeMethodDeclarationOutsideClass(declaration))
+            methodDeclarationsOutput.append("\n")
+        }
+        if(this.methodDeclarations.length > 0){
+            methodDeclarationsOutput.append("\n")
+        }
+        var setupParentPointersOutput = new StringBuilder()
+        setupParentPointersOutput.append("void aspl_setup_parent_pointers(){\n")
+        indentLevel++
+        repeat(indentLevel){
+            setupParentPointersOutput.append("\t")
+        }
+        setupParentPointersOutput.append("class_parents_map = *hashmap_str_to_voidptr_new_hashmap((hashmap_str_to_voidptr_HashMapConfig){.initial_capacity = 1});\n\n")
+        foreach(Class:classes as c){
+            repeat(indentLevel){
+                setupParentPointersOutput.append("\t")
+            }
+            foreach(ClassUtils:getAllParentsRecursively(c) as parent){
+                repeat(indentLevel){
+                    setupParentPointersOutput.append("\t")
+                }
+                setupParentPointersOutput.append("aspl_class_parent_init(\"" + c.type.identifier + "\", \"" + parent.identifier + "\");\n")
+            }
+        }
+        indentLevel--
+        setupParentPointersOutput.append("}\n")
+        setupParentPointersOutput.append("\n")
+        var setupMethodPointersOutput = new StringBuilder()
+        setupMethodPointersOutput.append("void aspl_setup_method_pointers(){\n")
+        indentLevel++
+        repeat(indentLevel){
+            setupMethodPointersOutput.append("\n")
+        }
+        setupMethodPointersOutput.append("aspl_setup_builtin_method_pointers();")
+        if(Class:classes.length > 0){
+            setupMethodPointersOutput.append("\n\n")
+        }
+        foreach(Class:classes as c){
+            repeat(indentLevel){
+                setupMethodPointersOutput.append("\t")
+            }
+            foreach(Method:getAllFor(c.type) as m){
+                if(m.createdFromAny || m.isStatic || m.isAbstract){
+                    continue
+                }
+                repeat(indentLevel){
+                    setupMethodPointersOutput.append("\t")
+                }
+                setupMethodPointersOutput.append("aspl_object_method_init(\"" + c.type.identifier + "\", \"" + m.name + "\", " + "aspl_method_" + TypeUtils:typeToCIdentifier(m.type.identifier) + "_" + m.name + "_wrapper);\n")
+            }
+            setupMethodPointersOutput.append("\n") // TODO: Do not append if last handled class
+        }
+        indentLevel--
+        setupMethodPointersOutput.append("}\n")
+        setupMethodPointersOutput.append("\n")
+        var setupReactivePropertiesOutput = new StringBuilder()
+        setupReactivePropertiesOutput.append("void aspl_setup_reactive_properties(){\n")
+        indentLevel++
+        repeat(indentLevel){
+            setupReactivePropertiesOutput.append("\t")
+        }
+        setupReactivePropertiesOutput.append("reactive_properties_map = *hashmap_str_to_voidptr_new_hashmap((hashmap_str_to_voidptr_HashMapConfig){.initial_capacity = 1});\n\n")
+        foreach(Class:classes as c){
+            foreach(Property:getAllFor(c.type) as p){
+                if(p.isStatic || !(p oftype CustomReactiveProperty)){
+                    continue
+                }
+                repeat(indentLevel){
+                    setupReactivePropertiesOutput.append("\t")
+                }
+                var getCallback = "NULL"
+                if(CustomReactiveProperty(p).getCode != null){
+                    getCallback = "(void*)aspl_reactive_property_" + TypeUtils:typeToCIdentifier(p.type.identifier) + "_" + p.name + "_get"
+                }
+                var setCallback = "NULL"
+                if(CustomReactiveProperty(p).setCode != null){
+                    setCallback = "(void*)aspl_reactive_property_" + TypeUtils:typeToCIdentifier(p.type.identifier) + "_" + p.name + "_set"
+                }
+                setupReactivePropertiesOutput.append("ASPL_CLASS_INIT_REACTIVE_PROPERTY(\"").append(c.type.identifier).append("\", \"").append(p.name).append("\", ").append(getCallback).append(", ").append(setCallback).append(");\n")
+            }
+        }
+        indentLevel--
+        setupReactivePropertiesOutput.append("}\n")
+        setupReactivePropertiesOutput.append("\n")
+        var setupStaticPropertiesOutput = new StringBuilder()
+        setupStaticPropertiesOutput.append("void aspl_setup_static_properties(){\n")
+        indentLevel++
+        foreach(this.staticNormalPropertyDeclarations as declaration){
+            repeat(indentLevel){
+                setupStaticPropertiesOutput.append("\t")
+            }
+            setupStaticPropertiesOutput.append("aspl_static_property_" + TypeUtils:typeToCIdentifier(declaration.p.type.identifier) + "_" + declaration.p.name + " = C_REFERENCE(")
+            if(CustomNormalProperty(declaration.p).defaultValue == null){
+                setupStaticPropertiesOutput.append("ASPL_NULL()")
+            }else{
+                setupStaticPropertiesOutput.append(this.encode(CustomNormalProperty(declaration.p).defaultValue))
+            }
+            setupStaticPropertiesOutput.append(");\n")
+        }
+        indentLevel--
+        setupStaticPropertiesOutput.append("}\n")
+        setupStaticPropertiesOutput.append("\n")
+        var setupEnumsOutput = new StringBuilder()
+        setupEnumsOutput.append("void aspl_setup_enums(){\n")
+        indentLevel++
+        repeat(indentLevel){
+            setupEnumsOutput.append("\t")
+        }
+        var initialCapacity = this.enumDeclarations.length
+        if(initialCapacity < 1){
+            initialCapacity = 1
+        }
+        setupEnumsOutput.append("enums_map = *hashmap_str_to_voidptr_new_hashmap((hashmap_str_to_voidptr_HashMapConfig){.initial_capacity = ").append(string(initialCapacity)).append("});\n")
+        foreach(this.enumDeclarations as declaration){
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            setupEnumsOutput.append("aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append(" = ASPL_MALLOC(sizeof(ASPL_Enum));\n")
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            setupEnumsOutput.append("aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append("->typePtr = \"").append(declaration.e.type.identifier).append("\";\n")
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            setupEnumsOutput.append("aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append("->typeLen = ").append(string(declaration.e.type.identifier.length)).append(";\n")
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            var isFlags = "0"
+            if(declaration.e.isFlags){
+                isFlags = "1"
+            }
+            setupEnumsOutput.append("aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append("->isFlagEnum = ").append(isFlags).append(";\n")
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            setupEnumsOutput.append("aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append("->stringValues = hashmap_int_to_str_new_hashmap((hashmap_int_to_str_HashMapConfig){.initial_capacity = ").append(string(declaration.e.fields?!.length)).append("});\n")
+            foreach(declaration.e.fields as field){
+                repeat(indentLevel){
+                    setupEnumsOutput.append("\t")
+                }
+                setupEnumsOutput.append("hashmap_int_to_str_hashmap_set(aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append("->stringValues, ").append(string(field.value)).append(", \"").append(field.name).append("\");\n")
+            }
+            repeat(indentLevel){
+                setupEnumsOutput.append("\t")
+            }
+            setupEnumsOutput.append("hashmap_str_to_voidptr_hashmap_set(&enums_map, \"").append(declaration.e.type.identifier).append("\", aspl_enum_").append(TypeUtils:typeToCIdentifier(declaration.e.type.identifier)).append(");\n")
+        }
+        indentLevel--
+        setupEnumsOutput.append("}\n")
+        setupEnumsOutput.append("\n")
+        var callbackDeclarationsOutput = new StringBuilder()
+        foreach(this.callbackDeclarations as declaration){ // TODO: This will ignore callbacks inside methods etc. as they are registered later; TODO: is this TODO still up to date?
+            callbackDeclarationsOutput.append(this.encodeCallbackDeclaration(declaration))
+            callbackDeclarationsOutput.append("\n")
+        }
+        if(this.callbackDeclarations.length > 0){
+            callbackDeclarationsOutput.append("\n")
+        }
+        this.callbackInvokeFunctionHandledTypes = []
+        var callbackDeclarationHeadersOutput = new StringBuilder()
+        foreach(this.callbackDeclarations as declaration){
+            callbackDeclarationHeadersOutput.append(this.encodeCallbackDeclarationHeader(declaration))
+            callbackDeclarationHeadersOutput.append("\n")
+        }
+        if(this.callbackDeclarations.length > 0){
+            callbackDeclarationHeadersOutput.append("\n")
+        }
+        var catchBlockDeclarationsOutput = new StringBuilder()
+        foreach(this.catchBlockDeclarations as declaration){
+            catchBlockDeclarationsOutput.append(this.encodeCatchBlockDeclaration(declaration))
+            catchBlockDeclarationsOutput.append("\n")
+        }
+        if(this.catchBlockDeclarations.length > 0){
+            catchBlockDeclarationsOutput.append("\n")
+        }
+        var fileEmbedsOutput = new StringBuilder()
+        {
+            var int i = 0
+            foreach(this.fileEmbeds as expression){
+                fileEmbedsOutput.append("ASPL_OBJECT_TYPE aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append(";\n")
+                i++
+            }
+            if(this.fileEmbeds.length > 0){
+                fileEmbedsOutput.append("\n")
+            }
+            fileEmbedsOutput.append("void aspl_setup_embeds(){\n")
+            indentLevel++
+            i = 0
+            foreach(this.fileEmbeds as expression){
+                var bytes = io.read_file_bytes(expression.file)
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("ASPL_OBJECT_TYPE* aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append("_array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * ")
+                fileEmbedsOutput.append(string(bytes.length))
+                fileEmbedsOutput.append(");\n")
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("static unsigned char const aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append("_carray[] = {")
+                var j = 0
+                foreach(bytes as b){
+                    fileEmbedsOutput.append(string(b))
+                    if(j < bytes.length - 1){
+                        fileEmbedsOutput.append(", ")
+                    }
+                    j++
+                }
+                fileEmbedsOutput.append("};\n")
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("for(int i = 0; i < ")
+                fileEmbedsOutput.append(string(bytes.length))
+                fileEmbedsOutput.append("; i++){\n")
+                indentLevel++
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append("_array[i] = ASPL_BYTE_LITERAL(aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append("_carray[i]);\n")
+                indentLevel--
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("}\n")
+                repeat(indentLevel){
+                    fileEmbedsOutput.append("\t")
+                }
+                fileEmbedsOutput.append("aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append(" = ")
+                fileEmbedsOutput.append("ASPL_LIST_LITERAL(\"list<byte>\", 10, aspl_embed_")
+                fileEmbedsOutput.append(string(i))
+                fileEmbedsOutput.append("_array, ")
+                fileEmbedsOutput.append(string(bytes.length))
+                fileEmbedsOutput.append(");\n")
+                i++
+            }
+            indentLevel--
+        }
+        fileEmbedsOutput.append("}\n")
+
+        var template = encoding.utf8.decode($embed("template.c"))
+        if(Options:useDynamicCTemplate){
+            template = io.read_file(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib", "aspl", "compiler", "backend", "stringcode", "c", "template.c"]))
+        }
+        var output = new StringBuilder(template).append("\n\n// Everything from now on is generated by the ASPL compiler:\n\n")
+        output.append(includeOutput)
+        output.append("\n")
+        output.append(fileEmbedsOutput)
+        output.append("\n")
+        output.append(functionDeclarationsHeadersOutput)
+        output.append("\n")
+        output.append(newClassDeclarationHeadersOutput)
+        output.append(enumDeclarationsOutput)
+        output.append(methodDeclarationsHeadersOutput)
+        output.append(callbackDeclarationHeadersOutput)
+        output.append(threadFunctionWrappersOutput)
+        output.append(threadCallbackWrappersOutput)
+        output.append(staticNormalPropertyDeclarationsOutput)
+        output.append(reactivePropertyDeclarationHeadersOutput)
+        output.append(staticReactivePropertyDeclarationHeadersOutput)
+        output.append(reactivePropertyDeclarationsOutput)
+        output.append(staticReactivePropertyDeclarationsOutput)
+        output.append(newClassDeclarationsOutput)
+        output.append("\n")
+        output.append(methodDeclarationsOutput)
+        output.append(callbackDeclarationsOutput)
+        output.append(catchBlockDeclarationsOutput)
+        output.append("\n")
+        output.append(setupParentPointersOutput)
+        output.append(setupMethodPointersOutput)
+        output.append(setupReactivePropertiesOutput)
+        output.append(setupStaticPropertiesOutput)
+        output.append(setupEnumsOutput)
+        output.append("\n")
+        output.append(generalOutput)
+
+        return new CompilationResult(encoding.utf8.encode(output.toString()))
+    }
+
+    method encodeCodeBlock(BlockStatement statement) returns string{
+        var s = new StringBuilder("{\n")
+        indentLevel++
+        foreach(statement.statements as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method getLineTerminator() returns string{
+        return ";"
+    }
+
+    method encodeNullLiteral(NullLiteral literal) returns string{
+        return "ASPL_NULL()"
+    }
+
+    method encodeBooleanLiteral(BooleanLiteral literal) returns string{
+        if(literal.value){
+            return "ASPL_TRUE()"
+        }else{
+            return "ASPL_FALSE()"
+        }
+    }
+
+    method encodeByteLiteral(ByteLiteral literal) returns string{
+        return "ASPL_BYTE_LITERAL(" + literal.value + ")"
+    }
+
+    method encodeIntegerLiteral(IntegerLiteral literal) returns string{
+        return "ASPL_INT_LITERAL(" + literal.value + ")"
+    }
+
+    method encodeLongLiteral(LongLiteral literal) returns string{
+        return "ASPL_LONG_LITERAL(" + literal.value + ")"
+    }
+
+    method encodeFloatLiteral(FloatLiteral literal) returns string{
+        return "ASPL_FLOAT_LITERAL(" + literal.value + ")"
+    }
+
+    method encodeDoubleLiteral(DoubleLiteral literal) returns string{
+        return "ASPL_DOUBLE_LITERAL(" + literal.value + ")"
+    }
+
+    method encodeStringLiteral(StringLiteral literal) returns string{
+        var s = literal.literalString
+        var s2 = ""
+        if(!s.contains("\\u")){ // Optimize for common case
+            s2 = s
+        }else{
+            var i = 0
+            while(i < s.length){ // TODO: Speed this up somehow
+                if(s[i] == "\\" && i < s.length - 1 && s[i + 1] == "u"){
+                    if(i > 0 && s[i - 1] == "\\"){ // TODO: Figure out why this is necessary
+                        s2 += s[i]
+                        i++
+                        continue
+                    }
+                    if(i < s.length - 5){
+                        var codepoint = s.after(i + 1).before(4) // Note: before(4) is correct here, as it operates on the already sliced string
+                        var value = encoding.hex.encode(codepoint)
+                        if(value > 159){
+                            s2 += "\\u" + codepoint
+                        }else{
+                            s2 += "\\x" + codepoint
+                        }
+                        i += 5
+                    }
+                }else{
+                    s2 += s[i]
+                }
+                i++
+            }
+        }
+        return "ASPL_STRING_LITERAL_NO_COPY(\"" + s2 + "\")"
+    }
+
+    method encodeListLiteral(ListLiteral literal) returns string{
+        var s = new StringBuilder("ASPL_LIST_LITERAL(\"").append(literal.getType().toString()).append("\", ").append(string(literal.getType().toString().length)).append(", (ASPL_OBJECT_TYPE[]){")
+        var i = 0
+        foreach(literal.value as value){
+            s.append(this.encode(value))
+            if(i < literal.value.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("}, " + literal.value.length + ")")
+        return s.toString()
+    }
+
+    method encodeMapLiteral(MapLiteral literal) returns string{
+        var s = new StringBuilder("ASPL_MAP_LITERAL(\"").append(literal.getType().toString()).append("\", ").append(string(literal.getType().toString().length)).append(", (ASPL_OBJECT_TYPE[]){")
+        var i = 0
+        foreach(literal.value as pair){
+            s.append(this.encode(pair.k))
+            s.append(", ")
+            s.append(this.encode(pair.v))
+            if(i < literal.value.length - 1){
+                s.append(", ")
+            }
+        }
+        s.append("}, " + literal.value.length + ")")
+        return s.toString()
+    }
+
+    method encodeAssertion(AssertStatement statement) returns string{
+        return "ASPL_ASSERT(" + this.encode(statement.expression) + ", \"" + Location(statement.location).file.replace("\\", "\\\\") + "\", " + Location(statement.location).startLine + ", " + Location(statement.location).startColumn + ")"
+    }
+
+    method encodeEqualsCheck(CheckEqualsExpression expression) returns string{
+        return "ASPL_EQUALS(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeNegation(NegateExpression expression) returns string{
+        return "ASPL_NEGATE(" + this.encode(expression.expression) + ")"
+    }
+
+    method encodeFunctionCall(FunctionCallExpression expression) returns string{
+        var s = new StringBuilder()
+        if(expression.newThread){
+            s.append("ASPL_LAUNCH_THREAD(")
+            s.append("aspl_function_").append(expression.func.identifier.replace(".", "$")).append("_thread_wrapper, (ASPL_OBJECT_TYPE*[]){")
+            this.threadFunctionWrappers[expression.func.identifier] = expression.func
+        }else{
+            s.append("aspl_function_").append(expression.func.identifier.replace(".", "$")).append("(")
+        }
+        var i = 0
+        foreach(expression.arguments as argument){
+            s.append("C_REFERENCE(").append(this.encode(argument)).append(")")
+            if(i < expression.arguments.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(expression.arguments.length < expression.func.parameters.length){
+            if(expression.arguments.length > 0){
+                s.append(", ")
+            }
+            while(i < expression.func.parameters.length){
+                var parameter = expression.func.parameters[i]
+                if(parameter.defaultValue != null){
+                    s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
+                    if(i < expression.func.parameters.length - 1){
+                        s.append(", ")
+                    }
+                }
+                i++
+            }
+        }
+        if(expression.newThread){
+            s.append("}")
+            var length = expression.arguments.length
+            if(expression.arguments.length < expression.func.parameters.length){
+                length = expression.func.parameters.length
+            }
+            s.append(", ").append(string(length)).append(" * sizeof(ASPL_OBJECT_TYPE*)")
+        }
+        s.append(")")
+        return s.toString()
+    }
+
+    method encodeVariableDeclaration(VariableDeclareExpression expression) returns string{
+        return "ASPL_OBJECT_TYPE* " + IdentifierEscapeUtils:escapeIdentifier(expression.variable.identifier) + " = C_REFERENCE(" + this.encode(expression.value) + ")" // TODO: Make this usable as an expression
+    }
+
+    method encodeVariableAccess(VariableAccessExpression expression) returns string{
+        return "*" + IdentifierEscapeUtils:escapeIdentifier(expression.variable.identifier)
+    }
+
+    method encodeVariableAssignment(VariableAssignExpression expression) returns string{
+        return "*" + IdentifierEscapeUtils:escapeIdentifier(expression.variable.identifier) + " = " + this.encode(expression.value)
+    }
+
+    method encodeFunctionDeclaration(FunctionDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        if(statement.func.returnTypes.types.length > 0 || statement.func.canThrow){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_function_").append(statement.func.identifier.replace(".", "$")).append("(")
+        var i = 0
+        foreach(statement.func.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < statement.func.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("){\n")
+        this.indentLevel++
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("try{\n")
+            this.indentLevel++
+        }
+        foreach(CustomFunction(statement.func).code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return_uninitialized_from_try;\n")
+        }
+        this.indentLevel--
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}catch{\n")
+            this.indentLevel++
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return aspl_current_error;\n")
+            this.indentLevel--
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}\n")
+            this.indentLevel--
+        }
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        s.append("\n")
+        return s.toString()
+    }
+
+    method encodeFunctionDeclarationHeader(FunctionDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        if(statement.func.returnTypes.types.length > 0 || statement.func.canThrow){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_function_").append(statement.func.identifier.replace(".", "$")).append("(")
+        var i = 0
+        foreach(statement.func.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < statement.func.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append(");")
+        return s.toString()
+    }
+
+    method encodeParameter(Parameter parameter) returns string{
+        var s = "ASPL_OBJECT_TYPE* " + parameter.name
+        if(parameter.optional){
+            s += " /* optional */"
+        }
+        return s
+    }
+
+    method encodeReturnStatement(ReturnStatement statement) returns string{
+        if(statement.value != null){
+            if(Options:enableErrorHandling){
+                return "return_from_try(" + this.encode(statement.value) + ")"
+            }else{
+                return "return " + this.encode(statement.value)
+            }
+        }else{
+            if(Options:enableErrorHandling){
+                if(ErrorUtils:canCallableThrow(statement.callable)){
+                    return "return_uninitialized_from_try"
+                }else{
+                    return "return_void_from_try"
+                }
+            }else{
+                return "return"
+            }
+        }
+    }
+
+    method encodeFallbackStatement(FallbackStatement statement) returns string{
+        return "return " + this.encode(statement.value)
+    }
+
+    method encodeEscapeStatement(EscapeStatement statement) returns string{
+        if(statement.value != null){
+            return "escape(" + this.encode(statement.value) + ")"
+        }else{
+            return "escape(ASPL_NULL())"
+        }
+    }
+
+    method encodeAnd(AndExpression expression) returns string{
+        if(Type:matches(new Types([Type:fromString("boolean")]), expression.getType())){
+            return "ASPL_AND(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }else{
+            return "ASPL_ENUM_AND(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method encodeOr(OrExpression expression) returns string{
+        if(Type:matches(new Types([Type:fromString("boolean")]), expression.getType())){
+            return "ASPL_OR(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }else{
+            return "ASPL_ENUM_OR(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method encodeXor(XorExpression expression) returns string{
+        if(Type:matches(new Types([Type:fromString("boolean")]), expression.getType())){
+            return "ASPL_XOR(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }else{
+            return "ASPL_ENUM_XOR(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method canAccessNumberValue(Expression expression) returns bool{
+        if(expression.getType().types.length > 1){
+            return false
+        }
+        if(Type:matches(new Types([Type:fromString("byte")]), expression.getType())){
+            return true
+        }elseif(Type:matches(new Types([Type:fromString("integer")]), expression.getType())){
+            return true
+        }elseif(Type:matches(new Types([Type:fromString("long")]), expression.getType())){
+            return true
+        }elseif(Type:matches(new Types([Type:fromString("float")]), expression.getType())){
+            return true
+        }elseif(Type:matches(new Types([Type:fromString("double")]), expression.getType())){
+            return true
+        }elseif(Enum:enums.containsKey(expression.getType().types[0].identifier)){
+            return true
+        }
+        return false
+    }
+
+    method encodeNumberValueAccess(Expression expression) returns string{
+        if(expression.getType().types.length > 1){
+            aspl.parser.utils.type_error("Cannot directly access the value of a number with an ambiguous type", expression.location)
+        }
+        if(Type:matches(new Types([Type:fromString("byte")]), expression.getType())){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.integer8)"
+        }elseif(Type:matches(new Types([Type:fromString("integer")]), expression.getType())){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.integer32)"
+        }elseif(Type:matches(new Types([Type:fromString("long")]), expression.getType())){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.integer64)"
+        }elseif(Type:matches(new Types([Type:fromString("float")]), expression.getType())){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.float32)"
+        }elseif(Type:matches(new Types([Type:fromString("double")]), expression.getType())){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.float64)"
+        }elseif(Enum:enums.containsKey(expression.getType().types[0].identifier)){
+            return "(ASPL_ACCESS(" + this.encode(expression) + ").value.enumField->intValue)"
+        }else{
+            aspl.parser.utils.type_error("Cannot directly access the value of a number with a non-numeric type", expression.location)
+        }
+        return "-1"
+    }
+
+    method encodePlus(PlusExpression expression) returns string{
+        if(expression.right oftype IntegerLiteral && IntegerLiteral(expression.right).value == 1){
+            return "ASPL_PLUS_PLUS(" + this.encode(expression.left) + ")"
+        }
+        return "ASPL_PLUS(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeMinus(MinusExpression expression) returns string{
+        return "ASPL_MINUS(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeMultiplication(MultiplyExpression expression) returns string{
+        return "ASPL_MULTIPLY(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeDivision(DivideExpression expression) returns string{
+        return "ASPL_DIVIDE(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeModulo(ModuloExpression expression) returns string{
+        return "ASPL_MODULO(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+    }
+
+    method encodeLessThan(LessThanExpression expression) returns string{
+        if(canAccessNumberValue(expression.left) && canAccessNumberValue(expression.right)){
+            return "ASPL_BOOL_LITERAL(" + encodeNumberValueAccess(expression.left) + " < " + encodeNumberValueAccess(expression.right) + ")"
+        }else{
+            return "ASPL_LESS_THAN(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method encodeLessThanOrEqual(LessThanOrEqualExpression expression) returns string{
+        if(canAccessNumberValue(expression.left) && canAccessNumberValue(expression.right)){
+            return "ASPL_BOOL_LITERAL(" + encodeNumberValueAccess(expression.left) + " <= " + encodeNumberValueAccess(expression.right) + ")"
+        }else{
+            return "ASPL_LESS_THAN_OR_EQUAL(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method encodeGreaterThan(GreaterThanExpression expression) returns string{
+        if(canAccessNumberValue(expression.left) && canAccessNumberValue(expression.right)){
+            return "ASPL_BOOL_LITERAL(" + encodeNumberValueAccess(expression.left) + " > " + encodeNumberValueAccess(expression.right) + ")"
+        }else{
+            return "ASPL_GREATER_THAN(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+
+    method encodeGreaterThanOrEqual(GreaterThanOrEqualExpression expression) returns string{
+        if(canAccessNumberValue(expression.left) && canAccessNumberValue(expression.right)){
+            return "ASPL_BOOL_LITERAL(" + encodeNumberValueAccess(expression.left) + " >= " + encodeNumberValueAccess(expression.right) + ")"
+        }else{
+            return "ASPL_GREATER_THAN_OR_EQUAL(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
+        }
+    }
+    
+    method encodeReference(ReferenceExpression expression) returns string{
+        if(expression.expression oftype VariableAccessExpression){
+            return "ASPL_REFERENCE(\"" + TypeUtils:shortName(expression.expression.getType().getPointer().identifier) + "\", " + TypeUtils:shortName(expression.expression.getType().getPointer().identifier).length + ", " + VariableAccessExpression(expression.expression).variable.identifier + ")"
+        }elseif(expression.expression oftype NonStaticPropertyAccessExpression){
+            if(NonStaticPropertyAccessExpression(expression.expression).p oftype CustomReactiveProperty){
+                aspl.parser.utils.type_error("Cannot reference a reactive property", expression.location)
+                return ""
+            }
+            return "ASPL_REFERENCE(\"" + TypeUtils:shortName(expression.expression.getType().getPointer().identifier) + "\", " + TypeUtils:shortName(expression.expression.getType().getPointer().identifier).length + ", ASPL_CLASS_INSTANCE_GET_PROPERTY_ADDRESS(ASPL_ACCESS(" + this.encode(NonStaticPropertyAccessExpression(expression.expression).base) + ").value.classInstance, \"" + NonStaticPropertyAccessExpression(expression.expression).p.name + "\"))"
+        }elseif(expression.expression oftype StaticPropertyAccessExpression){
+            if(StaticPropertyAccessExpression(expression.expression).p oftype CustomReactiveProperty){
+                aspl.parser.utils.type_error("Cannot reference a reactive property", expression.location)
+                return ""
+            }
+            return "ASPL_REFERENCE(\"" + TypeUtils:shortName(expression.expression.getType().getPointer().identifier) + "\", " + TypeUtils:shortName(expression.expression.getType().getPointer().identifier).length + ", aspl_static_property_" + TypeUtils:typeToCIdentifier(StaticPropertyAccessExpression(expression.expression).p.type.identifier) + "_" + StaticPropertyAccessExpression(expression.expression).p.name + ")"
+        }else{
+            aspl.parser.utils.type_error("Cannot reference something that is neither a variable nor a property", expression.location)
+            return ""
+        }
+    }
+
+    method encodeDereference(DereferenceExpression expression) returns string{
+        return "ASPL_DEREFERENCE(" + this.encode(expression.pointer) + ")"
+    }
+
+    method encodeIfStatement(IfStatement statement) returns string{
+        var conditionStub = "ASPL_IS_TRUE(" + this.encode(statement.condition) + ")"
+        if(statement.condition oftype CheckEqualsExpression){
+            conditionStub = "ASPL_IS_EQUAL(" + this.encode(CheckEqualsExpression(statement.condition).left) + ", " + this.encode(CheckEqualsExpression(statement.condition).right) + ")"
+        }
+        var s = new StringBuilder("if(").append(conditionStub).append("){\n")
+        this.indentLevel++
+        foreach(statement.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeIfElseStatement(IfElseStatement statement) returns string{
+        var s = new StringBuilder("if(ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")){\n")
+        this.indentLevel++
+        foreach(statement.ifCode as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}else{\n")
+        this.indentLevel++
+        foreach(statement.elseCode as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeIfElseIfStatement(IfElseIfStatement statement) returns string{
+        var s = new StringBuilder("if(ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")){\n")
+        this.indentLevel++
+        foreach(statement.ifCode as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}else ")
+        s.append(this.encode(statement.elseIf))
+        return s.toString()
+    }
+
+    method encodeWhileStatement(WhileStatement statement) returns string{
+        var conditionStub = new StringBuilder("ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")")
+        if(statement.condition oftype BooleanLiteral){
+            if(BooleanLiteral(statement.condition).value == false){
+                conditionStub = new StringBuilder("0")
+            }else{
+                conditionStub = new StringBuilder("1")
+            }
+        }
+        var s = new StringBuilder("while(").append(conditionStub).append("){\n")
+        this.indentLevel++
+        foreach(statement.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeRepeatStatement(RepeatStatement statement) returns string{
+        var variable = "_temp_" + tempVariableId++
+        if(statement.variable != null){
+            variable = statement.variable?!
+        }
+        var s = new StringBuilder("for(ASPL_OBJECT_TYPE* ").append(variable).append(" = C_REFERENCE(ASPL_INT_LITERAL(").append(string(statement.start)).append(")); ").append("ASPL_IS_TRUE(ASPL_LESS_THAN(*").append(variable).append(", ASPL_PLUS(").append(this.encode(statement.iterations)).append(", ASPL_INT_LITERAL(").append(string(statement.start)).append(")))); ").append("*").append(variable).append(" = ASPL_PLUS_PLUS(*").append(variable).append(")){\n")
+        indentLevel++
+        foreach(statement.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeForeachStatement(ForeachStatement statement) returns string{
+        var collectionVariable = "_temp_" + tempVariableId++
+        var indexVariable = "_temp_" + tempVariableId++
+        var string? mapKeyVariable = null
+        if(Type:matches(new Types([Type:fromString("map")]), statement.collection.getType(), true)){
+            mapKeyVariable = IdentifierEscapeUtils:escapeIdentifier(statement.key?!)
+        }elseif(statement.key != null){
+            indexVariable = IdentifierEscapeUtils:escapeIdentifier(statement.key?!)
+        }
+        var s = new StringBuilder("ASPL_OBJECT_TYPE* ").append(collectionVariable).append(" = C_REFERENCE(").append(this.encode(statement.collection)).append(");\n")
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("for(ASPL_OBJECT_TYPE* ").append(indexVariable).append(" = C_REFERENCE(ASPL_INT_LITERAL(0)); ASPL_IS_TRUE(ASPL_LESS_THAN(*").append(indexVariable)
+        if(Type:matches(new Types([Type:fromString("list")]), statement.collection.getType(), true)){
+            s.append(", ASPL_LIST_LENGTH(*")
+        }elseif(Type:matches(new Types([Type:fromString("map")]), statement.collection.getType(), true)){
+            s.append(", ASPL_MAP_LENGTH(*")
+        }elseif(Type:matches(new Types([Type:fromString("string")]), statement.collection.getType())){
+            s.append(", ASPL_STRING_LENGTH(*")
+        }
+        s.append(collectionVariable).append("))); ").append("*").append(indexVariable).append(" = ASPL_PLUS_PLUS(*").append(indexVariable).append(")){\n")
+        indentLevel++
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        if(mapKeyVariable != null){
+            s.append("ASPL_OBJECT_TYPE* ").append(mapKeyVariable).append(" = C_REFERENCE(ASPL_MAP_GET_KEY_FROM_INDEX(*").append(collectionVariable).append(", *").append(indexVariable).append("));\n")
+            repeat(indentLevel){
+                s.append("\t")
+            }
+        }
+        if(statement.value != null){
+            s.append("ASPL_OBJECT_TYPE* ").append(IdentifierEscapeUtils:escapeIdentifier(statement.value))
+            if(Type:matches(new Types([Type:fromString("list")]), statement.collection.getType(), true)){
+                s.append(" = C_REFERENCE(ASPL_LIST_GET(*")
+            }elseif(Type:matches(new Types([Type:fromString("map")]), statement.collection.getType(), true)){
+                s.append(" = C_REFERENCE(ASPL_MAP_GET_VALUE_FROM_INDEX(*")
+            }elseif(Type:matches(new Types([Type:fromString("string")]), statement.collection.getType())){
+                s.append(" = C_REFERENCE(ASPL_STRING_INDEX(*")
+            }
+            s.append(collectionVariable).append(", *").append(indexVariable).append("));\n")
+        }
+        foreach(statement.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns string{
+        var strippedTypeIdentifier = expression.m.type.toString()
+        if(strippedTypeIdentifier.startsWith("list<")){
+            strippedTypeIdentifier = "list"
+        }elseif(strippedTypeIdentifier.startsWith("map<")){
+            strippedTypeIdentifier = "map"
+        }
+        var s = new StringBuilder()
+        if(strippedTypeIdentifier.startsWith("callback<") || strippedTypeIdentifier == "callback"){
+            if(expression.m.name == "invoke"){
+                if(expression.newThread){
+                    s.append("ASPL_LAUNCH_THREAD(")
+                    s.append("aspl_").append(TypeUtils:typeToCIdentifier(strippedTypeIdentifier)).append("_invoke_thread_wrapper, (ASPL_OBJECT_TYPE*[]){")
+                    s.append("C_REFERENCE(" + this.encode(expression.base) + ")")
+                    if(!this.threadCallbackWrappers.contains(expression.m.type.identifier)){
+                        this.threadCallbackWrappers.add(expression.m.type.identifier)
+                    }
+                }else{
+                    s.append("aspl_" + TypeUtils:typeToCIdentifier(strippedTypeIdentifier) + "_invoke(")
+                    s.append(this.encode(expression.base))
+                }
+                if(expression.arguments.length > 0){
+                    s.append(", ")
+                }
+            }
+        }elseif(expression.exactClass != null){
+            if(expression.newThread){
+                s.append("aspl_method_invoke_newthread(")
+                s.append(this.encode(expression.base))
+                s.append(", ")
+                s.append("aspl_method_" + TypeUtils:typeToCIdentifier(expression.exactClass?!.type.identifier) + "_" + expression.m.name + ", (ASPL_OBJECT_TYPE*[]){")
+            }else{
+                s.append("aspl_method_" + TypeUtils:typeToCIdentifier(expression.exactClass?!.type.identifier) + "_" + expression.m.name + "(C_REFERENCE(")
+                s.append(this.encode(expression.base))
+                s.append(")")
+                if(expression.arguments.length > 0 || expression.m.parameters.length > 0){
+                    s.append(", ")
+                }
+            }
+        }else{
+            if(expression.newThread){
+                s.append("aspl_object_method_invoke_newthread(")
+            }else{
+                s.append("aspl_object_method_invoke(")
+            }
+            s.append(this.encode(expression.base))
+            s.append(", \"")
+            s.append(expression.m.name)
+            s.append("\", (ASPL_OBJECT_TYPE*[]){")
+        }
+        var i = 0
+        foreach(expression.arguments as argument){
+            s.append("C_REFERENCE(" + this.encode(argument) + ")")
+            if(i < expression.arguments.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(expression.arguments.length < expression.m.parameters.length){
+            if(expression.arguments.length > 0){
+                s.append(", ")
+            }
+            while(i < expression.m.parameters.length){
+                var parameter = expression.m.parameters[i]
+                if(parameter.defaultValue != null){
+                    s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
+                    if(i < expression.m.parameters.length - 1){
+                        s.append(", ")
+                    }
+                }
+                i++
+            }
+        }
+        if(!(expression.exactClass != null || ((strippedTypeIdentifier.startsWith("callback<") || strippedTypeIdentifier == "callback") && expression.m.name == "invoke")) || expression.newThread){
+            s.append("}")
+        }
+        if(expression.newThread){
+            var length = expression.arguments.length
+            if(expression.arguments.length < expression.m.parameters.length){
+                length = expression.m.parameters.length
+            }
+            if((strippedTypeIdentifier.startsWith("callback<") || strippedTypeIdentifier == "callback") && expression.m.name == "invoke"){
+                length++ // the callback itself
+            }
+            s.append(", ").append(string(length)).append(" * sizeof(ASPL_OBJECT_TYPE*)")
+        }
+        s.append(")")
+        return s.toString()
+    }
+
+    method encodeStaticMethodCall(StaticMethodCallExpression expression) returns string{
+        var s = new StringBuilder("aspl_method_").append(TypeUtils:typeToCIdentifier(expression.m.type.identifier)).append("_").append(expression.m.name).append("(")
+        var i = 0
+        foreach(expression.arguments as argument){
+            s.append("C_REFERENCE(" + this.encode(argument) + ")")
+            if(i < expression.arguments.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(expression.arguments.length < expression.m.parameters.length){
+            if(expression.arguments.length > 0){
+                s.append(", ")
+            }
+            while(i < expression.m.parameters.length){
+                var parameter = expression.m.parameters[i]
+                if(parameter.defaultValue != null){
+                    s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
+                    if(i < expression.m.parameters.length - 1){
+                        s.append(", ")
+                    }
+                }
+                i++
+            }
+        }
+        s.append(")")
+        return s.toString()
+    }
+
+    method encodeNonStaticPropertyAccess(NonStaticPropertyAccessExpression expression) returns string{
+        if(expression.p oftype CustomReactiveProperty){
+            var s = new StringBuilder()
+            s.append("ASPL_REACTIVE_PROPERTY_GET(C_REFERENCE(").append(this.encode(expression.base)).append("), \"").append(expression.p.name).append("\")")
+            return s.toString()
+        }else{
+            if(expression.base.getType().toType().isPrimitive()){
+                if(Type:matches(new Types([Type:fromString("string")]), expression.base.getType())){
+                    if(expression.p.name == "length"){
+                        return "ASPL_STRING_LENGTH(" + this.encode(expression.base) + ")"
+                    }
+                }elseif(Type:matches(new Types([Type:fromString("list")]), expression.base.getType(), true)){
+                    if(expression.p.name == "length"){
+                        return "ASPL_LIST_LENGTH(" + this.encode(expression.base) + ")"
+                    }
+                }elseif(Type:matches(new Types([Type:fromString("map")]), expression.base.getType(), true)){
+                    if(expression.p.name == "length"){
+                        return "ASPL_MAP_LENGTH(" + this.encode(expression.base) + ")"
+                    }
+                }
+            }
+            return "ASPL_CLASS_INSTANCE_GET_PROPERTY(ASPL_ACCESS(" + this.encode(expression.base) + ").value.classInstance, \"" + expression.p.name + "\")"
+        }
+    }
+
+    method encodeStaticPropertyAccess(StaticPropertyAccessExpression expression) returns string{
+        if(expression.p oftype CustomReactiveProperty){
+            return "aspl_static_reactive_property_" + TypeUtils:typeToCIdentifier(expression.base.identifier) + "_" + expression.p.name + "_get()"
+        }else{
+            return "*aspl_static_property_" + TypeUtils:typeToCIdentifier(expression.base.identifier) + "_" + expression.p.name
+        }
+    }
+
+    method encodeNonStaticPropertyAssignment(NonStaticPropertyAssignExpression expression) returns string{
+        if(expression.p oftype CustomReactiveProperty){
+            var s = new StringBuilder()
+            s.append("ASPL_REACTIVE_PROPERTY_SET(C_REFERENCE(").append(this.encode(expression.base)).append("), \"").append(expression.p.name).append("\", C_REFERENCE(").append(this.encode(expression.value)).append("))")
+            return s.toString()
+        }else{
+            //return "((" + TypeUtils:typeToCIdentifier(expression.p.type.identifier) + "*)((" + this.encode(expression.base) + ").value.classInstance->data))->" + expression.p.name + " = C_REFERENCE(" + this.encode(expression.value) + ")"
+
+            return "ASPL_CLASS_INSTANCE_SET_PROPERTY(ASPL_ACCESS(" + this.encode(expression.base) + ").value.classInstance, \"" + expression.p.name + "\", " + this.encode(expression.value) + ")"
+        }
+    }
+
+    method encodeStaticPropertyAssignment(StaticPropertyAssignExpression expression) returns string{
+        if(expression.p oftype CustomReactiveProperty){
+            return "aspl_static_reactive_property_" + TypeUtils:typeToCIdentifier(expression.base.identifier) + "_" + expression.p.name + "_set(C_REFERENCE(" + this.encode(expression.value) + "))"
+        }else{
+            return "*aspl_static_property_" + TypeUtils:typeToCIdentifier(expression.base.identifier) + "_" + expression.p.name + " = " + this.encode(expression.value)
+        }
+    }
+
+    method encodeListIndex(ListIndexExpression expression) returns string{
+        return "ASPL_LIST_GET(" + this.encode(expression.base) + ", " + this.encode(expression.index) + ")"
+    }
+
+    method encodeListAssignment(ListAssignExpression expression) returns string{
+        return "ASPL_LIST_SET(" + this.encode(expression.base) + ", " + this.encode(expression.index) + ", " + this.encode(expression.value) + ")"
+    }
+
+    method encodeMapAccess(MapAccessExpression expression) returns string{
+        return "ASPL_MAP_GET(" + this.encode(expression.base) + ", " + this.encode(expression.key) + ")"
+    }
+
+    method encodeMapAssignment(MapAssignExpression expression) returns string{
+        return "ASPL_MAP_SET(" + this.encode(expression.base) + ", " + this.encode(expression.key) + ", " + this.encode(expression.value) + ")"
+    }
+
+    method encodeStringIndex(StringIndexExpression expression) returns string{
+        return "ASPL_STRING_INDEX(" + this.encode(expression.base) + ", " + this.encode(expression.index) + ")"
+    }
+
+    method encodeClassDeclaration(ClassDeclareStatement statement) returns string{
+        return "// Declare class " + statement.c.type.identifier
+    }
+
+    method encodeClassInstantiation(ClassInstantiateExpression expression) returns string{
+        var s = new StringBuilder("aspl_new_")
+        s.append(TypeUtils:typeToCIdentifier(expression.c.type.identifier)).append("(")
+        var i = 0
+        foreach(expression.arguments as argument){
+            s.append("C_REFERENCE(").append(this.encode(argument)).append(")")
+            if(i < expression.arguments.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+		if(Method:exists(expression.c.type, "construct")){
+            var m = Method:get(expression.c.type, "construct")
+            if(expression.arguments.length < m.parameters.length){
+                if(expression.arguments.length > 0){
+                    s.append(", ")
+                }
+                while(i < m.parameters.length){
+                    var parameter = m.parameters[i]
+                    if(parameter.defaultValue != null){
+                        s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
+                        if(i < m.parameters.length - 1){
+                            s.append(", ")
+                        }
+                    }
+                    i++
+                }
+            }
+        }
+        s.append(")")
+        return s.toString()
+    }
+
+    method encodeMethodDeclaration(MethodDeclareStatement statement) returns string{
+        if(!statement.m.isAbstract){
+            methodDeclarations.add(statement)
+        }
+        if(statement.m.name == "construct"){
+            constructors[statement.m.type.identifier] = statement.m
+        }
+        return "// Declare method " + statement.m.name
+    }
+
+    method encodeMethodDeclarationHeader(MethodDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        if(statement.m.returnTypes.types.length > 0 || statement.m.canThrow){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_method_").append(TypeUtils:typeToCIdentifier(statement.m.type.identifier)).append("_").append(statement.m.name).append("(")
+        if(!statement.m.isStatic){
+            s.append("ASPL_OBJECT_TYPE* this")
+            if(statement.m.parameters.length > 0){
+                s.append(", ")
+            }
+        }
+        var i = 0
+        foreach(statement.m.parameters as parameter){
+            s.append("ASPL_OBJECT_TYPE* ").append(parameter.name)
+            if(i < statement.m.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append(");")
+        return s.toString()
+    }
+
+    method encodeMethodDeclarationOutsideClass(MethodDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        if(statement.m.returnTypes.types.length > 0 || statement.m.canThrow){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_method_").append(TypeUtils:typeToCIdentifier(statement.m.type.identifier)).append("_").append(statement.m.name).append("(")
+        if(!CustomMethod(statement.m).isStatic){
+            s.append("ASPL_OBJECT_TYPE* this")
+            if(statement.m.parameters.length > 0){
+                s.append(", ")
+            }
+        }
+        var i = 0
+        foreach(statement.m.parameters as parameter){
+            s.append("ASPL_OBJECT_TYPE* ").append(parameter.name)
+            if(i < statement.m.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("){\n")
+        indentLevel++
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("try{\n")
+            indentLevel++
+        }
+        foreach(CustomMethod(statement.m).code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return_uninitialized_from_try;\n")
+        }
+        indentLevel--
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}catch{\n")
+            this.indentLevel++
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return aspl_current_error;\n")
+            this.indentLevel--
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}\n")
+            this.indentLevel--
+        }
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        if(!CustomMethod(statement.m).isStatic){
+            s.append("\n\n")
+            s.append("ASPL_OBJECT_TYPE aspl_method_").append(TypeUtils:typeToCIdentifier(statement.m.type.identifier)).append("_").append(statement.m.name).append("_wrapper(")
+            s.append("ASPL_OBJECT_TYPE* this, ")
+            s.append("ASPL_OBJECT_TYPE* arguments[]){\n")
+            indentLevel++
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            if(statement.m.returnTypes.types.length > 0){
+                s.append("return ")
+            }
+            s.append("aspl_method_").append(TypeUtils:typeToCIdentifier(statement.m.type.identifier)).append("_").append(statement.m.name).append("(")
+            if(!CustomMethod(statement.m).isStatic){
+                s.append("this")
+                if(statement.m.parameters.length > 0){
+                    s.append(", ")
+                }
+            }
+            i = 0
+            foreach(statement.m.parameters as parameter){
+                s.append("arguments[").append(string(i)).append("]")
+                if(i < statement.m.parameters.length - 1){
+                    s.append(", ")
+                }
+                i++
+            }
+            s.append(");\n")
+            if(statement.m.returnTypes.types.length == 0){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("return ASPL_UNINITIALIZED;\n")
+            }
+            indentLevel--
+            s.append("}")
+        }
+        return s.toString()
+    }
+
+    method encodePropertyDeclaration(PropertyDeclareStatement statement) returns string{
+        if(statement.p oftype CustomNormalProperty){
+            if(statement.p.isStatic){
+                this.staticNormalPropertyDeclarations.add(statement)
+                return "// Declare static property " + statement.p.name
+            }else{
+                return "ASPL_OBJECT_TYPE* " + statement.p.name
+            }
+        }else{
+            if(statement.p.isStatic){
+                this.staticReactivePropertyDeclarations.add(statement)
+                return "// Declare static reactive property " + statement.p.name
+            }else{
+                this.reactivePropertyDeclarations.add(statement)
+                return "// Declare reactive property " + statement.p.name
+            }
+        }
+    }
+
+    method encodeStaticNormalPropertyDeclaration(PropertyDeclareStatement statement) returns string{
+        var s = "ASPL_OBJECT_TYPE* aspl_static_property_" + TypeUtils:typeToCIdentifier(statement.p.type.identifier) + "_" + statement.p.name + ";"
+        if(statement.p.isThreadLocal){
+            // TODO: Thread local properties are not supported by GC boehm, we need to find a workaround
+            //return "_Thread_local " + s
+            return s
+        }else{
+            return s
+        }
+    }
+
+    method encodeReactivePropertyDeclarationHeader(PropertyDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        if(CustomReactiveProperty(statement.p).getCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_get(ASPL_OBJECT_TYPE* this);")
+            s.append("\n\n")
+        }
+        if(CustomReactiveProperty(statement.p).setCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_set(ASPL_OBJECT_TYPE* this, ASPL_OBJECT_TYPE* value);")
+        }
+        return s.toString()
+    }
+
+    method encodeReactivePropertyDeclaration(PropertyDeclareStatement statement) returns string{
+        var s = new StringBuilder()
+        if(CustomReactiveProperty(statement.p).getCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_get(ASPL_OBJECT_TYPE* this){\n")
+            indentLevel++
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("try{\n")
+                indentLevel++
+            }
+            foreach(CustomReactiveProperty(statement.p).getCode as node){
+                s.append(this.encode(node, true))
+                s.append("\n")
+            }
+            indentLevel--
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}catch{\n")
+                this.indentLevel++
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("return aspl_current_error;\n")
+                this.indentLevel--
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}\n")
+                this.indentLevel--
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}\n\n")
+        }
+        if(CustomReactiveProperty(statement.p).setCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_set(ASPL_OBJECT_TYPE* this, ASPL_OBJECT_TYPE* value){\n")
+            indentLevel++
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("try{\n")
+                indentLevel++
+            }
+            foreach(CustomReactiveProperty(statement.p).setCode as node){
+                s.append(this.encode(node, true))
+                s.append("\n")
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            if(Options:enableErrorHandling){
+                s.append("return_from_try(*value);\n")
+            }else{
+                s.append("return *value;\n")
+            }
+            indentLevel--
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}catch{\n")
+                this.indentLevel++
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("return aspl_current_error;\n")
+                this.indentLevel--
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}\n")
+                this.indentLevel--
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}")
+        }
+        return s.toString()
+    }
+
+    method encodeStaticReactivePropertyDeclarationHeader(PropertyDeclareStatement statement) returns string{
+        var s = new StringBuilder("")
+        s.append("ASPL_OBJECT_TYPE aspl_static_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_get();")
+        s.append("\n\n")
+        s.append("ASPL_OBJECT_TYPE aspl_static_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_set(ASPL_OBJECT_TYPE* value);")
+        return s.toString()
+    }
+
+    method encodeStaticReactivePropertyDeclaration(PropertyDeclareStatement statement) returns string{
+        var s = new StringBuilder()
+        if(CustomReactiveProperty(statement.p).getCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_static_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_get(){\n")
+            indentLevel++
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("try{\n")
+                indentLevel++
+            }
+            foreach(CustomReactiveProperty(statement.p).getCode as node){
+                s.append(this.encode(node, true))
+                s.append("\n")
+            }
+            indentLevel--
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}catch{\n")
+                this.indentLevel++
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("return aspl_current_error;\n")
+                this.indentLevel--
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}\n")
+                this.indentLevel--
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}\n\n")
+        }
+        if(CustomReactiveProperty(statement.p).setCode != null){
+            s.append("ASPL_OBJECT_TYPE aspl_static_reactive_property_").append(TypeUtils:typeToCIdentifier(statement.p.type.identifier)).append("_").append(statement.p.name).append("_set(ASPL_OBJECT_TYPE* value){\n")
+            indentLevel++
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("try{\n")
+                indentLevel++
+            }
+            foreach(CustomReactiveProperty(statement.p).setCode as node){
+                s.append(this.encode(node, true))
+                s.append("\n")
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            if(Options:enableErrorHandling){
+                s.append("return_from_try(*value);\n")
+            }else{
+                s.append("return *value;\n")
+            }
+            indentLevel--
+            if(Options:enableErrorHandling){
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}catch{\n")
+                this.indentLevel++
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("return aspl_current_error;\n")
+                this.indentLevel--
+                repeat(indentLevel){
+                    s.append("\t")
+                }
+                s.append("}\n")
+                this.indentLevel--
+            }
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}")
+        }
+        return s.toString()
+    }
+
+    method encodeThis(ThisExpression expression) returns string{
+        return "*this"
+    }
+
+    method encodeEnumDeclaration(EnumDeclareStatement statement) returns string{
+        this.enumDeclarations.add(statement)
+        return "// Declare enum " + statement.e.type.identifier
+    }
+
+    method encodeEnumFieldAccess(EnumFieldAccessExpression expression) returns string{
+        return "ASPL_ENUM_FIELD_LITERAL(aspl_enum_" + TypeUtils:typeToCIdentifier(expression.field.e.type.identifier) + ", " + expression.field.e.fields?![expression.field.name].value + ")"
+    }
+
+    method encodeCallbackDeclarationHeader(CallbackDeclaration declaration) returns string{
+        var s = new StringBuilder("")
+        if(declaration.literal.value.returnTypes.types.length > 0){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_callback_").append(string(declaration.id)).append("(")
+        var i = 0
+        foreach(declaration.literal.value.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < declaration.literal.value.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(declaration.literal.value.parameters.length > 0){
+            s.append(", ")
+        }
+        s.append("ASPL_ClosureMap* closure_map")
+        s.append(");")
+
+        if(callbackInvokeFunctionHandledTypes.contains(declaration.literal.value.type.identifier)){
+            return s.toString()
+        }
+        callbackInvokeFunctionHandledTypes.add(declaration.literal.value.type.identifier)
+
+        s.append("\n\n")
+
+        var genericTypes = Type:getGenericTypesIdentifiers(declaration.literal.value.type.identifier)
+        var hasReturnType = false
+        foreach(genericTypes as genericType){
+            if(genericType.startsWith("returns ")){
+                hasReturnType = true
+                break
+            }
+        }
+        if(hasReturnType){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_" + TypeUtils:typeToCIdentifier(declaration.literal.value.type.identifier) + "_invoke(")
+        s.append("ASPL_OBJECT_TYPE closure")
+        if(declaration.literal.value.parameters.length > 0){
+            s.append(", ")
+        }
+        i = 0
+        foreach(declaration.literal.value.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < declaration.literal.value.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append(");")
+        return s.toString()
+    }
+
+    method encodeCallbackDeclaration(CallbackDeclaration declaration) returns string{
+        var s = new StringBuilder("")
+        if(declaration.literal.value.returnTypes.types.length > 0){
+            s.append("ASPL_OBJECT_TYPE ")
+        }else{
+            s.append("void ")
+        }
+        s.append("aspl_callback_").append(string(declaration.id)).append("(")
+        var i = 0
+        foreach(declaration.literal.value.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < declaration.literal.value.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(declaration.literal.value.parameters.length > 0){
+            s.append(", ")
+        }
+        s.append("ASPL_ClosureMap* closure_map")
+        s.append("){\n")
+        this.indentLevel++
+        foreach(declaration.literal.capturedVariables as variable){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("ASPL_OBJECT_TYPE* ").append(variable).append(" = ASPL_CLOSURE_MAP_GET(closure_map, \"").append(variable).append("\");\n")
+        }
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("try{\n")
+            indentLevel++
+        }
+        foreach(declaration.literal.value.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return_uninitialized_from_try;\n")
+        }
+        this.indentLevel--
+        if(Options:enableErrorHandling){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}catch{\n")
+            this.indentLevel++
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("return aspl_current_error;\n")
+            this.indentLevel--
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("}\n")
+            this.indentLevel--
+        }
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+
+        if(callbackInvokeFunctionHandledTypes.contains(declaration.literal.value.type.identifier)){
+            return s.toString()
+        }
+        callbackInvokeFunctionHandledTypes.add(declaration.literal.value.type.identifier)
+
+        s.append("\n\n")
+        
+        {
+            var genericTypes = Type:getGenericTypesIdentifiers(declaration.literal.value.type.identifier)
+            var hasReturnType = false
+            foreach(genericTypes as genericType){
+                if(genericType.startsWith("returns ")){
+                    hasReturnType = true
+                    break
+                }
+            }
+            if(hasReturnType){
+                s.append("ASPL_OBJECT_TYPE ")
+            }else{
+                s.append("void ")
+            }
+        }
+        s.append("aspl_" + TypeUtils:typeToCIdentifier(declaration.literal.value.type.identifier) + "_invoke(")
+        s.append("ASPL_OBJECT_TYPE closure")
+        if(declaration.literal.value.parameters.length > 0){
+            s.append(", ")
+        }
+        i = 0
+        foreach(declaration.literal.value.parameters as parameter){
+            s.append(this.encodeParameter(parameter))
+            if(i < declaration.literal.value.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("){\n")
+        this.indentLevel++
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("ASPL_ClosureMap* closure_map = ASPL_ACCESS(closure).value.callback->closure_map;\n")
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        var castStr = "(%returntype% (*)("
+        var genericTypes = Type:getGenericTypesIdentifiers(declaration.literal.value.type.identifier)
+        var hasReturnType = false
+        foreach(genericTypes as genericType){
+            if(genericType.startsWith("returns ")){
+                hasReturnType = true
+            }else{
+                castStr += "ASPL_OBJECT_TYPE*, "
+            }
+        }
+        castStr += "ASPL_ClosureMap*"
+        if(hasReturnType){
+            castStr = castStr.replace("%returntype%", "ASPL_OBJECT_TYPE")
+        }else{
+            castStr = castStr.replace("%returntype%", "void")
+        }
+        castStr += "))"
+        if(hasReturnType){
+            s.append("return ")
+        }
+        s.append("(" + castStr + "ASPL_ACCESS(closure).value.callback->function)(")
+        i = 0
+        foreach(declaration.literal.value.parameters as parameter){
+            s.append(parameter.name)
+            if(i < declaration.literal.value.parameters.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        if(declaration.literal.value.parameters.length > 0){
+            s.append(", ")
+        }
+        s.append("closure_map);\n")
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        return s.toString()
+    }
+
+    method encodeCallbackLiteral(CallbackLiteral literal) returns string{
+        var declaration = new CallbackDeclaration(literal)
+        this.callbackDeclarations.add(declaration)
+        var s = new StringBuilder("ASPL_CALLBACK_LITERAL(\"").append(literal.getType().toString()).append("\", ").append(string(literal.getType().toString().length)).append(", aspl_callback_").append(string(declaration.id))
+        s.append(", ASPL_NEW_CLOSURE_MAP(")
+        s.append(string(literal.capturedVariables.length))
+        if(literal.capturedVariables.length > 0){
+            s.append(", ")
+        }
+        var i = 0
+        foreach(literal.capturedVariables as variable){
+            s.append("\"").append(variable).append("\", ").append(variable)
+            if(i < literal.capturedVariables.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("))")
+        return s.toString()
+    }
+
+    method encodeImplementationCall(ImplementationCallExpression expression) returns string{
+        var s = new StringBuilder("ASPL_IMPLEMENT_").append(expression.call.replace(".", "$")).append("(")
+        var i = 0
+        foreach(expression.arguments as argument){
+            s.append("C_REFERENCE(" + this.encode(argument) + ")")
+            if(i < expression.arguments.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append(")")
+        return s.toString()
+    }
+
+    method encodeOfType(OfTypeExpression expression) returns string{
+        return "ASPL_OFTYPE(" + this.encode(expression.expression) + ", \"" + TypeUtils:shortName(expression.type.toString()) + "\")"
+    }
+
+    method encodeBreakStatement(BreakStatement statement) returns string{
+        return "break" // TODO: Add support for multiple levels
+    }
+
+    method encodeContinueStatement(ContinueStatement statement) returns string{
+        return "continue" // TODO: Add support for multiple levels
+    }
+
+    method encodeCast(CastExpression expression) returns string{
+        return "ASPL_CAST(" + this.encode(expression.value) + ", \"" + TypeUtils:shortName(expression.type.toString()) + "\")"
+    }
+
+    method encodeThrowStatement(ThrowStatement statement) returns string{
+        return "throw(" + this.encode(statement.errorInstance) + ")"
+    }
+
+    method encodeCatchExpression(CatchExpression expression) returns string{
+        var declaration = new CatchBlockDeclaration(expression)
+        this.catchBlockDeclarations.add(declaration)
+        var s = new StringBuilder("")
+        s.append("aspl_catch_block_" + declaration.id + "(C_REFERENCE(")
+        s.append(this.encode(expression.expression))
+        s.append("), ASPL_NEW_CLOSURE_MAP(")
+        s.append(string(expression.capturedVariables.length))
+        if(expression.capturedVariables.length > 0){
+            s.append(", ")
+        }
+        var i = 0
+        foreach(expression.capturedVariables as variable){
+            s.append("\"").append(variable).append("\", ").append(variable)
+            if(i < expression.capturedVariables.length - 1){
+                s.append(", ")
+            }
+            i++
+        }
+        s.append("))")
+        return s.toString()
+    }
+
+    method encodeCatchBlockDeclaration(CatchBlockDeclaration declaration) returns string{
+        var s = new StringBuilder("")
+        if(declaration.block.standalone){
+            s.append("void ")
+        }else{
+            s.append("ASPL_OBJECT_TYPE ")
+        }
+        s.append("aspl_catch_block_").append(string(declaration.id)).append("(")
+        s.append("ASPL_OBJECT_TYPE* error, ")
+        s.append("ASPL_ClosureMap* closure_map")
+        s.append("){\n")
+        this.indentLevel++
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("if(!aspl_object_is_error(*error)) return *error;\n")
+        foreach(declaration.block.capturedVariables as variable){
+            repeat(indentLevel){
+                s.append("\t")
+            }
+            s.append("ASPL_OBJECT_TYPE* ").append(variable).append(" = ASPL_CLOSURE_MAP_GET(closure_map, \"").append(variable).append("\");\n")
+        }
+        foreach(declaration.block.code as node){
+            s.append(this.encode(node, true))
+            s.append("\n")
+        }
+        this.indentLevel--
+        repeat(indentLevel){
+            s.append("\t")
+        }
+        s.append("}")
+        s.append("\n\n")
+        return s.toString()
+    }
+
+    method encodeErrorPropagation(PropagateErrorExpression expression) returns string{
+        return "ASPL_UNWRAP_RESULT(" + this.encode(expression.expression) + ")"
+    }
+
+    method encodeFileEmbedding(EmbedFileExpression expression) returns string{
+        var embedId = fileEmbeds.length
+        fileEmbeds.add(expression)
+        return "aspl_embed_" + embedId
+    }
+
+    method encodeDiscard(Expression expression) returns string{
+        return this.encode(expression)
+    }
+
+}

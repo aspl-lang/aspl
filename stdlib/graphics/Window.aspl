@@ -1,0 +1,161 @@
+import math.geometry
+
+[public]
+class Window{
+
+	property any handle = implement("graphics.window.new")
+	property string _title
+	[public]
+	property string title{
+		get{
+			return _title
+		}
+		set{
+			_title = value
+			implement("graphics.window.set_title", handle, value)
+		}
+	}
+	[readpublic]
+	property int width
+	[readpublic]
+	property int height
+
+	[public]
+	property int fps{
+		get{
+			return int(implement("graphics.window.get_fps", handle))
+		}
+	}
+	
+	[public]
+	property callback onLoad = callback(){}
+	[public]
+	property callback<Canvas> onPaint = callback(Canvas canvas){}
+	[public]
+	property callback<int, int> onResize = callback(int width, int height){}
+	[public]
+	property callback<KeyCode> onKeyPress = callback(KeyCode key){}
+	[public]
+	property callback<KeyCode> onKeyDown = callback(KeyCode key){}
+	[public]
+	property callback<KeyCode> onKeyUp = callback(KeyCode key){}
+	[public]
+	property callback<Point, MouseButton> onMouseClick = callback(Point position, MouseButton button){}
+	[public]
+	property callback<Point, MouseButton> onMouseDown = callback(Point position, MouseButton button){}
+	[public]
+	property callback<Point, MouseButton> onMouseUp = callback(Point position, MouseButton button){}
+	[public]
+	property callback<Point, float, float> onMouseMove = callback(Point from, float deltaX, float deltaY){}
+	[public]
+	property callback<Point, float, float> onMouseWheel = callback(Point position, float deltaX, float deltaY){}
+	[public]
+	property callback<list<TouchPoint>> onTouchDown = callback(list<TouchPoint> points){}
+	[public]
+	property callback<list<TouchPoint>> onTouchMove = callback(list<TouchPoint> points){}
+	[public]
+	property callback<list<TouchPoint>> onTouchUp = callback(list<TouchPoint> points){}
+
+	property list<KeyCode> currentlyDownKeys = list<KeyCode>[]
+	
+	[public]
+	method construct(string|int title, int width, int? height = null){
+		if(height == null){
+			// legacy support...
+			height = width
+			width = int(title)
+			title = ""
+		}
+		implement("graphics.window.set_on_load", handle, callback(){
+			onLoad.()
+		})
+		this.title = title
+		this.width = width
+		this.height = height
+		implement("graphics.window.set_size", handle, width, height)
+		implement("graphics.window.set_on_resize", handle, callback(int newWidth, int newHeight){
+			onResize.(newWidth, newHeight)
+			this.width = newWidth
+			this.height = newHeight
+		})
+		implement("graphics.window.set_on_paint", handle, callback(any handle){
+			var Canvas canvas = new Canvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), handle)
+			// TODO: The below two lines are needed since the window doesn't update its size correctly sometimes
+			this.width = canvas.width
+			this.height = canvas.height
+			onPaint.(canvas)
+		})
+		implement("graphics.window.set_on_key_press", handle, callback(int key){
+			onKeyPress.(KeyCode(key))
+		})
+		implement("graphics.window.set_on_key_down", handle, callback(int key){
+			if(!currentlyDownKeys.contains(KeyCode(key))){
+				currentlyDownKeys.add(KeyCode(key))
+			}
+			onKeyDown.(KeyCode(key))
+		})
+		implement("graphics.window.set_on_key_up", handle, callback(int key){
+			if(currentlyDownKeys.contains(KeyCode(key))){
+				currentlyDownKeys.remove(KeyCode(key))
+			}
+			onKeyUp.(KeyCode(key))
+		})
+		implement("graphics.window.set_on_mouse_click", handle, callback(float x, float y, int button){
+			onMouseClick.(new Point(x, y), MouseButton(button))
+		})
+		implement("graphics.window.set_on_mouse_down", handle, callback(float x, float y, int button){
+			onMouseDown.(new Point(x, y), MouseButton(button))
+		})
+		implement("graphics.window.set_on_mouse_up", handle, callback(float x, float y, int button){
+			onMouseUp.(new Point(x, y), MouseButton(button))
+		})
+		implement("graphics.window.set_on_mouse_move", handle, callback(float fromX, float fromY, float deltaX, float deltaY){
+			onMouseMove.(new Point(fromX, fromY), deltaX, deltaY)
+		})
+		implement("graphics.window.set_on_mouse_wheel", handle, callback(float x, float y, float deltaX, float deltaY){
+			onMouseWheel.(new Point(x, y), deltaX, deltaY)
+		})
+		implement("graphics.window.set_on_touch_down", handle, callback(list<list<long|float|int|bool>> touches){
+			var touchPoints = list<TouchPoint>[]
+			foreach(touches as touchPoint){
+				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+			}
+			onTouchDown.(touchPoints)
+		})
+		implement("graphics.window.set_on_touch_move", handle, callback(list<list<long|float|int|bool>> touches){
+			var touchPoints = list<TouchPoint>[]
+			foreach(touches as touchPoint){
+				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+			}
+			onTouchMove.(touchPoints)
+		})
+		implement("graphics.window.set_on_touch_up", handle, callback(list<list<long|float|int|bool>> touches){
+			var touchPoints = list<TouchPoint>[]
+			foreach(touches as touchPoint){
+				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+			}
+			onTouchUp.(touchPoints)
+		})
+	}
+	
+	[public]
+	method show(){
+		implement("graphics.window.show", handle)
+	}
+	
+	[public]
+	method isFullscreen() returns bool{
+		return bool(implement("graphics.window.is_fullscreen"))
+	}
+	
+	[public]
+	method toggleFullscreen(){
+		implement("graphics.window.toggle_fullscreen", handle)
+	}
+
+	[public]
+	method isKeyDown(KeyCode key) returns bool{
+		return currentlyDownKeys.contains(key)
+	}
+
+}

@@ -1,0 +1,166 @@
+import os
+
+[public]
+class Options {
+
+    [readpublic]
+    [static]
+    property list<string> SUPPORTED_OS_LIST = [
+        "windows",
+        "linux",
+        "macos",
+        "android"
+    ]
+
+    [static]
+    [threadlocal]
+    property string? _targetOs = null
+    [public]
+    [static]
+    property string targetOs{
+        get{
+            if(self:_targetOs == null){
+                self:_targetOs = os.user_os()
+            }
+            return string(self:_targetOs)
+        }
+        set{
+            if(!self:SUPPORTED_OS_LIST.contains(value)){
+                aspl.parser.utils.fatal_error("Unsupported OS: " + value)
+            }
+            self:_targetOs = value
+        }
+    }
+    [static]
+    [threadlocal]
+    property Architecture? _targetArchitecture = null
+    [public]
+    [static]
+    property Architecture targetArchitecture{
+        get{
+            if(self:_targetArchitecture == null){
+                self:_targetArchitecture = os.user_architecture_generic()
+            }
+            return Architecture(self:_targetArchitecture)
+        }
+        set{
+            self:_targetArchitecture = value
+        }
+    }
+    [public]
+    [static]
+    [threadlocal]
+    property string? outputFile = null
+    [public]
+    [static]
+    [threadlocal]
+    property bool production = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool keepTemporary = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool guiApp = false // Windows GUI subsystem
+    [public]
+    [static]
+    [threadlocal]
+    property list<string> customConditionalCompilationSymbols = []
+    [public]
+    [static]
+    [threadlocal]
+    property string backend = "ail"
+    [public]
+    [static]
+    [threadlocal]
+    property string? _cCompiler = null
+    [public]
+    [static]
+    property string cCompiler{
+        get{
+            if(self:_cCompiler == null){
+                var result = os.execute("zig cc --version")
+                if (result.exitCode == 0) {
+                    self:_cCompiler = "zig cc"
+                } else {
+                    result = os.execute("gcc --version")
+                    if (result.exitCode == 0) {
+                        self:_cCompiler = "gcc"
+                    } else {
+                        self:_cCompiler = "cc"
+                    }
+                }
+            }
+            return self:_cCompiler
+        }
+        set{
+            self:_cCompiler = value
+        }
+    }
+    [public]
+    [static]
+    [threadlocal]
+    property bool useDynamicCTemplate = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool showCCommand = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool heapBased = false
+    [public]
+    [static]
+    [threadlocal]
+    property int? stackSize = null
+    [public]
+    [static]
+    [threadlocal]
+    property bool useSsl = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool enableErrorHandling = false
+    [public]
+    [static]
+    [threadlocal]
+    property bool noCachedTemplate = false
+    [public]
+    [static]
+    [threadlocal]
+    property string internalTemplateType = "minimal"
+    [public]
+    [static]
+    [threadlocal]
+    property bool internalDoNotBundle = false
+
+    [public]
+    [static]
+    method getConditionCompilationSymbols() returns list<string>{
+        var symbols = self:customConditionalCompilationSymbols.cloneShallow()
+        symbols.add(self:targetOs)
+        symbols.add(string(targetArchitecture).toLower())
+        if(targetArchitecture == Architecture.amd64 || targetArchitecture == Architecture.arm64 || targetArchitecture == Architecture.rv64){
+            symbols.add("x64")
+        }elseif(targetArchitecture == Architecture.i386 || targetArchitecture == Architecture.arm32 || targetArchitecture == Architecture.rv32){
+            symbols.add("x32")
+        }
+        if(self:production){
+            symbols.add("production")
+        }else{
+            symbols.add("debug")
+        }
+        if(self:guiApp){
+            symbols.add("gui")
+        }else{
+            symbols.add("console")
+        }
+        if(self:useSsl){
+            symbols.add("ssl")
+        }
+        symbols.add(self:backend + "backend")
+        return symbols
+    }
+
+}

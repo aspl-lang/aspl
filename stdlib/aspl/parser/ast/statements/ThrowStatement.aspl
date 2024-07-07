@@ -1,0 +1,16 @@
+import aspl.parser.ast
+import aspl.parser.ast.expressions
+import aspl.parser.utils
+
+[public]
+class ThrowStatement extends Statement{
+
+	[readpublic]
+	property ClassInstantiateExpression errorInstance
+	
+	method construct(ClassInstantiateExpression errorInstance, Location? location){
+        parent(Node).construct(location)
+		this.errorInstance = errorInstance
+	}
+	
+}

@@ -1,0 +1,20 @@
+[public]
+[abstract]
+class Stream{
+
+	[public]
+    property int position
+	
+	[public]
+	[deprecated]
+	method getPosition() returns int{
+		return position
+	}
+
+	[public]
+	[deprecated]
+	method setPosition(int position){
+		position = position
+	}
+
+}

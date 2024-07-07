@@ -1,0 +1,29 @@
+import aspl.parser.ast
+import aspl.parser.properties
+import aspl.parser.utils
+
+[public]
+class StaticPropertyAccessExpression extends Expression {
+    
+	[readpublic]
+    property Property p
+	[readpublic]
+	property Type base
+	
+	method construct(Property p, Type base, Location? location){
+        parent(Node).construct(location)
+		this.p = p
+        this.base = base
+	}
+	
+	[public]
+	method getType() returns Types{
+		return this.p.types
+	}
+	
+	[public]
+	method isConstant() returns bool{
+		return false
+	}
+
+}

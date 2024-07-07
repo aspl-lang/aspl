@@ -1,0 +1,14 @@
+enum TokenType {
+    Null,
+    True,
+    False,
+    Integer,
+    Float,
+    String,
+    BracketOpen,
+    BracketClose,
+    BraceOpen,
+    BraceClose,
+    Colon,
+    Comma
+}

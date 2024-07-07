@@ -1,0 +1,11 @@
+class ParentTwo {
+
+    [public]
+    property int parentTwoProperty = 200
+    
+    [public]
+    method parentTwoMethod(){
+        print("Hello from parent 2!")
+    }
+
+}

@@ -1,0 +1,54 @@
+import aspl.parser.lexer
+
+[public]
+[static]
+class TokenUtils{
+
+    [public]
+    [static]
+    method skipTokensTillSeparator(TokenList tokens){
+        var parenthesesIndent = 0
+        var bracketsIndent = 0
+        var bracesIndent = 0
+        while(!tokens.empty()){
+            var token = tokens.peek()
+            if(token.type == TokenType.ParenthesisOpen){
+                if(parenthesesIndent == 0){
+                    return
+                }
+                parenthesesIndent++
+            }elseif(token.type == TokenType.ParenthesisClose){
+                if(parenthesesIndent == 0){
+                    return
+                }
+                parenthesesIndent--
+            }elseif(token.type == TokenType.BracketOpen){
+                if(bracketsIndent == 0){
+                    return
+                }
+                bracketsIndent++
+            }elseif(token.type == TokenType.BracketClose){
+                if(bracketsIndent == 0){
+                    return
+                }
+                bracketsIndent--
+            }elseif(token.type == TokenType.BraceOpen){
+                if(bracesIndent == 0){
+                    return
+                }
+                bracesIndent++
+            }elseif(token.type == TokenType.BraceClose){
+                if(bracesIndent == 0){
+                    return
+                }
+                bracesIndent--
+            }elseif(token.type == TokenType.Comma){
+                if(parenthesesIndent == 0 && bracketsIndent == 0 && bracesIndent == 0){
+                    return
+                }
+            }
+            tokens.shift()
+        }
+    }
+
+}

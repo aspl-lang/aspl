@@ -1,0 +1,21 @@
+import aspl.parser.ast
+import aspl.parser.utils
+
+[public]
+class PropagateErrorExpression extends Expression {
+
+    [readpublic]
+    property Expression expression
+
+    [public]
+    method construct(Expression expression, Location? location){
+        parent(Node).construct(location)
+        this.expression = expression
+    }
+
+    [public]
+    method getType() returns Types{
+        return this.expression.getType()
+    }
+    
+}

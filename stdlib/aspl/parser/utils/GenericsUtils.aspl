@@ -1,0 +1,23 @@
+import aspl.parser
+
+[public]
+[static]
+class GenericsUtils {
+    
+    // type.identifier => ["T", "U", ...]
+    [public]
+    [static]
+    property map<string, list<string>> typePlaceholders = {}
+    // function.identifier => ["T", "U", ...]
+    [public]
+    [static]
+    property map<string, list<string>> functionPlaceholders = {}
+    
+    [public]
+    [static]
+    method init(){
+        self:typePlaceholders[Type:fromString("list").toString()] = ["T"]
+        self:typePlaceholders[Type:fromString("map").toString()] = ["T", "U"]
+    }
+
+}

@@ -1,0 +1,19 @@
+[public]
+function sleep(long seconds){
+    implement("time.nanosleep", seconds * 1000000000)
+}
+
+[public]
+function millisleep(long milliseconds){
+    implement("time.nanosleep", milliseconds * 1000000)
+}
+
+[public]
+function microsleep(long microseconds){
+    implement("time.nanosleep", microseconds * 1000)
+}
+
+[public]
+function nanosleep(long nanoseconds){
+    implement("time.nanosleep", nanoseconds)
+}
