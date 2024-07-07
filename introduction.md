@@ -983,7 +983,7 @@ You can embed resources (such as images, audio files, etc.) directly into your e
 var image = $embed("image.png")
 ```
 In the above example, the `image.png` file will be embedded into the executable and the `image` variable will contain a `list<byte>` containing the raw image data.
-You can for example then load this image with the graphics module:
+You can, for example, then load this image with the graphics module:
 ```aspl
 import graphics
 
