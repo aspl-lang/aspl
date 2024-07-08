@@ -1368,7 +1368,7 @@ class Parser{
 				}*/
 				return applyOperators(new OfTypeExpression(Expression(previousExpression), type, token.location), tokens, precedenceLevel)
 			}
-			elseif(token.value == "break" || token.value == "break_no_legacy"){ // TODO: Remove break_no_legacy when old codebases have been updated
+			elseif(token.value == "break"){
 				var level = 1
 				if(tokens.peek().type == TokenType.Integer){
 					var levelExpression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
@@ -1389,7 +1389,7 @@ class Parser{
 				}
 				return new BreakStatement(level, token.location)
 			}
-			elseif(token.value == "continue" || token.value == "continue_no_legacy"){ // TODO: Remove continue_no_legacy when old codebases have been updated
+			elseif(token.value == "continue"){
 				var level = 1
 				if(tokens.peek().type == TokenType.Integer){
 					var levelExpression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
