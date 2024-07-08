@@ -4,7 +4,7 @@ ASPL's main focus is on simplicity and ease of use. This is why the installation
 * Windows: [install.bat](https://raw.githubusercontent.com/aspl-lang/aspl/main/install.bat)
 * Linux, macOS: [install.sh](https://raw.githubusercontent.com/aspl-lang/aspl/main/install.sh)
 
-*Any operating systems not listed here are not currently supported as host platforms, but may also work after some manual setup.*
+*Any operating systems not listed here (as well as all architectures other than x86_64) are not currently supported as host platforms, but may also work after some manual setup.*
 
 The installer will install ASPL in a directory called `aspl` relative to the working directory of the script and automatically navigate into it.
 
