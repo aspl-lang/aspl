@@ -70,6 +70,7 @@ ASPL supports most modern operating systems and easily cross-compiles between th
 * [Resource embedding](#resource-embedding)
 * [Debugging](#debugging)
     * [Breakpoints](#breakpoints)
+* [Implementation calls](#implementation-calls)
 * [Android & iOS](#android--ios)
 
 </td></tr>
@@ -1018,6 +1019,35 @@ print(x.length)
 
 As soon as the program reaches the breakpoint, the debugger will be started, and you can use several commands such as `stack`, `scope`, `continue` or `quit` to inspect the current state of the program.
 <br>For more commands, see the `help` command.
+
+## Implementation calls
+An "implementation call" is how ASPL code interacts with native (e.g. C) libraries and thus also the operating system and the actual hardware.
+
+For example, the `graphics` module uses the `graphics.window.show` call to tell the host OS to open a graphical window:
+```aspl
+implement("graphics.window.show", handle)
+```
+
+Note that you will almost never directly use implementation calls inside your codebase; instead, modules wrapping around native libraries (including most stdlib modules) should expose wrapper functions for these implementation calls. For example, this is the code of the `nanosleep` function from the `time` module:
+```aspl
+[public]
+function nanosleep(long nanoseconds){
+    implement("time.nanosleep", nanoseconds)
+}
+```
+
+Implementation calls are a special compiler feature and should not be confused with functions or other types of callables; amongst other things, their return type is always `any`, so you have to manually cast the return value to some other ASPL type:
+```aspl
+[public]
+function abs(string relative) returns string{
+    return string(implement("io.path.relative_to_absolute", relative))
+}
+```
+The `implement` keyword also takes an arbitrary amount of arguments - beware that there is no compiler check that validates the arguments in any way; making a mistake here could either lead to compilation errors, runtime crashes or even broken runtime behavior (e.g. memory corruptions).
+
+Also note that the builtin functions (i.e. `print`, `input`, `exit`, ...) are, by definition, no implementation calls, although they behave very similarly. This is simply due to these functions being universally available on nearly every operating system and very frequently used.
+
+More documentation on how to write your own implementation calls will be added soon.
 
 ## Android & iOS
 Deploying apps to mobile operating systems has traditionally been a horrible experience. Not only because of bad tooling, but also because of the lack of cross-platform GUI toolkits in many programming languages.
