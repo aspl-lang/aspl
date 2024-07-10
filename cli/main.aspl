@@ -150,7 +150,7 @@ if(subcommand == "compile" || subcommand == "build"){
     if(Options:targetOs == "windows"){
         outputFile += ".exe"
     }
-    outputFile = io.abs(outputFile)
+    outputFile = io.join_path([os.getwd(), outputFile])
     aspl.compiler.compile(os.args()[i])
     print(os.execute(outputFile).output, false)
     io.delete_file(outputFile)
