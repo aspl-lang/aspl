@@ -1,7 +1,5 @@
 #!/bin/bash
 
-IFS=''
-
 if $(git config --get remote.origin.url | grep -q 'github.com[:/]aspl-lang/aspl'); then
     git pull origin main
 else
@@ -44,7 +42,8 @@ eval "$CURL/assets/$ASSET_ID -LJOH 'Accept: application/octet-stream' --progress
 mv $EXECUTABLE aspl
 chmod +x aspl
 
-read -p "Create asml symlink in /usr/local/bin (Y/n)?" choice
+read -r -n 1 -p "Make aspl publicly avaiable by creating symlink in /usr/local/bin ? (Y/n): " choice
+printf "\n"
 case "$choice" in 
   ''|y|Y ) echo "Creating link"; sudo ln -fs $PWD/aspl /usr/local/bin/aspl;;
   * ) echo "Skiping...";;
