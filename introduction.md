@@ -371,8 +371,17 @@ print(m) // {}
 ```
 
 ## Functions
-As already described above, a function is a block of code with certain parameters. There are several builtin functions, e.g. `print`, `input` or `exit`.
-<br>Moreover, you can define your own functions, as well as library developers, of course.
+As already described above, a function is a block of code that accepts certain arguments, which are then stored in special variables called "parameters". Functions also may or may not return a single value.
+
+There are the following builtin functions:
+* `print` - write a string to the console and start a new line after that (except if the second parameter is false)
+* `input` - optionally print a prompt to the console and then return the user input
+* `key` - optionally print a prompt to the console and then return the key the user has pressed
+* `range` - return a list containing all numbers between and including the two given arguments
+* `exit` - stop the program and return a given exit code to the operating system
+* `panic` - print an error message to the console and exit with code 1; see [here](#panics) for more information on panics
+
+Moreover, you, and of course also developers of code libraries, can define their own custom functions.
 <br>This makes it possible to split a program into several smaller subroutines and reuse code. Because of this, functions are an essential concept in virtually every programming language today.
 
 ```aspl
