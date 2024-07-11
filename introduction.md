@@ -55,7 +55,7 @@ ASPL supports most modern operating systems and easily cross-compiles between th
 * [Methods](#methods)
     * [Static methods](#static-methods)
 * [Inheritance](#inheritance)
-* [Parent Method Calls](#parent-method-calls)
+* [Parent method calls](#parent-method-calls)
 * [Enums](#enums)
     * [Bitfields/Flags](#bitfieldsflags)
 
@@ -803,7 +803,7 @@ assert d oftype Pet
 > [!IMPORTANT]
 > Multiple inheritance is a tricky concept and generally not very popular amongst other programming languages. While it simplifies a lot of things and can make intuitive sense sometimes, there are also good reasons not to use it. Because of this, ASPL might switch to single inheritance + interfaces/traits in the future, although this is currently not planned.
 
-## Parent Method Calls
+## Parent method calls
 You can explicitly invoke the implementation of a method in certain parent classes even if the method is overridden in the current class using the `parent` keyword; you might also know this concept from other languages as `super`.
 ```aspl
 class Base{
