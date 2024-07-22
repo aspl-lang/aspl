@@ -28,6 +28,7 @@ $if main{
 [public]
 function parse() returns ParserResult
 {
+    Timings:startPass("parse")
     foreach(DirectoryUtils:index(Module:mainModule.directory) as file){
         if(!Parser:importProcessedFiles.contains(file)){
             Parser:importProcessedFiles.add(file)

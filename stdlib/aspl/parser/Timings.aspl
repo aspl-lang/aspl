@@ -6,86 +6,47 @@ class Timings {
 
     [static]
     [threadlocal]
-    property long lexer = 0
+    property string? currentPassName
     [static]
     [threadlocal]
-    property long lexerStart = 0
+    property Timestamp? currentPassStart
     [static]
     [threadlocal]
-    property long preprocessorTypes = 0
-    [static]
-    [threadlocal]
-    property long preprocessorTypesStart = 0
-    [static]
-    [threadlocal]
-    property long preprocessor = 0
-    [static]
-    [threadlocal]
-    property long preprocessorStart = 0
-    [static]
-    [threadlocal]
-    property long parser = 0
-    [static]
-    [threadlocal]
-    property long parserStart = 0
+    property map<string, long> passDurations
     [public]
     [static]
-    property long total{
+    property long totalDuration{
         get{
-            return self:lexer + self:lexerStart + self:preprocessorTypes + self:preprocessor + self:parser
+            var long total = 0
+            foreach(passDurations as duration){
+                total += duration
+            }
         }
     }
 
     [public]
     [static]
-    method startLexer(){
-        self:lexerStart = time.now().milliseconds
+    method startPass(string name){
+        if(self:currentPassName != null){
+            self:passDurations[self:currentPassName?!] = time.now().milliseconds - currentPassStart?!.milliseconds
+        }
+        self:currentPassName = name
+        self:currentPassStart = time.now()
     }
 
     [public]
     [static]
-    method stopLexer(){
-        self:lexer = time.now().milliseconds - self:lexerStart
-        self:lexerStart = 0
-    }
-
-    [public]
-    [static]
-    method startPreprocessorTypes(){
-        self:preprocessorTypesStart = time.now().milliseconds
-    }
-
-    [public]
-    [static]
-    method stopPreprocessorTypes(){
-        self:preprocessorTypes = time.now().milliseconds - self:preprocessorTypesStart
-        self:preprocessorTypes = 0
-    }
-
-    [public]
-    [static]
-    method startPreprocessor(){
-        self:preprocessorStart = time.now().milliseconds
-    }
-
-    [public]
-    [static]
-    method stopPreprocessor(){
-        self:preprocessor = time.now().milliseconds - self:preprocessorStart
-        self:preprocessorStart = 0
-    }
-
-    [public]
-    [static]
-    method startParser(){
-        self:parserStart = time.now().milliseconds
-    }
-
-    [public]
-    [static]
-    method stopParser(){
-        self:parser = time.now().milliseconds - self:parserStart
-        self:parserStart = 0
+    method show(){
+        if(self:currentPassName != null){
+            self:passDurations[self:currentPassName?!] = time.now().milliseconds - currentPassStart?!.milliseconds
+        }
+        self:currentPassName = null
+        self:currentPassStart = null
+        print("+++ Timings +++")
+        foreach(passDurations as name => duration){
+            print(name + ": " + duration + "ms")
+        }
+        print("--- Timings ---")
     }
 
 }
