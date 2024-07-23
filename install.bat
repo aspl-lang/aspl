@@ -42,7 +42,7 @@ curl -H "%AUTH_HEADER%" -LJOH "Accept: application/octet-stream" https://api.git
 rename %EXECUTABLE% aspl.exe
 
 echo Make the `aspl` command available everywhere (by adding it to the PATH?)? (y/n): 
-set /p choice=
+set /p choice=y
 if /i "%choice%"=="y" setx PATH "%PATH%;%CD%"
 
 curl -H "%AUTH_HEADER%" https://api.github.com/repos/aspl-lang/cd/releases/tags/SHA-%SHA% -s | jq .assets | jq ".[] | select(.name == \"templates.zip\").id" > id.txt
