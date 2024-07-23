@@ -1,10 +1,12 @@
-if $(git config --get remote.origin.url | grep -q 'github.com/aspl-lang/aspl'); then
+#!/bin/bash
+
+if $(git config --get remote.origin.url | grep -q 'github.com[:/]aspl-lang/aspl'); then
     git pull origin main
 else
     git clone https://github.com/aspl-lang/aspl.git
     cd aspl
 fi
-SHA=$(curl -s https://api.github.com/repos/aspl-lang/cd/contents/latest.txt | jq -r '.content' | base64 -d)
+SHA=$(curl -s https://api.github.com/repos/aspl-lang/cd/contents/latest.txt -s | jq -r '.content' | base64 -d)
 if [ "$(uname)" = "Darwin" ]; then
     if [ "$(uname -m)" = "x86_64" ]; then
         EXECUTABLE=aspl_macos_x86_64
@@ -31,10 +33,26 @@ else
     echo "Unsupported operating system"
     exit 1
 fi
-CURL="curl https://api.github.com/repos/aspl-lang/cd/releases"; ASSET_ID=$(eval "$CURL/tags/SHA-$SHA" | jq .assets | jq '.[] | select(.name == "'$EXECUTABLE'").id'); eval "$CURL/assets/$ASSET_ID -LJOH 'Accept: application/octet-stream'"
+
+CURL="curl https://api.github.com/repos/aspl-lang/cd/releases"
+ASSET_ID=$(eval "$CURL/tags/SHA-$SHA -s" | jq .assets | jq '.[] | select(.name == "'$EXECUTABLE'").id')
+echo "Downloading $EXECUTABLE ($ASSET_ID):"
+eval "$CURL/assets/$ASSET_ID -LJOH 'Accept: application/octet-stream' --progress-bar"
+
 mv $EXECUTABLE aspl
 chmod +x aspl
-ln -s $PWD/aspl /usr/local/bin/aspl
-CURL="curl https://api.github.com/repos/aspl-lang/cd/releases"; ASSET_ID=$(eval "$CURL/tags/SHA-$SHA" | jq .assets | jq '.[] | select(.name == "templates.zip").id'); eval "$CURL/assets/$ASSET_ID -LJOH 'Accept: application/octet-stream'"
-unzip templates.zip
+
+read -r -n 1 -p "Make aspl publicly avaiable by creating symlink in /usr/local/bin ? (Y/n): " choice
+printf "\n"
+case "$choice" in 
+  ''|y|Y ) echo "Creating link"; sudo ln -fs $PWD/aspl /usr/local/bin/aspl;;
+  * ) echo "Skiping...";;
+esac
+
+CURL="curl https://api.github.com/repos/aspl-lang/cd/releases"
+ASSET_ID=$(eval "$CURL/tags/SHA-$SHA -s" | jq .assets | jq '.[] | select(.name == "templates.zip").id')
+echo "Downloading templates.zip ($ASSET_ID):"
+eval "$CURL/assets/$ASSET_ID -LJOH 'Accept: application/octet-stream' --progress-bar"
+unzip -of templates.zip
 rm templates.zip
+
