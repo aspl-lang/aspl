@@ -17,9 +17,11 @@ jobs:
           apt-get update
           apt-get install --quiet -y git jq curl unzip
       - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
-          ./install_ci.sh
+          ./install.sh
       - name: Install runtime dependencies
         run: |
           apt-get update
@@ -82,9 +84,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
-          ./install_ci.sh
+          ./install.sh
       - name: Install runtime dependencies
         run: |
           brew install glfw # for the graphics module
@@ -118,9 +122,11 @@ jobs:
           apt-get update
           apt-get install --quiet -y git jq curl unzip xz-utils build-essential
       - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
-          ./install_ci.sh
+          ./install.sh
       # - name: Delete template (macOS x86_64)
       #   run: |
       #     rm templates/macos/x86_64/Template
@@ -292,8 +298,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $GITHUB_WORKSPACE/install_ci.sh
+          cd $GITHUB_WORKSPACE
+          ./install.sh
       - name: Run tests
         run: |
           cd $GITHUB_WORKSPACE
