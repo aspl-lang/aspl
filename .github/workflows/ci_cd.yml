@@ -10,17 +10,22 @@ jobs:
     container:
       image: debian:buster # use an older Debian version to support older glibc versions
     steps:
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --quiet -y git
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
-          apt-get install --quiet -y sudo git jq curl unzip
+          apt-get install --quiet -y sudo jq curl unzip
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
+          chown -R $(whoami) . # TODO: Why is this needed?
           ./install.sh
       - name: Install runtime dependencies
         run: |
@@ -115,17 +120,22 @@ jobs:
       image: debian:buster # use an older Debian version to support older glibc versions
     needs: [build-runtime-linux, build-runtime-windows, build-runtime-macos]
     steps:
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install --quiet -y git
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
-          apt-get install --quiet -y sudo git jq curl unzip xz-utils build-essential
+          apt-get install --quiet -y sudo jq curl unzip xz-utils build-essential
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
+          chown -R $(whoami) . # TODO: Why is this needed?
           ./install.sh
       # - name: Delete template (macOS x86_64)
       #   run: |
