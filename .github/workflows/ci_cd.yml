@@ -15,7 +15,7 @@ jobs:
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
-          apt-get install --quiet -y git jq curl unzip
+          apt-get install --quiet -y sudo git jq curl unzip
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
-          apt-get install --quiet -y git jq curl unzip xz-utils build-essential
+          apt-get install --quiet -y sudo git jq curl unzip xz-utils build-essential
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
