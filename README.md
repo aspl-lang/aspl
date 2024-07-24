@@ -7,6 +7,7 @@
 [![CI/CD Test Suite](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml)
 ![Commit activity](https://img.shields.io/github/commit-activity/m/aspl-lang/aspl)
 [![Discord](https://img.shields.io/discord/1053681798430859264?label=Discord&logo=discord&logoColor=white)](https://discord.gg/UUNzAFrKU2)
+[![X](https://img.shields.io/badge/follow-%40aspl__lang-1DA1F2?logo=x&style=flat&logoColor=white)](https://x.com/aspl_lang)
 
 </div>
 ASPL is a modern programming language featuring beautiful simplicity, seamless cross-platform support, practical OOP and so much more.
