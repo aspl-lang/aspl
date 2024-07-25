@@ -17,7 +17,6 @@ $if main{
     }
     var main = io.abs(os.args()[1])
     compile(main)
-    //print("Took: " + (Timings:total / 1000) + " seconds")
     var string? mainOutFile = null
     var tempFile = aspl.compiler.utils.out_temp_name(main)
     var tempFileParts = tempFile.replace("\\", "/").split("/")
@@ -51,7 +50,9 @@ function compile(string main) returns CompilationResult{
     }elseif(Options:backend == "c"){
         backend = new CBackend()
     }
-    var result = backend.compile(aspl.parser.parse())
+    var parserResult = aspl.parser.parse()
+    Timings:startPass("compile")
+    var result = backend.compile(parserResult)
     var tempFile = aspl.compiler.utils.out_temp_name(main)
     var tempFileParts = tempFile.replace("\\", "/").split("/")
     tempFile = tempFileParts[tempFileParts.length - 1]
@@ -125,6 +126,7 @@ function compile(string main) returns CompilationResult{
                 if(Options:showCCommand){
                     print("cc: " + ccmd)
                 }
+                Timings:startPass("c compiler (building template)")
                 var ccmdResult = os.execute(ccmd)
                 print(ccmdResult.output, false)
                 if(ccmdResult.exitCode != 0){
@@ -141,16 +143,21 @@ function compile(string main) returns CompilationResult{
                 io.write_file_bytes(exeFile, io.read_file_bytes(template))
             }
             if(!Options:internalDoNotBundle){
+                Timings:startPass("bundle")
                 os.chmod(exeFile, 509)
                 var Bundle bundle = new Bundle(exeFile)
                 bundle.addResource("AIL Code", result.output)
                 bundle.generate()
+            }
+            if(Options:showTimings){
+                Timings:show()
             }
         }elseif(Options:backend == "c"){
             var ccmd = build_ccmd(tempFile, exeFile)
             if(Options:showCCommand){
                 print("cc: " + ccmd)
             }
+            Timings:startPass("c compiler")
             var ccmdResult = os.execute(ccmd)
             print(ccmdResult.output, false)
             if(ccmdResult.exitCode != 0){
@@ -158,6 +165,9 @@ function compile(string main) returns CompilationResult{
             }
             if(!Options:keepTemporary){
                 io.delete_file(tempFile)
+            }
+            if(Options:showTimings){
+                Timings:show()
             }
         }
     }

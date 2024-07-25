@@ -59,6 +59,8 @@ if(os.args()[1].startsWith("-")){
             Options:production = true
         }elseif(option == "-gui"){
             Options:guiApp = true
+        }elseif(option == "-showtimings"){
+            Options:showTimings = true
         }elseif(option == "-backend"){
             i++
             if(i >= os.args().length){

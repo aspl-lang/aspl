@@ -70,6 +70,10 @@ class Options {
     [public]
     [static]
     [threadlocal]
+    property bool showTimings = false
+    [public]
+    [static]
+    [threadlocal]
     property string backend = "ail"
     [public]
     [static]
