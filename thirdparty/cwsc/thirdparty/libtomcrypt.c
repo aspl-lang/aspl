@@ -14,6 +14,8 @@
  * guarantee it works.
  *
  * Tom St Denis, tstdenis82@gmail.com, http://math.libtomcrypt.com
+ * 
+ * NOTE: This version of libtomcrypt.c has been slightly modified from the upstream CWSC/TLSe version; the modifications only fix/workaround some warnings
  */
 #ifndef BN_H_
 #define BN_H_
@@ -12576,8 +12578,7 @@ int KARATSUBA_MUL_CUTOFF = 80,          /* Min. number of digits before Karatsub
 
 const char *crypt_build_settings =
     "LibTomCrypt ""1.17"" (Tom St Denis, tomstdenis@gmail.com)\n"
-                          "LibTomCrypt is public domain software.\n"
-                          "Built on " __DATE__ " at " __TIME__ "\n\n\n"
+                          "LibTomCrypt is public domain software.\n\n\n"
                                                                "Endianess: "
 #if defined(ENDIAN_NEUTRAL)
     "neutral\n"
