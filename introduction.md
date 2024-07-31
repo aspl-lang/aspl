@@ -84,7 +84,7 @@ Save this code to a file and run it with `aspl run file.aspl`.
 <br>That's it. You have just written your very first ASPL program! 🎉
 
 ## Comments
-ASPL supports two styles of comments
+ASPL supports two styles of comments:
 
 ### Single-line comments
 If a line starts with `//`, everything after that is ignored by the ASPL parser and treated as a comment.
