@@ -105,6 +105,11 @@ void aspl_ailinterpreter_initialize_builtin_methods(ASPL_AILI_EnvironmentContext
     string_replace->parameters.parameters[1] = (ASPL_AILI_Parameter){ .name = "replace", .expected_types = (ASPL_AILI_TypeList) {.types = (char* []) { "string" }, .size = 1 }, .optional = 0 };
     hashmap_str_to_voidptr_hashmap_set(string_methods, "replace", string_replace);
 
+    ASPL_AILI_BuiltinMethod* string_replaceMany = ASPL_MALLOC(sizeof(ASPL_AILI_BuiltinMethod));
+    string_replaceMany->parameters = (ASPL_AILI_ParameterList){ .parameters = ASPL_MALLOC(sizeof(ASPL_AILI_Parameter) * 2), .size = 2 };
+    string_replaceMany->parameters.parameters[0] = (ASPL_AILI_Parameter){ .name = "dictionary", .expected_types = (ASPL_AILI_TypeList) {.types = (char* []) { "map<string, string>" }, .size = 1 }, .optional = 0 };
+    hashmap_str_to_voidptr_hashmap_set(string_methods, "replaceMany", string_replaceMany);
+
     ASPL_AILI_BuiltinMethod* string_startsWith = ASPL_MALLOC(sizeof(ASPL_AILI_BuiltinMethod));
     string_startsWith->parameters = (ASPL_AILI_ParameterList){ .parameters = ASPL_MALLOC(sizeof(ASPL_AILI_Parameter) * 1), .size = 1 };
     string_startsWith->parameters.parameters[0] = (ASPL_AILI_Parameter){ .name = "substring", .expected_types = (ASPL_AILI_TypeList) {.types = (char* []) { "string" }, .size = 1 }, .optional = 0 };

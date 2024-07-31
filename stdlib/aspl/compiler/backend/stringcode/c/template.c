@@ -3640,6 +3640,24 @@ ASPL_OBJECT_TYPE aspl_method_string_replace_wrapper(ASPL_OBJECT_TYPE* obj, ASPL_
     return aspl_method_string_replace(obj, arguments[0], arguments[1]);
 }
 
+ASPL_OBJECT_TYPE aspl_method_string_replaceMany(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE* dictionary)
+{
+    // TODO: Use a more efficient implementation
+    ASPL_OBJECT_TYPE s = *obj;
+    for (int i = 0; i < ASPL_ACCESS(*dictionary).value.map->hashmap->len; i++)
+    {
+        ASPL_OBJECT_TYPE key = ASPL_HASHMAP_UNWRAP(ASPL_ACCESS(*dictionary).value.map->hashmap->pairs[i]->key);
+        ASPL_OBJECT_TYPE value = ASPL_HASHMAP_UNWRAP(ASPL_ACCESS(*dictionary).value.map->hashmap->pairs[i]->value);
+        s = aspl_method_string_replace(C_REFERENCE(s), C_REFERENCE(key), C_REFERENCE(value));
+    }
+    return s;
+}
+
+ASPL_OBJECT_TYPE aspl_method_string_replaceMany_wrapper(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE* arguments[])
+{
+    return aspl_method_string_replaceMany(obj, arguments[0]);
+}
+
 ASPL_OBJECT_TYPE aspl_method_string_startsWith(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE* prefix)
 {
     ASPL_OBJECT_TYPE objA = (ASPL_OBJECT_TYPE)*obj;
@@ -4223,6 +4241,7 @@ void aspl_setup_builtin_method_pointers()
     aspl_object_method_init("string", "toLower", aspl_method_string_toLower_wrapper);
     aspl_object_method_init("string", "toUpper", aspl_method_string_toUpper_wrapper);
     aspl_object_method_init("string", "replace", aspl_method_string_replace_wrapper);
+    aspl_object_method_init("string", "replaceMany", aspl_method_string_replaceMany_wrapper);
     aspl_object_method_init("string", "startsWith", aspl_method_string_startsWith_wrapper);
     aspl_object_method_init("string", "endsWith", aspl_method_string_endsWith_wrapper);
     aspl_object_method_init("string", "contains", aspl_method_string_contains_wrapper);

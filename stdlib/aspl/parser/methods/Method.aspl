@@ -67,6 +67,7 @@ class Method {
         new InternalMethod(Type:fromString("string"), "toLower", [], new Types([Type:fromString("string")]), []).register(null)
         new InternalMethod(Type:fromString("string"), "toUpper", [], new Types([Type:fromString("string")]), []).register(null)
         new InternalMethod(Type:fromString("string"), "replace", [new Parameter("search", new Types([Type:fromString("string")])), new Parameter("replace", new Types([Type:fromString("string")]))], new Types([Type:fromString("string")]), []).register(null)
+        new InternalMethod(Type:fromString("string"), "replaceMany", [new Parameter("dictionary", new Types([Type:fromString("map<string, string>")]))], new Types([Type:fromString("string")]), []).register(null)
         new InternalMethod(Type:fromString("string"), "startsWith", [new Parameter("substring", new Types([Type:fromString("string")]))], new Types([Type:fromString("boolean")]), []).register(null)
         new InternalMethod(Type:fromString("string"), "endsWith", [new Parameter("substring", new Types([Type:fromString("string")]))], new Types([Type:fromString("boolean")]), []).register(null)
         new InternalMethod(Type:fromString("string"), "contains", [new Parameter("substring", new Types([Type:fromString("string")]))], new Types([Type:fromString("boolean")]), []).register(null)
