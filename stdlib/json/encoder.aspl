@@ -39,7 +39,16 @@ function encode(any data, bool prettyPrint = false) returns string?{
         }
     }
     elseif(data oftype string){
-        return "\"" + data + "\""
+        return "\"" + string(data).replaceMany({
+            "\\" => "\\\\",
+            "/" => "\\/"
+            "\"" => "\\\"",
+            // TODO: Also escape \b when the ASPL compiler understands it: "\b": "\\b",
+            "\f" => "\\f",
+            "\n" => "\\n",
+            "\r" => "\\r",
+            "\t" => "\\t"
+        }) + "\""
     }
     elseif(data oftype list<any>){
         var result = "["
