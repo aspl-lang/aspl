@@ -55,11 +55,11 @@ function encode(any data, bool prettyPrint = false) returns string?{
     elseif(data oftype map<string, any>){
         var result = "{"
         if(prettyPrint){
-            result + "\n"
+            result += "\n"
         }
         foreach(map<string, any>(data) as key => value){
             if(prettyPrint){
-                result += "\t" + encode(key) + " :" + encode(value) + ",\n"
+                result += "\t" + encode(key) + ": " + encode(value) + ",\n"
             }else{
                 result += encode(key) + ":" + encode(value) + ","
             }
