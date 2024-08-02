@@ -136,6 +136,7 @@ typedef struct ASPL_List
     int typeLen;
     ASPL_OBJECT_TYPE* value;
     size_t length;
+    size_t capacity;
 } ASPL_List;
 
 ASPL_OBJECT_TYPE* C_REFERENCE(ASPL_OBJECT_TYPE x)
@@ -446,9 +447,8 @@ ASPL_OBJECT_TYPE aspl_object_clone_shallow(ASPL_OBJECT_TYPE obj)
         ASPL_ACCESS(clone).value.list->typePtr = ASPL_ACCESS(obj).value.list->typePtr;
         ASPL_ACCESS(clone).value.list->typeLen = ASPL_ACCESS(obj).value.list->typeLen;
         ASPL_ACCESS(clone).value.list->length = ASPL_ACCESS(obj).value.list->length;
-        int mallocSize = sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(obj).value.list->length;
-        if (mallocSize < 1) mallocSize = 1; // malloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(mallocSize);
+        ASPL_ACCESS(clone).value.list->capacity = ASPL_ACCESS(obj).value.list->capacity;
+        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(ASPL_ACCESS(clone).value.list->capacity);
         memcpy(ASPL_ACCESS(clone).value.list->value, ASPL_ACCESS(obj).value.list->value, sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(obj).value.list->length);
         break;
     case ASPL_OBJECT_KIND_MAP:
@@ -517,9 +517,8 @@ ASPL_OBJECT_TYPE aspl_object_clone_deep(ASPL_OBJECT_TYPE obj)
         ASPL_ACCESS(clone).value.list->typePtr = ASPL_ACCESS(obj).value.list->typePtr;
         ASPL_ACCESS(clone).value.list->typeLen = ASPL_ACCESS(obj).value.list->typeLen;
         ASPL_ACCESS(clone).value.list->length = ASPL_ACCESS(obj).value.list->length;
-        int mallocSize = sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(obj).value.list->length;
-        if (mallocSize < 1) mallocSize = 1; // malloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0
-        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(mallocSize);
+        ASPL_ACCESS(clone).value.list->capacity = ASPL_ACCESS(obj).value.list->capacity;
+        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(ASPL_ACCESS(clone).value.list->capacity);
         for (int i = 0; i < ASPL_ACCESS(obj).value.list->length; i++)
         {
             ASPL_ACCESS(clone).value.list->value[i] = aspl_object_clone_deep(ASPL_ACCESS(obj).value.list->value[i]);
@@ -801,9 +800,9 @@ ASPL_OBJECT_TYPE ASPL_LIST_LITERAL(char* typePtr, int typeLen, ASPL_OBJECT_TYPE 
     l->typePtr = typePtr;
     l->typeLen = typeLen;
     l->length = size;
-    int mallocSize = sizeof(ASPL_OBJECT_TYPE) * size;
-    if (mallocSize < 1) mallocSize = 1; // malloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-    l->value = ASPL_MALLOC(mallocSize);
+    l->capacity = size;
+    if (l->capacity < 1) l->capacity = 1; // malloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
+    l->value = ASPL_MALLOC(l->capacity);
     memcpy(l->value, list, sizeof(ASPL_OBJECT_TYPE) * size);
     ASPL_ACCESS(obj).value.list = l;
     return obj;
@@ -3869,7 +3868,8 @@ ASPL_OBJECT_TYPE aspl_method_string_split(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYP
     char* str2 = ASPL_ACCESS(objB).value.string->str;
     ASPL_List* l = ASPL_MALLOC(sizeof(ASPL_List));
     l->length = 0;
-    l->value = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE));
+    l->capacity = 4; // (arbitrary) expected average of splits
+    l->value = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * l->capacity);
 
     char* str3 = strstr(str, str2);
     int remaining_splits = ASPL_ACCESS(*limit).value.integer32 - 1;
@@ -3972,7 +3972,10 @@ ASPL_OBJECT_TYPE aspl_method_list_add(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE* v
     ASPL_OBJECT_TYPE objB = (ASPL_OBJECT_TYPE)*value;
     ASPL_List* l = ASPL_ACCESS(objA).value.list;
     l->length++;
-    l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->length);
+    if (l->length >= l->capacity) {
+        l->capacity *= 2;
+        l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
+    }
     l->value[l->length - 1] = objB;
     return objA;
 }
@@ -3991,7 +3994,10 @@ ASPL_OBJECT_TYPE aspl_method_list_insert(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE
     if (ASPL_ACCESS(objB).value.integer32 >= 0 && ASPL_ACCESS(objB).value.integer32 <= l->length)
     {
         l->length++;
-        l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->length);
+        if (l->length >= l->capacity) {
+            l->capacity *= 2;
+            l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
+        }
         for (int i = l->length - 1; i > ASPL_ACCESS(objB).value.integer32; i--)
         {
             l->value[i] = l->value[i - 1];
@@ -4015,7 +4021,10 @@ ASPL_OBJECT_TYPE aspl_method_list_insertElements(ASPL_OBJECT_TYPE* obj, ASPL_OBJ
     if (ASPL_ACCESS(objB).value.integer32 >= 0 && ASPL_ACCESS(objB).value.integer32 <= l->length)
     {
         l->length += ASPL_ACCESS(objC).value.list->length;
-        l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->length);
+        if (l->length >= l->capacity) {
+            l->capacity *= 2;
+            l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
+        }
         for (int i = l->length - 1; i > ASPL_ACCESS(objB).value.integer32; i--)
         {
             l->value[i] = l->value[i - 1];
@@ -4047,9 +4056,10 @@ ASPL_OBJECT_TYPE aspl_method_list_remove(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE
                 l->value[j] = l->value[j + 1];
             }
             l->length--;
-            int mallocSize = sizeof(ASPL_OBJECT_TYPE) * l->length;
-            if (mallocSize < 1) mallocSize = 1; // realloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-            l->value = ASPL_REALLOC(l->value, mallocSize);
+            if (l->length < l->capacity / 2) {
+                l->capacity /= 2;
+            }
+            l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
             return ASPL_TRUE();
         }
     }
@@ -4073,9 +4083,10 @@ ASPL_OBJECT_TYPE aspl_method_list_removeAt(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TY
             l->value[i] = l->value[i + 1];
         }
         l->length--;
-        int mallocSize = sizeof(ASPL_OBJECT_TYPE) * l->length;
-        if (mallocSize < 1) mallocSize = 1; // realloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-        l->value = ASPL_REALLOC(l->value, mallocSize);
+        if (l->length < l->capacity / 2) {
+            l->capacity /= 2;
+        }
+        l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
     }
     return objA;
 }
@@ -4091,7 +4102,8 @@ ASPL_OBJECT_TYPE aspl_method_list_clear(ASPL_OBJECT_TYPE* obj)
     ASPL_List* l = ASPL_ACCESS(objA).value.list;
     // don't free the objects as the GC will take care of it; freeing them here manually may free objects that are still in use
     l->length = 0;
-    l->value = ASPL_REALLOC(l->value, 1); // realloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
+    l->capacity = 1; // realloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
+    l->value = ASPL_REALLOC(l->value, l->capacity);
     return objA;
 }
 
