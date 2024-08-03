@@ -802,7 +802,7 @@ ASPL_OBJECT_TYPE ASPL_LIST_LITERAL(char* typePtr, int typeLen, ASPL_OBJECT_TYPE 
     l->length = size;
     l->capacity = size;
     if (l->capacity < 1) l->capacity = 1; // malloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-    l->value = ASPL_MALLOC(l->capacity);
+    l->value = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * l->capacity);
     memcpy(l->value, list, sizeof(ASPL_OBJECT_TYPE) * size);
     ASPL_ACCESS(obj).value.list = l;
     return obj;
