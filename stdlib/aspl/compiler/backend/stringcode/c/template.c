@@ -4288,8 +4288,8 @@ _Thread_local jmp_buf aspl_error_handling_stack[ASPL_MAX_ERROR_HANDLING_DEPTH];
 _Thread_local int aspl_error_handling_stack_index = -1;
 _Thread_local ASPL_OBJECT_TYPE aspl_current_error;
 
-int aspl_validate_error_handling_depth(int depth){
-    if(depth < 0 || depth > ASPL_MAX_ERROR_HANDLING_DEPTH){
+int aspl_validate_error_handling_depth(int depth) {
+    if (depth < 0 || depth > ASPL_MAX_ERROR_HANDLING_DEPTH) {
         ASPL_PANIC("Error handling depth out of bounds: %d\n", depth);
     }
     return 1;
