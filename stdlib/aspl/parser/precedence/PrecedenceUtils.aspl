@@ -6,7 +6,7 @@ class PrecedenceUtils {
     
     [public]
     [static]
-    method GetTokenPrecendenceLevel(Token token) returns PrecedenceLevel{ // TODO: Why is this PascalCase?
+    method getTokenPrecendenceLevel(Token token) returns PrecedenceLevel{
         if(token.type == TokenType.Identifier){
             if(token.value == "oftype"){
                 return PrecedenceLevel.OfType

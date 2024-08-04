@@ -3018,8 +3018,8 @@ class Parser{
 			return expression
 		}
 		var nextToken = tokens.peek()
-		if(currentLevel < PrecedenceUtils:GetTokenPrecendenceLevel(nextToken)){
-			var result = parseToken(nextToken, tokens, false, PrecedenceUtils:GetTokenPrecendenceLevel(tokens.next()), expression)
+		if(currentLevel < PrecedenceUtils:getTokenPrecendenceLevel(nextToken)){
+			var result = parseToken(nextToken, tokens, false, PrecedenceUtils:getTokenPrecendenceLevel(tokens.next()), expression)
 			if(result oftype Expression){
 				return applyOperators(Expression(result), tokens, currentLevel)
 			}
