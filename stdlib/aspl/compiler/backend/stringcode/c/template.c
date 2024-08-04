@@ -4103,7 +4103,7 @@ ASPL_OBJECT_TYPE aspl_method_list_clear(ASPL_OBJECT_TYPE* obj)
     // don't free the objects as the GC will take care of it; freeing them here manually may free objects that are still in use
     l->length = 0;
     l->capacity = 1; // realloc can return a null pointer if size is 0, but e.g. memcpy can't handle null pointers (even if the size is 0)
-    l->value = ASPL_REALLOC(l->value, l->capacity);
+    l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
     return objA;
 }
 
