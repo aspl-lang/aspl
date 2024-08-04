@@ -448,7 +448,7 @@ ASPL_OBJECT_TYPE aspl_object_clone_shallow(ASPL_OBJECT_TYPE obj)
         ASPL_ACCESS(clone).value.list->typeLen = ASPL_ACCESS(obj).value.list->typeLen;
         ASPL_ACCESS(clone).value.list->length = ASPL_ACCESS(obj).value.list->length;
         ASPL_ACCESS(clone).value.list->capacity = ASPL_ACCESS(obj).value.list->capacity;
-        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(ASPL_ACCESS(clone).value.list->capacity);
+        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(clone).value.list->capacity);
         memcpy(ASPL_ACCESS(clone).value.list->value, ASPL_ACCESS(obj).value.list->value, sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(obj).value.list->length);
         break;
     case ASPL_OBJECT_KIND_MAP:
@@ -518,7 +518,7 @@ ASPL_OBJECT_TYPE aspl_object_clone_deep(ASPL_OBJECT_TYPE obj)
         ASPL_ACCESS(clone).value.list->typeLen = ASPL_ACCESS(obj).value.list->typeLen;
         ASPL_ACCESS(clone).value.list->length = ASPL_ACCESS(obj).value.list->length;
         ASPL_ACCESS(clone).value.list->capacity = ASPL_ACCESS(obj).value.list->capacity;
-        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(ASPL_ACCESS(clone).value.list->capacity);
+        ASPL_ACCESS(clone).value.list->value = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * ASPL_ACCESS(clone).value.list->capacity);
         for (int i = 0; i < ASPL_ACCESS(obj).value.list->length; i++)
         {
             ASPL_ACCESS(clone).value.list->value[i] = aspl_object_clone_deep(ASPL_ACCESS(obj).value.list->value[i]);
@@ -4021,7 +4021,7 @@ ASPL_OBJECT_TYPE aspl_method_list_insertElements(ASPL_OBJECT_TYPE* obj, ASPL_OBJ
     if (ASPL_ACCESS(objB).value.integer32 >= 0 && ASPL_ACCESS(objB).value.integer32 <= l->length)
     {
         l->length += ASPL_ACCESS(objC).value.list->length;
-        if (l->length >= l->capacity) {
+        while (l->length >= l->capacity) {
             l->capacity *= 2;
             l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
         }
@@ -4058,8 +4058,8 @@ ASPL_OBJECT_TYPE aspl_method_list_remove(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE
             l->length--;
             if (l->length < l->capacity / 2) {
                 l->capacity /= 2;
+                l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
             }
-            l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
             return ASPL_TRUE();
         }
     }
@@ -4085,8 +4085,8 @@ ASPL_OBJECT_TYPE aspl_method_list_removeAt(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TY
         l->length--;
         if (l->length < l->capacity / 2) {
             l->capacity /= 2;
+            l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
         }
-        l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
     }
     return objA;
 }
