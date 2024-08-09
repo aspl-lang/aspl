@@ -1,0 +1,27 @@
+[public]
+class Database {
+    
+    property any handle
+
+    [public]
+    method construct(string file){
+        handle = implement("sqlite.database.open", file)
+    }
+
+    [public]
+    method prepare(string query) returns Statement{
+        return new Statement(implement("sqlite.database.prepare", handle, query))
+    }
+
+    [public]
+    method query(string query) returns Response{
+        return new Response(implement("sqlite.database.query", handle, query))
+    }
+
+    [public]
+    method close(){
+        implement("sqlite.database.close", handle)
+        handle = null
+    }
+
+}

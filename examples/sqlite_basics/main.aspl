@@ -1,0 +1,19 @@
+import sqlite
+
+var db = new Database(":memory:")
+db.query("CREATE TABLE friends (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER NOT NULL)")
+
+db.query("INSERT INTO friends (name, age) VALUES ('Tom', 18)")
+
+var statement = db.prepare("INSERT INTO friends (name, age) VALUES (:name, :age)")
+statement.bind(":name", "Rebecca")
+statement.bind(":age", 30)
+statement.execute()
+
+print(db.query("SELECT * FROM friends").fetchRows())
+
+statement = db.prepare("SELECT age FROM friends WHERE name = :name")
+statement.bind(":name", "Tom")
+print("Tom is " + statement.execute().fetchRow()["age"] + " years old!")
+
+db.close()

@@ -1,0 +1,20 @@
+[public]
+class Statement {
+    
+    property any handle
+
+    method construct(any handle){
+        this.handle = handle
+    }
+
+    [public]
+    method bind(string parameter, any value){
+        implement("sqlite.statement.bind", handle, parameter, value)
+    }
+
+    [public]
+    method execute() returns Response{
+        return new Response(implement("sqlite.statement.execute", handle))
+    }
+
+}

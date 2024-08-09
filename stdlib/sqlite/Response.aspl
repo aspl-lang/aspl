@@ -1,0 +1,39 @@
+[public]
+class Response {
+
+    property any handle
+
+    [public]
+    method construct(any handle){
+        this.handle = handle
+    }
+
+    [public]
+    method fetchRow() returns map<string, any>?{
+        // TODO: Shorten this implementation using casts when something like map<string, any>?(...) actually works with the ASPL compiler
+        var row = implement("sqlite.response.fetch_row", handle)
+        if(row == null){
+            return null
+        }else{
+            return map<string, any>(row)
+        }
+    }
+
+    [public]
+    method fetchRows() returns list<map<string, any>>{
+        var list<map<string, any>> rows = []
+        while(true){
+            var row = fetchRow()
+            if(row == null){
+                return rows
+            }
+            rows.add(row?!)
+        }
+    }
+
+    [public]
+    method finalize(){
+        implement("sqlite.response.finalize", handle)
+    }
+
+}
