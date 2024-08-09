@@ -1,4 +1,6 @@
+#define Window sqlite3Window
 #include "thirdparty/sqlite/sqlite3.c"
+#undef Window
 
 // TODO: Tell SQLite to use GC Boehm
 
