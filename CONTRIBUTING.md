@@ -5,7 +5,7 @@ One of the best ways to support ASPL is by creating a project in it. You may por
 Only through such projects, we can find out how usable ASPL really is in different fields of computer science, catch and patch bugs, and implement new features. It also just massively helps in making ASPL more know and popular.
 
 ## Actually contributing to the implementation
-You can of course also directly contribute to ASPLs sourcecode (and the stuff around it) here on Github.
+You can of course also directly contribute to ASPL's sourcecode (and the stuff around it) here on Github.
 <br>The best way to get started is probably just looking around at the files and folders; here's a quick overview on how the code is structured:
 
 ### Compiler and standard library
