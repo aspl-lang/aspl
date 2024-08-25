@@ -120,7 +120,7 @@ function sort(list<Node> nodes) returns list<Node>
         }
     }
     var all = list<Node>[]
-    foreach(enumDeclarations as enumDeclaration){ // TODO: Does this order break anything? It is required for optional/default enum field values in the stack-based AIL backend
+    foreach(enumDeclarations as enumDeclaration){
         all.add(enumDeclaration)
     }
     foreach(classDeclarations as classDeclaration){
