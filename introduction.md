@@ -162,7 +162,7 @@ ASPL has a very advanced and powerful <a href="https://en.wikipedia.org/wiki/Typ
 <br>Every expression and everything holding an expression (e.g. a variable) can have either a single type (e.g. literals or simple variables) or of a multitype:
 ```aspl
 var int i = 0 // i can hold values of the type integer (since int is an alias to integer)
-var int|float x = 0f // x can hold values of either integer or float, even though its initialized with a float here
+var int|float x = 0f // x can hold values of either integer or float, even though it's initialized with a float here
 ```
 If something expects a certain type (e.g. a variable or function parameter), it will fail to compile if any of the types of the expression is incompatible with the expected type:
 ```aspl
