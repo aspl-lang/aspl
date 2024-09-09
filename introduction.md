@@ -213,7 +213,7 @@ Note that the `?!` operator is just a shorthand for a cast to `type`, so the fol
 ```aspl
 var string? s = "Hello"
 if(s != null){
-    print((string)s.length) // no error, s is assured to be not null here
+    print(string(s).length) // no error, s is assured to be not null here
 }
 ```
 
@@ -222,7 +222,7 @@ The `oftype` expression checks if a certain expression is of a certain type at r
 ```aspl
 var any x = 0
 print(x oftype int) // true
-print(x oftypr string) // false
+print(x oftype string) // false
 ```
 
 ## If statements
@@ -235,7 +235,7 @@ if(false){
     print("Will certainly not be printed")
 }
 ```
-Combined with for example variables or user input, this allows a programmer to dynamically react to a program's environment:
+Combined with, for example, variables or user input, this allows a programmer to dynamically react to a program's environment:
 ```aspl
 if(input("Do you like ASPL? ") == "y"){
     print("Great!")
