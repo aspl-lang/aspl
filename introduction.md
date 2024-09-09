@@ -890,7 +890,7 @@ print((c && Color.Red) == Color.Red) // true - the enum flag contains the Red fi
 ### Cross-compilation
 One of ASPL's main goals has always been seamless cross-compilation and support for as many platforms as possible. In fact, you can simply cross-compile your ASPL code to any other platform using the `-os` and `-arch` flags:
 ```bash
-aspl -os windows -arch amd64 hello.aspl
+aspl -os windows -arch amd64 compile hello.aspl
 ```
 The above command will compile `hello.aspl` to a 64-bit Windows executable.
 
@@ -905,7 +905,7 @@ Additionally, ASPL uses dynamic loading of system graphics libraries (see the `t
 ### Debug vs. production builds
 You can compile your code in production mode using the `-prod` flag:
 ```bash
-aspl -prod hello.aspl
+aspl -prod compile hello.aspl
 ```
 This will disable all debug features and use optimizations to make your code run faster. Furthermore, the `production` conditional compilation symbol will be defined instead of `debug`.
 
@@ -931,7 +931,7 @@ In addition to the `debug` and `production` symbols, there are also the followin
 
 You can also define your own symbols using the `-d` compiler option:
 ```bash
-aspl -d mySymbol hello.aspl
+aspl -d mySymbol compile hello.aspl
 ```
 ```aspl
 $if mySymbol{
@@ -962,7 +962,7 @@ Benefits of the `c` backend:
 
 You can choose a backend using the `-backend` compiler option:
 ```bash
-aspl -backend c hello.aspl
+aspl -backend c compile hello.aspl
 ```
 
 It's generally advised to use the `ail` backend for development/debug builds and the `c` backend for production; note that the `ail` backend is currently the default for all builds.
