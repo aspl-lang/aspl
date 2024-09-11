@@ -810,6 +810,11 @@ class CBackend extends StringcodeBackend {
     }
 
     method encodeEqualsCheck(CheckEqualsExpression expression) returns string{
+        if(expression.right oftype NullLiteral){
+            return "ASPL_BOOL_LITERAL(ASPL_ACCESS(" + this.encode(expression.left) + ").kind == ASPL_OBJECT_KIND_NULL)"
+        }elseif(expression.left oftype NullLiteral){
+            return "ASPL_BOOL_LITERAL(ASPL_ACCESS(" + this.encode(expression.right) + ").kind == ASPL_OBJECT_KIND_NULL)"
+        }
         return "ASPL_EQUALS(" + this.encode(expression.left) + ", " + this.encode(expression.right) + ")"
     }
 
@@ -1140,11 +1145,27 @@ class CBackend extends StringcodeBackend {
         return "ASPL_DEREFERENCE(" + this.encode(expression.pointer) + ")"
     }
 
-    method encodeIfStatement(IfStatement statement) returns string{
-        var conditionStub = "ASPL_IS_TRUE(" + this.encode(statement.condition) + ")"
-        if(statement.condition oftype CheckEqualsExpression){
-            conditionStub = "ASPL_IS_EQUAL(" + this.encode(CheckEqualsExpression(statement.condition).left) + ", " + this.encode(CheckEqualsExpression(statement.condition).right) + ")"
+    method generateConditionStub(Expression condition) returns string{
+        if(condition oftype CheckEqualsExpression){
+            if(CheckEqualsExpression(condition).right oftype NullLiteral){
+                return "ASPL_ACCESS(" + this.encode(CheckEqualsExpression(condition).left) + ").kind == ASPL_OBJECT_KIND_NULL"
+            }elseif(CheckEqualsExpression(condition).left oftype NullLiteral){
+                return "ASPL_ACCESS(" + this.encode(CheckEqualsExpression(condition).right) + ").kind == ASPL_OBJECT_KIND_NULL"
+            }else{
+                return "ASPL_IS_EQUAL(" + this.encode(CheckEqualsExpression(condition).left) + ", " + this.encode(CheckEqualsExpression(condition).right) + ")"
+            }
+        }elseif(condition oftype BooleanLiteral){
+            if(BooleanLiteral(condition).value == false){
+                return "0"
+            }else{
+                return "1"
+            }
         }
+        return "ASPL_IS_TRUE(" + this.encode(condition) + ")"
+    }
+
+    method encodeIfStatement(IfStatement statement) returns string{
+        var conditionStub = generateConditionStub(statement.condition)
         var s = new StringBuilder("if(").append(conditionStub).append("){\n")
         this.indentLevel++
         foreach(statement.code as node){
@@ -1160,7 +1181,8 @@ class CBackend extends StringcodeBackend {
     }
 
     method encodeIfElseStatement(IfElseStatement statement) returns string{
-        var s = new StringBuilder("if(ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")){\n")
+        var conditionStub = generateConditionStub(statement.condition)
+        var s = new StringBuilder("if(").append(conditionStub).append("){\n")
         this.indentLevel++
         foreach(statement.ifCode as node){
             s.append(this.encode(node, true))
@@ -1185,7 +1207,8 @@ class CBackend extends StringcodeBackend {
     }
 
     method encodeIfElseIfStatement(IfElseIfStatement statement) returns string{
-        var s = new StringBuilder("if(ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")){\n")
+        var conditionStub = generateConditionStub(statement.condition)
+        var s = new StringBuilder("if(").append(conditionStub).append("){\n")
         this.indentLevel++
         foreach(statement.ifCode as node){
             s.append(this.encode(node, true))
@@ -1201,14 +1224,7 @@ class CBackend extends StringcodeBackend {
     }
 
     method encodeWhileStatement(WhileStatement statement) returns string{
-        var conditionStub = new StringBuilder("ASPL_IS_TRUE(").append(this.encode(statement.condition)).append(")")
-        if(statement.condition oftype BooleanLiteral){
-            if(BooleanLiteral(statement.condition).value == false){
-                conditionStub = new StringBuilder("0")
-            }else{
-                conditionStub = new StringBuilder("1")
-            }
-        }
+        var conditionStub = generateConditionStub(statement.condition)
         var s = new StringBuilder("while(").append(conditionStub).append("){\n")
         this.indentLevel++
         foreach(statement.code as node){
