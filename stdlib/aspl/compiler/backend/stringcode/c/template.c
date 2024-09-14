@@ -608,7 +608,8 @@ void ASPL_LAUNCH_THREAD_METHOD(ASPL_OBJECT_TYPE (*callback)(ASPL_OBJECT_TYPE*, A
     ASPL_ThreadMethodWrapperData* args = ASPL_MALLOC(sizeof(ASPL_ThreadMethodWrapperData));
     args->callback = callback;
     args->this = this;
-    args->args = arguments;
+    args->args = ASPL_MALLOC(arg_size);
+    memcpy(args->args, arguments, arg_size);
     thread_create(aspl_method_thread_wrapper, args, THREAD_STACK_SIZE_DEFAULT);
 }
 #endif
