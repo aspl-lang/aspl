@@ -920,3 +920,13 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$toggle_fullscreen(ASPL_OBJECT_TY
     sapp_toggle_fullscreen();
     return ASPL_UNINITIALIZED;
 }
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$is_mouse_button_down(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* button) {
+    ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
+    return ASPL_BOOL_LITERAL(handle->mouse_buttons_down[ASPL_ACCESS(*button).value.integer32]);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$is_key_down(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* key) {
+    ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
+    return ASPL_BOOL_LITERAL(handle->keys_down[ASPL_ACCESS(*key).value.integer32]);
+}

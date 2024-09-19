@@ -55,8 +55,6 @@ class Window{
 	property callback<list<TouchPoint>> onTouchMove = callback(list<TouchPoint> points){}
 	[public]
 	property callback<list<TouchPoint>> onTouchUp = callback(list<TouchPoint> points){}
-
-	property list<KeyCode> currentlyDownKeys = list<KeyCode>[]
 	
 	[public]
 	method construct(string|int title, int width, int? height = null){
@@ -89,15 +87,9 @@ class Window{
 			onKeyPress.(KeyCode(key))
 		})
 		implement("graphics.window.set_on_key_down", handle, callback(int key){
-			if(!currentlyDownKeys.contains(KeyCode(key))){
-				currentlyDownKeys.add(KeyCode(key))
-			}
 			onKeyDown.(KeyCode(key))
 		})
 		implement("graphics.window.set_on_key_up", handle, callback(int key){
-			if(currentlyDownKeys.contains(KeyCode(key))){
-				currentlyDownKeys.remove(KeyCode(key))
-			}
 			onKeyUp.(KeyCode(key))
 		})
 		implement("graphics.window.set_on_mouse_click", handle, callback(float x, float y, int button){
@@ -153,9 +145,14 @@ class Window{
 		implement("graphics.window.toggle_fullscreen", handle)
 	}
 
+    [public]
+    method isMouseButtonDown(MouseButton button) returns bool{
+        return bool(implement("graphics.window.is_mouse_button_down", handle, int(button)))
+    }
+
 	[public]
 	method isKeyDown(KeyCode key) returns bool{
-		return currentlyDownKeys.contains(key)
+        return bool(implement("graphics.window.is_key_down", handle, int(key)))
 	}
 
 }
