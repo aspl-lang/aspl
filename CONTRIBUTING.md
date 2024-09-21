@@ -1,15 +1,16 @@
 # Contributing to ASPL
 ## Creating something awesome
-One of the best ways to support ASPL is by creating a project in it. You may port an already exisiting tool, develop something innovative and new or even rewrite your own applications in ASPL.
+One of the best ways to support ASPL is by writing a project in it. You may port an already existing tool, develop something innovative and new, or even rewrite your own applications in ASPL.
 
-Only through such projects, we can find out how usable ASPL really is in different fields of computer science, catch and patch bugs, and implement new features. It also just massively helps in making ASPL more know and popular.
+Such projects are essential for assessing ASPL's usability across various fields of computer science, catching and fixing bugs, and adding new features. It also just massively helps in making ASPL more known and popular.
 
 ## Actually contributing to the implementation
-You can of course also directly contribute to ASPL's sourcecode (and the stuff around it) here on Github.
-<br>The best way to get started is probably just looking around at the files and folders; here's a quick overview on how the code is structured:
+You can, of course, also directly contribute to ASPL's sourcecode (and the surrounding stuff) here on Github.
+<br>The best way to get started is probably just looking around at the files and folders; here's a quick overview of how the code is structured:
 
 ### Compiler and standard library
-The compiler and all the stuff around it is written in ASPL and part of the ASPL standard library, which is located in the `stdlib` folder.
+The ASPL standard library is mostly written in ASPL itself (plus some C for low-level code) and located in the `stdlib` folder.
+<br>Due to the special design of the ASPL monorepo, the compiler (along with some related components such as the parser) is actually _part of the standard library_ and thus also self-hosted.
 <br>Please read the REAMDE of the `stdlib/aspl` folder for more information.
 
 ### Runtime and AIL interpreter
