@@ -23,13 +23,13 @@ ASPL is a modern programming language featuring beautiful simplicity, seamless c
 <br>Newcomers as well as experienced programmers can easily create powerful cross-platform applications with ASPL; seamless cross-compilation is one of ASPL's core design principles.
 
 * <b>Huge standard library 🔥</b>
-<br>Builtin JSON, graphics, and advanced networking support are just a few of the things that will drastically speed up your coding process.
+<br>Built-in JSON, graphics, and advanced networking support are just a few of the things that will drastically speed up your coding process.
 
 * <b>Modular architecture 📚</b>
 <br>ASPL has a great and simple modular library system that helps you reuse any kind of third-party code in your projects, including even the ASPL compiler itself.
 
 > [!IMPORTANT]  
-> ASPL is still in early development and some features are missing or incomplete. Even though the language is already quite stable and very pratical, it is not yet recommended for production use. Contributions are always welcome!
+> ASPL is still in early development and some features are missing or incomplete. Even though the language is already quite stable and very practical, it is not yet recommended for production use. Contributions are always welcome!
 
 # Installing
 Have a look at <a href="install.md">the installation guide</a>.
@@ -73,12 +73,12 @@ if(favoriteFood == "Spaghetti"){ // checks whether the users input matches a cer
 ```aspl
 import rand
 
-print(rand.irange(1, 100)) // prints a random number between 1 and 100 into the console
+print(rand.irange(1, 100)) // prints a random number between 1 and 100 to the console
 ```
 **Example Output:**
 <br>-> 42
 
 > [!NOTE]  
-> **More examples can be found <a hreF="./examples/">here</a> or in the <a href="introduction.md">ASPL introduction</a>.**
+> **More examples can be found <a href="./examples/">here</a> or in the <a href="introduction.md">ASPL introduction</a>.**
 
 <h3>👋 Feel free to join <a href="https://discord.gg/UUNzAFrKU2">the official ASPL discord server</a>.</h3>
