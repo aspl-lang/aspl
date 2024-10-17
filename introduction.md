@@ -178,7 +178,7 @@ var int a = 0
 var integer b = 0
 a = b // no error, a and b are both of type integer
 ```
-All builtin type aliases are:
+All built-in type aliases are:
 <br>`bool` => `boolean`
 <br>`int` => `integer`
 
@@ -373,7 +373,7 @@ print(m) // {}
 ## Functions
 As already described above, a function is a block of code that accepts certain arguments, which are then stored in special variables called "parameters". Functions also may or may not return a single value.
 
-There are the following builtin functions:
+There are the following built-in functions:
 * `print` - write a string to the console and start a new line after that (except if the second parameter is false)
 * `input` - optionally print a prompt to the console and then return the user input
 * `key` - optionally print a prompt to the console and then return the key the user has pressed
@@ -1054,7 +1054,7 @@ function abs(string relative) returns string{
 ```
 The `implement` keyword also takes an arbitrary amount of arguments - beware that there is no compiler check that validates the arguments in any way; making a mistake here could either lead to compilation errors, runtime crashes or even broken runtime behavior (e.g. memory corruptions).
 
-Also note that the builtin functions (i.e. `print`, `input`, `exit`, ...) are, by definition, no implementation calls, although they behave very similarly. This is simply due to these functions being universally available on nearly every operating system and very frequently used.
+Also note that the built-in functions (i.e. `print`, `input`, `exit`, ...) are, by definition, no implementation calls, although they behave very similarly. This is simply due to these functions being universally available on nearly every operating system and very frequently used.
 
 More documentation on how to write your own implementation calls will be added soon.
 
