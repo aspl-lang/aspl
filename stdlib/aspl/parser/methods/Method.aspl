@@ -89,7 +89,6 @@ class Method {
         new InternalMethod(Type:fromString("list"), "join", [new Parameter("delimiter", new Types([Type:fromString("string")]))], new Types([Type:fromString("string")]), []).register(null)
 
         new InternalMethod(Type:fromString("map"), "containsKey", [new Parameter("key", new Types([Type:fromString("T")]))], new Types([Type:fromString("boolean")]), []).register(null)
-        new InternalMethod(Type:fromString("map"), "containsKeyd", [new Parameter("key", new Types([Type:fromString("T")]))], new Types([Type:fromString("boolean")]), []).register(null)
         new InternalMethod(Type:fromString("map"), "remove", [new Parameter("key", new Types([Type:fromString("T")]))], new Types([Type:fromString("map<T, U>")]), []).register(null)
         new InternalMethod(Type:fromString("map"), "clear", [], new Types([Type:fromString("map<T, U>")]), []).register(null)
 
