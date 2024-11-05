@@ -58,9 +58,9 @@ class Control {
         return false
     }
     [public]
-	method onMouseMove(Point from, float deltaX, float deltaY){}
+	method onMouseMove(Point end, float deltaX, float deltaY){}
 	[public]
-	method onMouseMoveAny(Point from, float deltaX, float deltaY) returns bool{
+	method onMouseMoveAny(Point end, float deltaX, float deltaY) returns bool{
         return false
     }
     [public]
