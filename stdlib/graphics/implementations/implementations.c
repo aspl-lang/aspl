@@ -139,6 +139,14 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_file_data(ASPL_OBJECT_
     return ASPL_HANDLE_LITERAL(icylib_regular_load_from_file_data(array, ASPL_ACCESS(*bytes).value.list->length));
 }
 
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_data(ASPL_OBJECT_TYPE* bytes, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height, ASPL_OBJECT_TYPE* channels) {
+    unsigned char* array = ASPL_MALLOC(ASPL_ACCESS(*bytes).value.list->length);
+    for (int i = 0; i < ASPL_ACCESS(*bytes).value.list->length; i++) {
+        array[i] = ASPL_ACCESS(ASPL_ACCESS(*bytes).value.list->value[i]).value.integer8;
+    }
+    return ASPL_HANDLE_LITERAL(icylib_regular_create_from_memory(array, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32, ASPL_ACCESS(*channels).value.integer32));
+}
+
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_width(ASPL_OBJECT_TYPE* handle) {
     return ASPL_INT_LITERAL(((icylib_RegularImage*)ASPL_ACCESS(*handle).value.handle)->width);
 }

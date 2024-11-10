@@ -151,7 +151,14 @@ class Canvas extends ICanvas{
 		var handle = implement("graphics.canvas.load_from_file_data", bytes)
 		return new Canvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), handle)
 	}
-	
+
+	[public]
+	[static]
+	method fromData(list<byte> bytes, int width, int height, int channels) returns Canvas{
+		var handle = implement("graphics.canvas.load_from_data", bytes, width, height, channels)
+		return new Canvas(width, height, handle)
+	}
+
 }
 
 [public]
