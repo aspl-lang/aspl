@@ -1,5 +1,5 @@
 [public]
-enum KeyCode{
+enum KeyCode{ // TODO: Clean this up (including making everything PascalCase)
     invalid = 0,
 	space = 32,
 	apostrophe = 39, //'
