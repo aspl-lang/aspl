@@ -15,3 +15,9 @@ function chdir(string path){
 function chmod(string path, int mode){
     implement("os.change_mode", path, mode)
 }
+
+// create_temp_dir creates and returns a unique ephemeral directory suitable for storing temporary files
+[public]
+function create_temp_dir() returns string{
+    return string(implement("os.create_temporary_directory"))
+}

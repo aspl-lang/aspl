@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <stdlib.h>
 #endif
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_os$get_current_program_arguments()
@@ -121,6 +122,39 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_os$change_mode(ASPL_OBJECT_TYPE* path, ASPL_OBJE
     chmod(ASPL_ACCESS(pathObj).value.string->str, ASPL_ACCESS(modeObj).value.integer32);
 #endif
     return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_os$create_temporary_directory()
+{
+    char* tempDirPath;
+#ifdef _WIN32
+    char tempPath[MAX_PATH];
+    if (GetTempPath(MAX_PATH, tempPath) == 0)
+    {
+        ASPL_PANIC("Failed to retrieve temporary path.");
+    }
+
+    tempDirPath = ASPL_MALLOC(MAX_PATH);
+    if (GetTempFileName(tempPath, "", 0, tempDirPath) == 0)
+    {
+        ASPL_PANIC("Failed to create temporary directory name.");
+    }
+
+    DeleteFile(tempDirPath);
+    if (!CreateDirectory(tempDirPath, NULL))
+    {
+        ASPL_PANIC("Failed to create temporary directory.");
+    }
+#else
+    tempDirPath = ASPL_MALLOC(PATH_MAX);
+    snprintf(tempDirPath, PATH_MAX, "/tmp/XXXXXX");
+
+    if (mkdtemp(tempDirPath) == NULL)
+    {
+        ASPL_PANIC("Failed to create temporary directory.");
+    }
+#endif
+    return ASPL_STRING_LITERAL_NO_COPY(tempDirPath);
 }
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_os$get_current_runtime_os_name()
