@@ -62,6 +62,7 @@ class Canvas extends ICanvas{
 	method fillRectangle(Rectangle rectangle, Color color, bool blend = true){
 		implement("graphics.canvas.fill_rectangle", this.handle, int(Point(rectangle.position).x), int(Point(rectangle.position).y), int(Point(rectangle.position).x) + int(Size(rectangle.size).width), int(Point(rectangle.position).y) + int(Size(rectangle.size).height), color.a, color.r, color.g, color.b, blend)
 	}
+
 	[public]
 	method drawCircle(Ellipse circle, Color color, bool blend = true){
 		implement("graphics.canvas.draw_circle", this.handle, int(Point(circle.position).x), int(Point(circle.position).y), int(Size(circle.size).width), color.a, color.r, color.g, color.b, blend)

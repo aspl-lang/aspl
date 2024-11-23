@@ -68,7 +68,7 @@ class PrimitiveChunkedCanvas extends ICanvas{
 	method drawCircle(Ellipse circle, Color color, bool blend = true){
 		implement("graphics.canvas.primitive_chunked.draw_circle", this.handle, int(Point(circle.position).x), int(Point(circle.position).y), int(Size(circle.size).width), color.a, color.r, color.g, color.b, blend)
 	}
-	
+
 	[public]
 	method fillCircle(Ellipse circle, Color color, bool blend = true){
 		implement("graphics.canvas.primitive_chunked.fill_circle", this.handle, int(Point(circle.position).x), int(Point(circle.position).y), int(Size(circle.size).width), color.a, color.r, color.g, color.b, blend)
