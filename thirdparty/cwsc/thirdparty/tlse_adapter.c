@@ -63,29 +63,49 @@ int cwsc_tlse_wrapper_validate_certificate(struct TLSContext* context, struct TL
 int cwsc_tlse_wrapper_connect_socket(const char* host, int port)
 {
     int sockfd;
-    struct sockaddr_in serv_addr;
-    struct hostent* server;
+    struct addrinfo hints, * servinfo, * p;
+    char port_str[6];
+    int status;
+
 #ifdef _WIN32
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
 #else
     signal(SIGPIPE, SIG_IGN);
 #endif
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-        cwsc_tlse_wrapper_error("ERROR opening socket");
-    server = gethostbyname(host);
-    if (server == NULL)
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((status = getaddrinfo(host, port_str, &hints, &servinfo)) != 0)
     {
-        fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+        fprintf(stderr, "ERROR, getaddrinfo: %s\n", gai_strerror(status));
+        return -1;
     }
-    memset((char*)&serv_addr, 0, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    memcpy((char*)&serv_addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
-    serv_addr.sin_port = htons(port);
-    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-        cwsc_tlse_wrapper_error("ERROR connecting");
+
+    for (p = servinfo; p != NULL; p = p->ai_next)
+    {
+        sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (sockfd == -1)
+            continue;
+
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == 0)
+            break;
+
+        close(sockfd);
+    }
+
+    if (p == NULL)
+    {
+        fprintf(stderr, "ERROR, failed to connect\n");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+
+    freeaddrinfo(servinfo);
     return sockfd;
 }
 
