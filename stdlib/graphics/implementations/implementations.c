@@ -609,17 +609,14 @@ void aspl_util_graphics$Window_paint_callback(void* userdata) {
     sgl_defaults();
     sgl_ortho(0.0f, sapp_width(), sapp_height(), 0.0f, -1.0f, 1.0f);
 
-    float scale = sapp_dpi_scale();
-    if (scale < 1.0f) scale = 1.0f;
-
     sgl_enable_texture();
     sgl_texture(image.image, image.sampler);
     sgl_begin_quads();
     sgl_c4b(255, 255, 255, 255);
     sgl_v3f_t2f(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-    sgl_v3f_t2f(sapp_width() * scale, 0.0f, 0.0f, 1.0f, 0.0f);
-    sgl_v3f_t2f(sapp_width() * scale, sapp_height() * scale, 0.0f, 1.0f, 1.0f);
-    sgl_v3f_t2f(0.0f, sapp_height() * scale, 0.0f, 0.0f, 1.0f);
+    sgl_v3f_t2f(sapp_width(), 0.0f, 0.0f, 1.0f, 0.0f);
+    sgl_v3f_t2f(sapp_width(), sapp_height(), 0.0f, 1.0f, 1.0f);
+    sgl_v3f_t2f(0.0f, sapp_height(), 0.0f, 0.0f, 1.0f);
     sgl_end();
     sgl_disable_texture();
 
