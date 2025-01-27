@@ -6,7 +6,7 @@ ASPL is a simple yet powerful modern cross-platform programming language.
 Going through this introduction will take you under an hour, but you will learn the most important skills for developing software with ASPL.
 <br>Please keep in mind that this document is not (yet) a complete walkthrough of the language and there is still a lot of information missing.
 
-> [!NOTE]  
+> [!NOTE]
 > This introduction is written very beginner-friendly, but if you aren't familiar with software engineering at all yet, you might want to learn the basics of programming through other media (e.g. blog posts or videos) first.
 
 ## Installation
