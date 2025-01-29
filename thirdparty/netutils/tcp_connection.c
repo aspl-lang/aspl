@@ -4,6 +4,8 @@
 #else
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <netdb.h>
+#include <signal.h>
 #endif
 
 #ifndef NETUTILS_MALLOC
