@@ -1,5 +1,10 @@
+#define NETUTILS_TLSE_IMPLEMENTATION
+#define NETUTILS_MALLOC ASPL_MALLOC
+#define NETUTILS_REALLOC ASPL_REALLOC
+#define NETUTILS_FREE ASPL_FREE
+#include "thirdparty/netutils/tcp_connection.c"
+
 #define ECHTTP_IMPLEMENTATION
-#define ECHTTP_TLSE_IMPLEMENTATION
 #define ECHTTP_MALLOC ASPL_MALLOC
 #define ECHTTP_REALLOC ASPL_REALLOC
 #define ECHTTP_FREE ASPL_FREE
@@ -133,6 +138,64 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$connect(ASPL_OBJECT_TYPE* url, ASP
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$patch(ASPL_OBJECT_TYPE* url, ASPL_OBJECT_TYPE* data, ASPL_OBJECT_TYPE* headers)
 {
     return aspl_util_perform_http_request("patch", url, data, headers);
+}
+
+typedef struct ASPL_handle_TcpSocketClient
+{
+    char* host;
+    int port;
+    char use_tls;
+    netutils_TcpConnection* handle;
+} ASPL_handle_TcpSocketClient;
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$tcp_socket_client$new(ASPL_OBJECT_TYPE* host, ASPL_OBJECT_TYPE* port, ASPL_OBJECT_TYPE* tls)
+{
+    ASPL_handle_TcpSocketClient* client = ASPL_MALLOC(sizeof(ASPL_handle_TcpSocketClient));
+    client->host = ASPL_ACCESS(*host).value.string->str;
+    client->port = ASPL_ACCESS(*port).value.integer32;
+    client->use_tls = ASPL_ACCESS(*tls).value.boolean;
+    return ASPL_HANDLE_LITERAL(client);
+}
+
+void aspl_util_internet$TcpSocketClient$error_callback(char* error_message, void* user_data) {
+    ASPL_PANIC(error_message);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$tcp_socket_client$connect(ASPL_OBJECT_TYPE* client)
+{
+    ASPL_handle_TcpSocketClient* handle = ASPL_ACCESS(*client).value.handle;
+    handle->handle = netutils_tcp_connection_new(handle->host, handle->port, handle->use_tls, aspl_util_internet$TcpSocketClient$error_callback, handle);
+    if (handle->handle->handle == -1) {
+        ASPL_PANIC("Failed to connect to server");
+    }
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$tcp_socket_client$read(ASPL_OBJECT_TYPE* client, ASPL_OBJECT_TYPE* length)
+{
+    ASPL_handle_TcpSocketClient* handle = ASPL_ACCESS(*client).value.handle;
+    char* buffer = ASPL_MALLOC(ASPL_ACCESS(*length).value.integer32 + 1);
+    int read = netutils_tcp_connection_read(handle->handle, buffer, ASPL_ACCESS(*length).value.integer32);
+    if (read == -1) {
+        return ASPL_NULL();
+    }
+    else {
+        buffer[read] = '\0';
+        return ASPL_STRING_LITERAL(buffer);
+    }
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$tcp_socket_client$send(ASPL_OBJECT_TYPE* client, ASPL_OBJECT_TYPE* message)
+{
+    ASPL_handle_TcpSocketClient* handle = ASPL_ACCESS(*client).value.handle;
+    return ASPL_INT_LITERAL(netutils_tcp_connection_send(handle->handle, ASPL_ACCESS(*message).value.string->str, ASPL_ACCESS(*message).value.string->length));
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$tcp_socket_client$disconnect(ASPL_OBJECT_TYPE* client)
+{
+    ASPL_handle_TcpSocketClient* handle = ASPL_ACCESS(*client).value.handle;
+    netutils_tcp_connection_close(handle->handle);
+    return ASPL_UNINITIALIZED;
 }
 
 typedef struct ASPL_handle_WebSocketClient

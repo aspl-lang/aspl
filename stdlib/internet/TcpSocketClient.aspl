@@ -1,0 +1,69 @@
+[public]
+class TcpSocketClient{
+
+	property any handle
+
+	[public]
+	method construct(string address, int? port = null, bool tls = false){
+		if(port == null){
+			var defaultPort = 80 // TODO: Replace this default port with an error
+			if(address.contains(":")){
+				var parts = address.split(":")
+				if(parts.length == 2){
+					address = parts[0]
+					port = int(parts[1])
+				}else{
+					port = defaultPort
+				}
+			}else{
+				port = defaultPort
+			}
+		}
+		handle = implement("internet.tcp_socket_client.new", address, port, tls)
+	}
+
+	[public]
+    method connect(){
+		implement("internet.tcp_socket_client.connect", handle)
+	}
+
+	[public]
+	method read(int length) returns string?{
+		var data = implement("internet.tcp_socket_client.read", handle, length)
+		if(data == null){
+			return null
+		}else{
+			return string(data)
+		}
+	}
+
+	[public]
+	method readTo(string delimiter) returns string?{
+		var result = ""
+		while(true){
+			var data = implement("internet.tcp_socket_client.read", handle, 1)
+			if(data == null && result == ""){
+				return null
+			}
+			if(data == "" || data == null){
+				break
+			}
+			result += string(data)
+			if(result.endsWith(delimiter)){
+				break
+			}
+		}
+		return result
+	}
+
+	[public]
+    method send(string content) returns int{
+		return int(implement("internet.tcp_socket_client.send", handle, content))
+	}
+
+	[public]
+    method disconnect(){
+		implement("internet.tcp_socket_client.disconnect", handle)
+	}
+
+}
