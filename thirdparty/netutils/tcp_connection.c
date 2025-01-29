@@ -1,11 +1,13 @@
-#ifdef __WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <signal.h>
+#define SOCKET int
 #endif
 
 #ifndef NETUTILS_MALLOC
