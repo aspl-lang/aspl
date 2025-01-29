@@ -34958,7 +34958,7 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
 /* automatically generated file, do not edit */
 
 #define FOR(i,n) for (i = 0;i < n;++i)
-#define sv static void
+#define stavoi static void
 
 typedef unsigned char u8;
 typedef ulong32 u32;
@@ -34991,13 +34991,13 @@ static int tweetnacl_crypto_verify_32(const u8 *x,const u8 *y)
   return vn(x,y,32);
 }
 
-sv set25519(gf r, const gf a)
+stavoi set25519(gf r, const gf a)
 {
   int i;
   FOR(i,16) r[i]=a[i];
 }
 
-sv car25519(gf o)
+stavoi car25519(gf o)
 {
   int i;
   i64 c;
@@ -35009,7 +35009,7 @@ sv car25519(gf o)
   }
 }
 
-sv sel25519(gf p,gf q,int b)
+stavoi sel25519(gf p,gf q,int b)
 {
   i64 t,i,c=~(b-1);
   FOR(i,16) {
@@ -35019,7 +35019,7 @@ sv sel25519(gf p,gf q,int b)
   }
 }
 
-sv pack25519(u8 *o,const gf n)
+stavoi pack25519(u8 *o,const gf n)
 {
   int i,j,b;
   gf m,t;
@@ -35059,26 +35059,26 @@ static u8 par25519(const gf a)
   return d[0]&1;
 }
 
-sv unpack25519(gf o, const u8 *n)
+stavoi unpack25519(gf o, const u8 *n)
 {
   int i;
   FOR(i,16) o[i]=n[2*i]+((i64)n[2*i+1]<<8);
   o[15]&=0x7fff;
 }
 
-sv A(gf o,const gf a,const gf b)
+stavoi A(gf o,const gf a,const gf b)
 {
   int i;
   FOR(i,16) o[i]=a[i]+b[i];
 }
 
-sv Z(gf o,const gf a,const gf b)
+stavoi Z(gf o,const gf a,const gf b)
 {
   int i;
   FOR(i,16) o[i]=a[i]-b[i];
 }
 
-sv M(gf o,const gf a,const gf b)
+stavoi M(gf o,const gf a,const gf b)
 {
   i64 i,j,t[31];
   FOR(i,31) t[i]=0;
@@ -35089,12 +35089,12 @@ sv M(gf o,const gf a,const gf b)
   car25519(o);
 }
 
-sv S(gf o,const gf a)
+stavoi S(gf o,const gf a)
 {
   M(o,a,a);
 }
 
-sv inv25519(gf o,const gf i)
+stavoi inv25519(gf o,const gf i)
 {
   gf c;
   int a;
@@ -35106,7 +35106,7 @@ sv inv25519(gf o,const gf i)
   FOR(a,16) o[a]=c[a];
 }
 
-sv pow2523(gf o,const gf i)
+stavoi pow2523(gf o,const gf i)
 {
   gf c;
   int a;
@@ -35192,7 +35192,7 @@ static LTC_INLINE int tweetnacl_crypto_hash(u8 *out,const u8 *m,u64 n)
   return tweetnacl_crypto_hash_ctx(out, m, n, NULL, 0);
 }
 
-sv add(gf p[4],gf q[4])
+stavoi add(gf p[4],gf q[4])
 {
   gf a,b,c,d,t,e,f,g,h;
 
@@ -35217,14 +35217,14 @@ sv add(gf p[4],gf q[4])
   M(p[3], e, h);
 }
 
-sv cswap(gf p[4],gf q[4],u8 b)
+stavoi cswap(gf p[4],gf q[4],u8 b)
 {
   int i;
   FOR(i,4)
     sel25519(p[i],q[i],b);
 }
 
-sv pack(u8 *r,gf p[4])
+stavoi pack(u8 *r,gf p[4])
 {
   gf tx, ty, zi;
   inv25519(zi, p[2]);
@@ -35234,7 +35234,7 @@ sv pack(u8 *r,gf p[4])
   r[31] ^= par25519(tx) << 7;
 }
 
-sv scalarmult(gf p[4],gf q[4],const u8 *s)
+stavoi scalarmult(gf p[4],gf q[4],const u8 *s)
 {
   int i;
   set25519(p[0],gf0);
@@ -35250,7 +35250,7 @@ sv scalarmult(gf p[4],gf q[4],const u8 *s)
   }
 }
 
-sv scalarbase(gf p[4],const u8 *s)
+stavoi scalarbase(gf p[4],const u8 *s)
 {
   gf q[4];
   set25519(q[0],X);
@@ -35299,7 +35299,7 @@ int tweetnacl_crypto_sign_keypair(prng_state *prng, int wprng, u8 *pk, u8 *sk)
 
 static const u64 L[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10};
 
-sv modL(u8 *r,i64 x[64])
+stavoi modL(u8 *r,i64 x[64])
 {
   i64 carry,i,j;
   for (i = 63;i >= 32;--i) {
@@ -35325,7 +35325,7 @@ sv modL(u8 *r,i64 x[64])
   }
 }
 
-sv reduce(u8 *r)
+stavoi reduce(u8 *r)
 {
   i64 x[64],i;
   FOR(i,64) x[i] = (u64) r[i];
