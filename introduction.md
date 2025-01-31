@@ -72,6 +72,7 @@ ASPL supports most modern operating systems and easily cross-compiles between th
     * [Breakpoints](#breakpoints)
 * [Implementation calls](#implementation-calls)
 * [Android & iOS](#android--ios)
+* [Troubleshooting & common issues](#troubleshooting--common-issues)
 
 </td></tr>
 </table>
@@ -1065,3 +1066,19 @@ Deploying apps to mobile operating systems has traditionally been a horrible exp
 ASPL apps can easily be deployed to Android using [ASAPP](https://github.com/aspl-lang/asapp).
 
 iOS support is also planned, but currently not one of the main priorities.
+
+## Troubleshooting & common issues
+> [!NOTE]
+> This section contains information about the solutions for common problems that might arrise when installing or using parts of the ASPL toolchain. For tips on how to debug your own programs written in ASPL, check out [this chapter](#debugging) of the introduction.
+
+One of the central motivations behind creating ASPL was and still is the ease of its use - because after all, what's better than effortless, beautiful simplicity and that feeling of "it just works"?
+
+Nonetheless, every computer, and every person using one, is different, and even if they weren't, there will always be at least some bugs in a project as big as a programming language. So, if you're facing any issues while installing or using ASPL, you might find some helpful information below:
+
+### `libwinpthread-1.dll` not found
+You might receive this error message when running a program compiled using the (default) AIL backend on a computer without a MinGW-w64 installation.
+In a nutshell: this is a "bug" in the ASPL toolchain and these libraries should not be required on the target computer. Nonetheless, they currently are needed, so you can fix this issue either by compiling your code using the C backend or by installing [MinGW-w64 **with MCF threads**](https://winlibs.com/#download-release) on the computer where the problem occurs.
+
+### Namespace `aspl.parser`, `aspl.compiler`, ... not found
+These error messages are probably due to the fact that you've placed your own ASPL code inside the same folder where your ASPL installation is stored; that causes the `aspl run` command to actually compile the whole compiler alongside your own code, which is not what you want (and since it's also not the proper way to do it, you get these error messages).
+So to fix it, simply place your own code somewhere else and try again; note that you might want to add the `aspl` command to your PATH in that case (if you haven't done so already).
