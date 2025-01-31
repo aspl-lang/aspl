@@ -46,12 +46,12 @@ jobs:
           # aspl -os linux -arch arm32 -cc arm-linux-gnueabi-gcc build-full-template
           # mv -f Template templates/linux/arm32/full
       - name: Upload template artifact (Linux x86_64 minimal)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_linux_x86_64_minimal
           path: templates/linux/x86_64/minimal/Template
       - name: Upload template artifact (Linux x86_64 full)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_linux_x86_64_full
           path: templates/linux/x86_64/full/Template
@@ -74,12 +74,12 @@ jobs:
           mv -f Template.exe templates/windows/x86_64/full/cli
         shell: cmd
       - name: Upload template artifact (Windows x86_64 minimal)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_windows_x86_64_minimal
           path: templates/windows/x86_64/minimal/Template.exe
       - name: Upload template artifact (Windows x86_64 full)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_windows_x86_64_full
           path: templates/windows/x86_64/full/cli/Template.exe
@@ -105,12 +105,12 @@ jobs:
           aspl -os macos -cc gcc build-full-template
           mv -f Template templates/macos/x86_64/full
       - name: Upload template artifact (macOS x86_64 minimal)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_macos_x86_64_minimal
           path: templates/macos/x86_64/minimal/Template
       - name: Upload template artifact (macOS x86_64 full)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: template_macos_x86_64_full
           path: templates/macos/x86_64/full/Template
@@ -141,7 +141,7 @@ jobs:
       #   run: |
       #     rm templates/macos/x86_64/Template
       - name: Download template artifact (macOS x86_64 full)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_macos_x86_64_full
           path: templates/macos/x86_64/full
@@ -161,17 +161,17 @@ jobs:
           mv cli ../aspl_macos_x86_64
           # TODO: Build for more platforms
       - name: Upload ASPL compiler artifact (Linux x86_64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aspl_linux_x86_64
           path: aspl_linux_x86_64
       - name: Upload ASPL compiler artifact (Windows x86_64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aspl_windows_x86_64
           path: aspl_windows_x86_64.exe
       - name: Upload ASPL compiler artifact (macOS x86_64)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: aspl_macos_x86_64
           path: aspl_macos_x86_64
@@ -183,99 +183,99 @@ jobs:
         run: |
           rm -rf templates/linux/x86_64/minimal/Template
       - name: Download template artifact (Linux x86_64 minimal)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_linux_x86_64_minimal
           path: templates/linux/x86_64/minimal
       - name: Delete template artifact (Linux x86_64 minimal)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_linux_x86_64_minimal
       - name: Delete template (Linux x86_64 full)
         run: |
           rm -rf templates/linux/x86_64/full/Template
       - name: Download template artifact (Linux x86_64 full)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_linux_x86_64_full
           path: templates/linux/x86_64/full
       - name: Delete template artifact (Linux x86_64 full)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_linux_x86_64_full
       - name: Delete template (Windows x86_64 minimal)
         run: |
           rm -rf templates/windows/x86_64/minimal/Template.exe
       - name: Download template artifact (Windows x86_64 minimal)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_windows_x86_64_minimal
           path: templates/windows/x86_64/minimal
       - name: Delete template artifact (Windows x86_64 minimal)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_windows_x86_64_minimal
       - name: Delete template (Windows x86_64 full)
         run: |
           rm -rf templates/windows/x86_64/full/cli/Template.exe
       - name: Download template artifact (Windows x86_64 full)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_windows_x86_64_full
           path: templates/windows/x86_64/full/cli
       - name: Delete template artifact (Windows x86_64 full)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_windows_x86_64_full
       - name: Delete template (macOS x86_64 minimal)
         run: |
           rm -rf templates/macos/x86_64/minimal/Template
       - name: Download template artifact (macOS x86_64 minimal)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_macos_x86_64_minimal
           path: templates/macos/x86_64/minimal
       - name: Delete template artifact (macOS x86_64 minimal)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_macos_x86_64_minimal
       - name: Delete template (macOS x86_64 full)
         run: |
           rm -rf templates/macos/x86_64/full/Template
       - name: Download template artifact (macOS x86_64 full)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: template_macos_x86_64_full
           path: templates/macos/x86_64/full
       - name: Delete template artifact (macOS x86_64 full)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: template_macos_x86_64_full
       - name: Download ASPL compiler artifact (Linux x86_64)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: aspl_linux_x86_64
           path: ./
       - name: Delete ASPL compiler artifact (Linux x86_64)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: aspl_linux_x86_64
       - name: Download ASPL compiler artifact (Windows x86_64)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: aspl_windows_x86_64
           path: ./
       - name: Delete ASPL compiler artifact (Windows x86_64)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: aspl_windows_x86_64
       - name: Download ASPL compiler artifact (macOS x86_64)
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: aspl_macos_x86_64
           path: ./
       - name: Delete ASPL compiler artifact (macOS x86_64)
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: aspl_macos_x86_64
       - name: Zip templates
