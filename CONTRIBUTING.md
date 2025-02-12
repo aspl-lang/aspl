@@ -15,3 +15,6 @@ The ASPL standard library is mostly written in ASPL itself (plus some C for low-
 
 ### Runtime and AIL interpreter
 The runtime and the AIL interpreter are written in C; they are currently located at `stdlib/aspl/compiler/backend/stringcode/c/template.c` and `runtime/ailinterpreter` respectively.
+
+> [!TIP]
+> When you're new to contributing to ASPL or open source in particular, make sure to check out [issues labelled with `good first issue`](https://github.com/aspl-lang/aspl/issues?q=state%3Aopen%20label%3A%22good%20first%20issue%22) - they're generally pretty easy to handle, even with little to no prior experience with the codebase.
