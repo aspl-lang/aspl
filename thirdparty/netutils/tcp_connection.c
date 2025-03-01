@@ -79,6 +79,7 @@ netutils_TcpConnection* netutils_tcp_connection_new(char* host, int port, int us
     if (use_tls)
     {
         connection->tls_context = tls_create_context(0, TLS_V12);
+        tls_sni_set(connection->tls_context, host); // TODO: Should we use this here? It looks like it is required for "www.google.com" for example
         netutils_tlse_adapter_connect_tls(connection->handle, connection->tls_context);
     }
 
