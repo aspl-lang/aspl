@@ -14,8 +14,8 @@
  * guarantee it works.
  *
  * Tom St Denis, tstdenis82@gmail.com, http://math.libtomcrypt.com
- * 
- * NOTE: This version of libtomcrypt.c has been slightly modified from the upstream ECHTTP/TLSe version; the modifications only fix/workaround some warnings
+ *
+ * NOTE: This version of libtomcrypt.c has been slightly modified from the upstream TLSe version; the modifications only fix/workaround some warnings
  */
 #ifndef BN_H_
 #define BN_H_
@@ -12578,7 +12578,8 @@ int KARATSUBA_MUL_CUTOFF = 80,          /* Min. number of digits before Karatsub
 
 const char *crypt_build_settings =
     "LibTomCrypt ""1.17"" (Tom St Denis, tomstdenis@gmail.com)\n"
-                          "LibTomCrypt is public domain software.\n\n\n"
+                          "LibTomCrypt is public domain software.\n"
+                          "Built on " __DATE__ " at " __TIME__ "\n\n\n"
                                                                "Endianess: "
 #if defined(ENDIAN_NEUTRAL)
     "neutral\n"
@@ -13013,6 +13014,12 @@ void crypt_argchk(char *v, char *s, int d) {
  #endif
  #define XMEMCPY    memcpy
 #endif
+#ifndef XMEMMOVE
+ #ifdef memmove
+  #define LTC_NO_PROTOTYPES
+ #endif
+ #define XMEMMOVE memmove
+#endif
 #ifndef XMEMCMP
  #ifdef memcmp
   #define LTC_NO_PROTOTYPES
@@ -13276,6 +13283,9 @@ void crypt_argchk(char *v, char *s, int d) {
 /* Digital Signature Algorithm */
  #define LTC_MDSA
 
+/* Ed25519 & X25519 */
+ #define LTC_CURVE25519
+
 /* ECC */
  #define LTC_MECC
 
@@ -13386,40 +13396,48 @@ extern "C" {
 
 /* error codes [will be expanded in future releases] */
 enum {
-    CRYPT_OK=0,               /* Result OK */
-    CRYPT_ERROR,              /* Generic Error */
-    CRYPT_NOP,                /* Not a failure but no operation was performed */
+   CRYPT_OK=0,             /* Result OK */
+   CRYPT_ERROR,            /* Generic Error */
+   CRYPT_NOP,              /* Not a failure but no operation was performed */
 
-    CRYPT_INVALID_KEYSIZE,    /* Invalid key size given */
-    CRYPT_INVALID_ROUNDS,     /* Invalid number of rounds */
-    CRYPT_FAIL_TESTVECTOR,    /* Algorithm failed test vectors */
+   CRYPT_INVALID_KEYSIZE,  /* Invalid key size given */
+   CRYPT_INVALID_ROUNDS,   /* Invalid number of rounds */
+   CRYPT_FAIL_TESTVECTOR,  /* Algorithm failed test vectors */
 
-    CRYPT_BUFFER_OVERFLOW,    /* Not enough space for output */
-    CRYPT_INVALID_PACKET,     /* Invalid input packet given */
+   CRYPT_BUFFER_OVERFLOW,  /* Not enough space for output */
+   CRYPT_INVALID_PACKET,   /* Invalid input packet given */
 
-    CRYPT_INVALID_PRNGSIZE,   /* Invalid number of bits for a PRNG */
-    CRYPT_ERROR_READPRNG,     /* Could not read enough from PRNG */
+   CRYPT_INVALID_PRNGSIZE, /* Invalid number of bits for a PRNG */
+   CRYPT_ERROR_READPRNG,   /* Could not read enough from PRNG */
 
-    CRYPT_INVALID_CIPHER,     /* Invalid cipher specified */
-    CRYPT_INVALID_HASH,       /* Invalid hash specified */
-    CRYPT_INVALID_PRNG,       /* Invalid PRNG specified */
+   CRYPT_INVALID_CIPHER,   /* Invalid cipher specified */
+   CRYPT_INVALID_HASH,     /* Invalid hash specified */
+   CRYPT_INVALID_PRNG,     /* Invalid PRNG specified */
 
-    CRYPT_MEM,                /* Out of memory */
+   CRYPT_MEM,              /* Out of memory */
 
-    CRYPT_PK_TYPE_MISMATCH,   /* Not equivalent types of PK keys */
-    CRYPT_PK_NOT_PRIVATE,     /* Requires a private PK key */
+   CRYPT_PK_TYPE_MISMATCH, /* Not equivalent types of PK keys */
+   CRYPT_PK_NOT_PRIVATE,   /* Requires a private PK key */
 
-    CRYPT_INVALID_ARG,        /* Generic invalid argument */
-    CRYPT_FILE_NOTFOUND,      /* File Not Found */
+   CRYPT_INVALID_ARG,      /* Generic invalid argument */
+   CRYPT_FILE_NOTFOUND,    /* File Not Found */
 
-    CRYPT_PK_INVALID_TYPE,    /* Invalid type of PK key */
-    CRYPT_PK_INVALID_SYSTEM,  /* Invalid PK system specified */
-    CRYPT_PK_DUP,             /* Duplicate key already in key ring */
-    CRYPT_PK_NOT_FOUND,       /* Key not found in keyring */
-    CRYPT_PK_INVALID_SIZE,    /* Invalid size input for PK parameters */
+   CRYPT_PK_INVALID_TYPE,  /* Invalid type of PK key */
 
-    CRYPT_INVALID_PRIME_SIZE, /* Invalid size of prime requested */
-    CRYPT_PK_INVALID_PADDING  /* Invalid padding on input */
+   CRYPT_OVERFLOW,         /* An overflow of a value was detected/prevented */
+
+   CRYPT_PK_ASN1_ERROR,    /* An error occurred while en- or decoding ASN.1 data */
+
+   CRYPT_INPUT_TOO_LONG,   /* The input was longer than expected. */
+
+   CRYPT_PK_INVALID_SIZE,  /* Invalid size input for PK parameters */
+
+   CRYPT_INVALID_PRIME_SIZE, /* Invalid size of prime requested */
+   CRYPT_PK_INVALID_PADDING, /* Invalid padding on input */
+
+   CRYPT_HASH_OVERFLOW,     /* Hash applied to too many bits */
+   CRYPT_PW_CTX_MISSING,    /* Password context to decrypt key file is missing */
+   CRYPT_UNKNOWN_PEM,       /* The PEM header was not recognized */
 };
 
 /* This is the build config file.
@@ -13464,6 +13482,17 @@ LTC_EXPORT int LTC_CALL XMEMCMP(const void *s1, const void *s2, size_t n);
 LTC_EXPORT void *LTC_CALL XMEMSET(void *s, int c, size_t n);
 
 LTC_EXPORT int LTC_CALL XSTRCMP(const char *s1, const char *s2);
+#endif
+
+/* some compilers do not like "inline" (or maybe "static inline"), namely: HP cc, IBM xlc */
+#if defined(__GNUC__) || defined(__xlc__)
+   #define LTC_INLINE __inline__
+#elif defined(_MSC_VER) || defined(__HP_cc)
+   #define LTC_INLINE __inline
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+   #define LTC_INLINE inline
+#else
+   #define LTC_INLINE
 #endif
 
 /* type of argument checking, 0=default, 1=fatal and 2=error+continue, 3=nothing */
@@ -13561,9 +13590,11 @@ LTC_EXPORT int LTC_CALL XSTRCMP(const char *s1, const char *s2);
 #ifdef _MSC_VER
  #define CONST64(n)    n ## ui64
 typedef unsigned __int64     ulong64;
+typedef __int64 long64;
 #else
  #define CONST64(n)    n ## ULL
 typedef unsigned long long   ulong64;
+typedef long long long64;
 #endif
 
 /* this is the "32-bit at least" data type
@@ -13951,9 +13982,9 @@ static inline unsigned long ROR64c(unsigned long word, const int i) {
 
 /* extract a byte portably */
 #ifdef _MSC_VER
- #define extract_byte(x, n)    ((unsigned char)((x) >> (8 * (n))))
+ #define byte(x, n)    ((unsigned char)((x) >> (8 * (n))))
 #else
- #define extract_byte(x, n)    (((x) >> (8 * (n))) & 255)
+ #define byte(x, n)    (((x) >> (8 * (n))) & 255)
 #endif
 
 /* $Source: /cvs/libtom/libtomcrypt/src/headers/tomcrypt_macros.h,v $ */
@@ -15871,9 +15902,22 @@ int rng_make_prng(int bits, int wprng, prng_state *prng, void (*callback)(void))
 
 /* ---- NUMBER THEORY ---- */
 
-enum {
-    PK_PUBLIC =0,
-    PK_PRIVATE=1
+enum ltc_pka_id {
+   LTC_PKA_UNDEF = 0,
+   LTC_PKA_RSA,
+   LTC_PKA_DSA,
+   LTC_PKA_EC,
+   LTC_PKA_X25519,
+   LTC_PKA_ED25519,
+   LTC_PKA_DH,
+   LTC_PKA_NUM
+};
+
+enum public_key_type {
+   /* Refers to the public key */
+   PK_PUBLIC      = 0x0000,
+   /* Refers to the private key */
+   PK_PRIVATE     = 0x0001,
 };
 
 int rand_prime(void *N, long len, prng_state *prng, int wprng);
@@ -16164,6 +16208,31 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
 /* map P to affine from projective */
 int ltc_ecc_map(ecc_point *P, void *modulus, void *mp);
 #endif
+
+#ifdef LTC_CURVE25519
+
+typedef struct {
+   /** The key type, PK_PRIVATE or PK_PUBLIC */
+   enum public_key_type type;
+
+   /** The PK-algorithm, LTC_PKA_ED25519 or LTC_PKA_X25519 */
+   enum ltc_pka_id pka;
+
+   /** The private key */
+   unsigned char priv[32];
+
+   /** The public key */
+   unsigned char pub[32];
+} curve25519_key;
+
+/** X25519 Key-Exchange API */
+int x25519_import_raw(const unsigned char *in, unsigned long inlen, int which, curve25519_key *key);
+
+int x25519_shared_secret(const curve25519_key *private_key,
+                         const curve25519_key *public_key,
+                                unsigned char *out, unsigned long *outlen);
+
+#endif /* LTC_CURVE25519 */
 
 #ifdef LTC_MDSA
 
@@ -19371,7 +19440,7 @@ int der_decode_sequence_flexi(const unsigned char *in, unsigned long *inlen, ltc
                 l->type = LTC_ASN1_UTF8_STRING;
                 l->size = len;
 
-                if ((l->data = XCALLOC(sizeof(wchar_t), l->size)) == NULL) {
+                if ((l->data = XCALLOC(l->size, sizeof(wchar_t))) == NULL) {
                     err = CRYPT_MEM;
                     goto error;
                 }
@@ -19614,7 +19683,7 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
         return CRYPT_NOP;
     }
 
-    list = XCALLOC(sizeof(*list), x);
+    list = XCALLOC(x, sizeof(*list));
     if (list == NULL) {
         return CRYPT_MEM;
     }
@@ -21054,7 +21123,7 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...) {
         return CRYPT_NOP;
     }
 
-    list = XCALLOC(sizeof(*list), x);
+    list = XCALLOC(x, sizeof(*list));
     if (list == NULL) {
         return CRYPT_MEM;
     }
@@ -21339,7 +21408,7 @@ int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
     }
 
     /* get the size of the static header */
-    hdrlen = (uintptr_t)ptr - (uintptr_t)buf;
+    hdrlen = ((uintptr_t)ptr) - ((uintptr_t)buf);
 
 
     /* scan for edges */
@@ -26453,7 +26522,7 @@ static int neg(void *a, void *b) {
     return mpi_to_ltc_error(mp_neg(a, b));
 }
 
-static int _copy(void *a, void *b) {
+static int copy(void *a, void *b) {
     LTC_ARGCHK(a != NULL);
     LTC_ARGCHK(b != NULL);
     return mpi_to_ltc_error(mp_copy(a, b));
@@ -26463,7 +26532,7 @@ static int init_copy(void **a, void *b) {
     if (init(a) != CRYPT_OK) {
         return CRYPT_MEM;
     }
-    return _copy(b, *a);
+    return copy(b, *a);
 }
 
 /* ---- trivial ---- */
@@ -26760,7 +26829,7 @@ const ltc_math_descriptor ltm_desc = {
     &deinit,
 
     &neg,
-    &_copy,
+    &copy,
 
     &set_int,
     &get_int,
@@ -29841,6 +29910,115 @@ int  sha1_test(void) {
 /* $Revision: 1.10 $ */
 /* $Date: 2007/05/12 14:25:28 $ */
 
+#if defined(LTC_SHA224) && defined(LTC_SHA256)
+
+const struct ltc_hash_descriptor sha224_desc =
+{
+    "sha224",
+    10,
+    28,
+    64,
+
+    /* OID */
+   { 2, 16, 840, 1, 101, 3, 4, 2, 4,  },
+   9,
+
+    &sha224_init,
+    &sha256_process,
+    &sha224_done,
+    &sha224_test,
+    NULL
+};
+
+/* init the sha256 er... sha224 state ;-) */
+/**
+   Initialize the hash state
+   @param md   The hash state you wish to initialize
+   @return CRYPT_OK if successful
+*/
+int sha224_init(hash_state * md)
+{
+    LTC_ARGCHK(md != NULL);
+
+    md->sha256.curlen = 0;
+    md->sha256.length = 0;
+    md->sha256.state[0] = 0xc1059ed8UL;
+    md->sha256.state[1] = 0x367cd507UL;
+    md->sha256.state[2] = 0x3070dd17UL;
+    md->sha256.state[3] = 0xf70e5939UL;
+    md->sha256.state[4] = 0xffc00b31UL;
+    md->sha256.state[5] = 0x68581511UL;
+    md->sha256.state[6] = 0x64f98fa7UL;
+    md->sha256.state[7] = 0xbefa4fa4UL;
+    return CRYPT_OK;
+}
+
+/**
+   Terminate the hash to get the digest
+   @param md  The hash state
+   @param out [out] The destination of the hash (28 bytes)
+   @return CRYPT_OK if successful
+*/
+int sha224_done(hash_state * md, unsigned char *out)
+{
+    unsigned char buf[32];
+    int err;
+
+    LTC_ARGCHK(md  != NULL);
+    LTC_ARGCHK(out != NULL);
+
+    err = sha256_done(md, buf);
+    XMEMCPY(out, buf, 28);
+#ifdef LTC_CLEAN_STACK
+    zeromem(buf, sizeof(buf));
+#endif
+    return err;
+}
+
+/**
+  Self-test the hash
+  @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
+*/
+int  sha224_test(void)
+{
+ #ifndef LTC_TEST
+    return CRYPT_NOP;
+ #else
+  static const struct {
+      const char *msg;
+      unsigned char hash[28];
+  } tests[] = {
+    { "abc",
+      { 0x23, 0x09, 0x7d, 0x22, 0x34, 0x05, 0xd8,
+        0x22, 0x86, 0x42, 0xa4, 0x77, 0xbd, 0xa2,
+        0x55, 0xb3, 0x2a, 0xad, 0xbc, 0xe4, 0xbd,
+        0xa0, 0xb3, 0xf7, 0xe3, 0x6c, 0x9d, 0xa7 }
+    },
+    { "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+      { 0x75, 0x38, 0x8b, 0x16, 0x51, 0x27, 0x76,
+        0xcc, 0x5d, 0xba, 0x5d, 0xa1, 0xfd, 0x89,
+        0x01, 0x50, 0xb0, 0xc6, 0x45, 0x5c, 0xb4,
+        0xf5, 0x8b, 0x19, 0x52, 0x52, 0x25, 0x25 }
+    },
+  };
+
+  int i;
+  unsigned char tmp[28];
+  hash_state md;
+
+  for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
+      sha224_init(&md);
+      sha224_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha224_done(&md, tmp);
+      if (XMEMCMP(tmp, tests[i].hash, 28) != 0) {
+         return CRYPT_FAIL_TESTVECTOR;
+      }
+  }
+  return CRYPT_OK;
+ #endif
+}
+
+#endif /* defined(LTC_SHA224) && defined(LTC_SHA256) */
 
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
@@ -32039,20 +32217,20 @@ const struct ltc_cipher_descriptor aes_enc_desc =
 
 static ulong32 setup_mix(ulong32 temp)
 {
-   return (Te4_3[extract_byte(temp, 2)]) ^
-          (Te4_2[extract_byte(temp, 1)]) ^
-          (Te4_1[extract_byte(temp, 0)]) ^
-          (Te4_0[extract_byte(temp, 3)]);
+   return (Te4_3[byte(temp, 2)]) ^
+          (Te4_2[byte(temp, 1)]) ^
+          (Te4_1[byte(temp, 0)]) ^
+          (Te4_0[byte(temp, 3)]);
 }
 
 #ifndef ENCRYPT_ONLY
 #ifdef LTC_SMALL_CODE
 static ulong32 setup_mix2(ulong32 temp)
 {
-   return Td0(255 & Te4[extract_byte(temp, 3)]) ^
-          Td1(255 & Te4[extract_byte(temp, 2)]) ^
-          Td2(255 & Te4[extract_byte(temp, 1)]) ^
-          Td3(255 & Te4[extract_byte(temp, 0)]);
+   return Td0(255 & Te4[byte(temp, 3)]) ^
+          Td1(255 & Te4[byte(temp, 2)]) ^
+          Td2(255 & Te4[byte(temp, 1)]) ^
+          Td3(255 & Te4[byte(temp, 0)]);
 }
 #endif
 #endif
@@ -32183,28 +32361,28 @@ int SETUP(const unsigned char *key, int keylen, int num_rounds, symmetric_key *s
      #else
         temp = rrk[0];
         rk[0] =
-            Tks0[extract_byte(temp, 3)] ^
-            Tks1[extract_byte(temp, 2)] ^
-            Tks2[extract_byte(temp, 1)] ^
-            Tks3[extract_byte(temp, 0)];
+            Tks0[byte(temp, 3)] ^
+            Tks1[byte(temp, 2)] ^
+            Tks2[byte(temp, 1)] ^
+            Tks3[byte(temp, 0)];
         temp = rrk[1];
         rk[1] =
-            Tks0[extract_byte(temp, 3)] ^
-            Tks1[extract_byte(temp, 2)] ^
-            Tks2[extract_byte(temp, 1)] ^
-            Tks3[extract_byte(temp, 0)];
+            Tks0[byte(temp, 3)] ^
+            Tks1[byte(temp, 2)] ^
+            Tks2[byte(temp, 1)] ^
+            Tks3[byte(temp, 0)];
         temp = rrk[2];
         rk[2] =
-            Tks0[extract_byte(temp, 3)] ^
-            Tks1[extract_byte(temp, 2)] ^
-            Tks2[extract_byte(temp, 1)] ^
-            Tks3[extract_byte(temp, 0)];
+            Tks0[byte(temp, 3)] ^
+            Tks1[byte(temp, 2)] ^
+            Tks2[byte(temp, 1)] ^
+            Tks3[byte(temp, 0)];
         temp = rrk[3];
         rk[3] =
-            Tks0[extract_byte(temp, 3)] ^
-            Tks1[extract_byte(temp, 2)] ^
-            Tks2[extract_byte(temp, 1)] ^
-            Tks3[extract_byte(temp, 0)];
+            Tks0[byte(temp, 3)] ^
+            Tks1[byte(temp, 2)] ^
+            Tks2[byte(temp, 1)] ^
+            Tks3[byte(temp, 0)];
       #endif
 
     }
@@ -32258,28 +32436,28 @@ int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
     for (r = 0; ; r++) {
         rk += 4;
         t0 =
-            Te0(extract_byte(s0, 3)) ^
-            Te1(extract_byte(s1, 2)) ^
-            Te2(extract_byte(s2, 1)) ^
-            Te3(extract_byte(s3, 0)) ^
+            Te0(byte(s0, 3)) ^
+            Te1(byte(s1, 2)) ^
+            Te2(byte(s2, 1)) ^
+            Te3(byte(s3, 0)) ^
             rk[0];
         t1 =
-            Te0(extract_byte(s1, 3)) ^
-            Te1(extract_byte(s2, 2)) ^
-            Te2(extract_byte(s3, 1)) ^
-            Te3(extract_byte(s0, 0)) ^
+            Te0(byte(s1, 3)) ^
+            Te1(byte(s2, 2)) ^
+            Te2(byte(s3, 1)) ^
+            Te3(byte(s0, 0)) ^
             rk[1];
         t2 =
-            Te0(extract_byte(s2, 3)) ^
-            Te1(extract_byte(s3, 2)) ^
-            Te2(extract_byte(s0, 1)) ^
-            Te3(extract_byte(s1, 0)) ^
+            Te0(byte(s2, 3)) ^
+            Te1(byte(s3, 2)) ^
+            Te2(byte(s0, 1)) ^
+            Te3(byte(s1, 0)) ^
             rk[2];
         t3 =
-            Te0(extract_byte(s3, 3)) ^
-            Te1(extract_byte(s0, 2)) ^
-            Te2(extract_byte(s1, 1)) ^
-            Te3(extract_byte(s2, 0)) ^
+            Te0(byte(s3, 3)) ^
+            Te1(byte(s0, 2)) ^
+            Te2(byte(s1, 1)) ^
+            Te3(byte(s2, 0)) ^
             rk[3];
         if (r == Nr-2) {
            break;
@@ -32296,28 +32474,28 @@ int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
     r = Nr >> 1;
     for (;;) {
         t0 =
-            Te0(extract_byte(s0, 3)) ^
-            Te1(extract_byte(s1, 2)) ^
-            Te2(extract_byte(s2, 1)) ^
-            Te3(extract_byte(s3, 0)) ^
+            Te0(byte(s0, 3)) ^
+            Te1(byte(s1, 2)) ^
+            Te2(byte(s2, 1)) ^
+            Te3(byte(s3, 0)) ^
             rk[4];
         t1 =
-            Te0(extract_byte(s1, 3)) ^
-            Te1(extract_byte(s2, 2)) ^
-            Te2(extract_byte(s3, 1)) ^
-            Te3(extract_byte(s0, 0)) ^
+            Te0(byte(s1, 3)) ^
+            Te1(byte(s2, 2)) ^
+            Te2(byte(s3, 1)) ^
+            Te3(byte(s0, 0)) ^
             rk[5];
         t2 =
-            Te0(extract_byte(s2, 3)) ^
-            Te1(extract_byte(s3, 2)) ^
-            Te2(extract_byte(s0, 1)) ^
-            Te3(extract_byte(s1, 0)) ^
+            Te0(byte(s2, 3)) ^
+            Te1(byte(s3, 2)) ^
+            Te2(byte(s0, 1)) ^
+            Te3(byte(s1, 0)) ^
             rk[6];
         t3 =
-            Te0(extract_byte(s3, 3)) ^
-            Te1(extract_byte(s0, 2)) ^
-            Te2(extract_byte(s1, 1)) ^
-            Te3(extract_byte(s2, 0)) ^
+            Te0(byte(s3, 3)) ^
+            Te1(byte(s0, 2)) ^
+            Te2(byte(s1, 1)) ^
+            Te3(byte(s2, 0)) ^
             rk[7];
 
         rk += 8;
@@ -32326,28 +32504,28 @@ int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
         }
 
         s0 =
-            Te0(extract_byte(t0, 3)) ^
-            Te1(extract_byte(t1, 2)) ^
-            Te2(extract_byte(t2, 1)) ^
-            Te3(extract_byte(t3, 0)) ^
+            Te0(byte(t0, 3)) ^
+            Te1(byte(t1, 2)) ^
+            Te2(byte(t2, 1)) ^
+            Te3(byte(t3, 0)) ^
             rk[0];
         s1 =
-            Te0(extract_byte(t1, 3)) ^
-            Te1(extract_byte(t2, 2)) ^
-            Te2(extract_byte(t3, 1)) ^
-            Te3(extract_byte(t0, 0)) ^
+            Te0(byte(t1, 3)) ^
+            Te1(byte(t2, 2)) ^
+            Te2(byte(t3, 1)) ^
+            Te3(byte(t0, 0)) ^
             rk[1];
         s2 =
-            Te0(extract_byte(t2, 3)) ^
-            Te1(extract_byte(t3, 2)) ^
-            Te2(extract_byte(t0, 1)) ^
-            Te3(extract_byte(t1, 0)) ^
+            Te0(byte(t2, 3)) ^
+            Te1(byte(t3, 2)) ^
+            Te2(byte(t0, 1)) ^
+            Te3(byte(t1, 0)) ^
             rk[2];
         s3 =
-            Te0(extract_byte(t3, 3)) ^
-            Te1(extract_byte(t0, 2)) ^
-            Te2(extract_byte(t1, 1)) ^
-            Te3(extract_byte(t2, 0)) ^
+            Te0(byte(t3, 3)) ^
+            Te1(byte(t0, 2)) ^
+            Te2(byte(t1, 1)) ^
+            Te3(byte(t2, 0)) ^
             rk[3];
     }
 
@@ -32358,31 +32536,31 @@ int ECB_ENC(const unsigned char *pt, unsigned char *ct, symmetric_key *skey)
      * map cipher state to byte array block:
      */
     s0 =
-        (Te4_3[extract_byte(t0, 3)]) ^
-        (Te4_2[extract_byte(t1, 2)]) ^
-        (Te4_1[extract_byte(t2, 1)]) ^
-        (Te4_0[extract_byte(t3, 0)]) ^
+        (Te4_3[byte(t0, 3)]) ^
+        (Te4_2[byte(t1, 2)]) ^
+        (Te4_1[byte(t2, 1)]) ^
+        (Te4_0[byte(t3, 0)]) ^
         rk[0];
     STORE32H(s0, ct);
     s1 =
-        (Te4_3[extract_byte(t1, 3)]) ^
-        (Te4_2[extract_byte(t2, 2)]) ^
-        (Te4_1[extract_byte(t3, 1)]) ^
-        (Te4_0[extract_byte(t0, 0)]) ^
+        (Te4_3[byte(t1, 3)]) ^
+        (Te4_2[byte(t2, 2)]) ^
+        (Te4_1[byte(t3, 1)]) ^
+        (Te4_0[byte(t0, 0)]) ^
         rk[1];
     STORE32H(s1, ct+4);
     s2 =
-        (Te4_3[extract_byte(t2, 3)]) ^
-        (Te4_2[extract_byte(t3, 2)]) ^
-        (Te4_1[extract_byte(t0, 1)]) ^
-        (Te4_0[extract_byte(t1, 0)]) ^
+        (Te4_3[byte(t2, 3)]) ^
+        (Te4_2[byte(t3, 2)]) ^
+        (Te4_1[byte(t0, 1)]) ^
+        (Te4_0[byte(t1, 0)]) ^
         rk[2];
     STORE32H(s2, ct+8);
     s3 =
-        (Te4_3[extract_byte(t3, 3)]) ^
-        (Te4_2[extract_byte(t0, 2)]) ^
-        (Te4_1[extract_byte(t1, 1)]) ^
-        (Te4_0[extract_byte(t2, 0)]) ^
+        (Te4_3[byte(t3, 3)]) ^
+        (Te4_2[byte(t0, 2)]) ^
+        (Te4_1[byte(t1, 1)]) ^
+        (Te4_0[byte(t2, 0)]) ^
         rk[3];
     STORE32H(s3, ct+12);
 
@@ -32436,28 +32614,28 @@ int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
     for (r = 0; ; r++) {
         rk += 4;
         t0 =
-            Td0(extract_byte(s0, 3)) ^
-            Td1(extract_byte(s3, 2)) ^
-            Td2(extract_byte(s2, 1)) ^
-            Td3(extract_byte(s1, 0)) ^
+            Td0(byte(s0, 3)) ^
+            Td1(byte(s3, 2)) ^
+            Td2(byte(s2, 1)) ^
+            Td3(byte(s1, 0)) ^
             rk[0];
         t1 =
-            Td0(extract_byte(s1, 3)) ^
-            Td1(extract_byte(s0, 2)) ^
-            Td2(extract_byte(s3, 1)) ^
-            Td3(extract_byte(s2, 0)) ^
+            Td0(byte(s1, 3)) ^
+            Td1(byte(s0, 2)) ^
+            Td2(byte(s3, 1)) ^
+            Td3(byte(s2, 0)) ^
             rk[1];
         t2 =
-            Td0(extract_byte(s2, 3)) ^
-            Td1(extract_byte(s1, 2)) ^
-            Td2(extract_byte(s0, 1)) ^
-            Td3(extract_byte(s3, 0)) ^
+            Td0(byte(s2, 3)) ^
+            Td1(byte(s1, 2)) ^
+            Td2(byte(s0, 1)) ^
+            Td3(byte(s3, 0)) ^
             rk[2];
         t3 =
-            Td0(extract_byte(s3, 3)) ^
-            Td1(extract_byte(s2, 2)) ^
-            Td2(extract_byte(s1, 1)) ^
-            Td3(extract_byte(s0, 0)) ^
+            Td0(byte(s3, 3)) ^
+            Td1(byte(s2, 2)) ^
+            Td2(byte(s1, 1)) ^
+            Td3(byte(s0, 0)) ^
             rk[3];
         if (r == Nr-2) {
            break;
@@ -32475,28 +32653,28 @@ int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
     for (;;) {
 
         t0 =
-            Td0(extract_byte(s0, 3)) ^
-            Td1(extract_byte(s3, 2)) ^
-            Td2(extract_byte(s2, 1)) ^
-            Td3(extract_byte(s1, 0)) ^
+            Td0(byte(s0, 3)) ^
+            Td1(byte(s3, 2)) ^
+            Td2(byte(s2, 1)) ^
+            Td3(byte(s1, 0)) ^
             rk[4];
         t1 =
-            Td0(extract_byte(s1, 3)) ^
-            Td1(extract_byte(s0, 2)) ^
-            Td2(extract_byte(s3, 1)) ^
-            Td3(extract_byte(s2, 0)) ^
+            Td0(byte(s1, 3)) ^
+            Td1(byte(s0, 2)) ^
+            Td2(byte(s3, 1)) ^
+            Td3(byte(s2, 0)) ^
             rk[5];
         t2 =
-            Td0(extract_byte(s2, 3)) ^
-            Td1(extract_byte(s1, 2)) ^
-            Td2(extract_byte(s0, 1)) ^
-            Td3(extract_byte(s3, 0)) ^
+            Td0(byte(s2, 3)) ^
+            Td1(byte(s1, 2)) ^
+            Td2(byte(s0, 1)) ^
+            Td3(byte(s3, 0)) ^
             rk[6];
         t3 =
-            Td0(extract_byte(s3, 3)) ^
-            Td1(extract_byte(s2, 2)) ^
-            Td2(extract_byte(s1, 1)) ^
-            Td3(extract_byte(s0, 0)) ^
+            Td0(byte(s3, 3)) ^
+            Td1(byte(s2, 2)) ^
+            Td2(byte(s1, 1)) ^
+            Td3(byte(s0, 0)) ^
             rk[7];
 
         rk += 8;
@@ -32506,28 +32684,28 @@ int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
 
 
         s0 =
-            Td0(extract_byte(t0, 3)) ^
-            Td1(extract_byte(t3, 2)) ^
-            Td2(extract_byte(t2, 1)) ^
-            Td3(extract_byte(t1, 0)) ^
+            Td0(byte(t0, 3)) ^
+            Td1(byte(t3, 2)) ^
+            Td2(byte(t2, 1)) ^
+            Td3(byte(t1, 0)) ^
             rk[0];
         s1 =
-            Td0(extract_byte(t1, 3)) ^
-            Td1(extract_byte(t0, 2)) ^
-            Td2(extract_byte(t3, 1)) ^
-            Td3(extract_byte(t2, 0)) ^
+            Td0(byte(t1, 3)) ^
+            Td1(byte(t0, 2)) ^
+            Td2(byte(t3, 1)) ^
+            Td3(byte(t2, 0)) ^
             rk[1];
         s2 =
-            Td0(extract_byte(t2, 3)) ^
-            Td1(extract_byte(t1, 2)) ^
-            Td2(extract_byte(t0, 1)) ^
-            Td3(extract_byte(t3, 0)) ^
+            Td0(byte(t2, 3)) ^
+            Td1(byte(t1, 2)) ^
+            Td2(byte(t0, 1)) ^
+            Td3(byte(t3, 0)) ^
             rk[2];
         s3 =
-            Td0(extract_byte(t3, 3)) ^
-            Td1(extract_byte(t2, 2)) ^
-            Td2(extract_byte(t1, 1)) ^
-            Td3(extract_byte(t0, 0)) ^
+            Td0(byte(t3, 3)) ^
+            Td1(byte(t2, 2)) ^
+            Td2(byte(t1, 1)) ^
+            Td3(byte(t0, 0)) ^
             rk[3];
     }
 #endif
@@ -32537,31 +32715,31 @@ int ECB_DEC(const unsigned char *ct, unsigned char *pt, symmetric_key *skey)
      * map cipher state to byte array block:
      */
     s0 =
-        (Td4[extract_byte(t0, 3)] & 0xff000000) ^
-        (Td4[extract_byte(t3, 2)] & 0x00ff0000) ^
-        (Td4[extract_byte(t2, 1)] & 0x0000ff00) ^
-        (Td4[extract_byte(t1, 0)] & 0x000000ff) ^
+        (Td4[byte(t0, 3)] & 0xff000000) ^
+        (Td4[byte(t3, 2)] & 0x00ff0000) ^
+        (Td4[byte(t2, 1)] & 0x0000ff00) ^
+        (Td4[byte(t1, 0)] & 0x000000ff) ^
         rk[0];
     STORE32H(s0, pt);
     s1 =
-        (Td4[extract_byte(t1, 3)] & 0xff000000) ^
-        (Td4[extract_byte(t0, 2)] & 0x00ff0000) ^
-        (Td4[extract_byte(t3, 1)] & 0x0000ff00) ^
-        (Td4[extract_byte(t2, 0)] & 0x000000ff) ^
+        (Td4[byte(t1, 3)] & 0xff000000) ^
+        (Td4[byte(t0, 2)] & 0x00ff0000) ^
+        (Td4[byte(t3, 1)] & 0x0000ff00) ^
+        (Td4[byte(t2, 0)] & 0x000000ff) ^
         rk[1];
     STORE32H(s1, pt+4);
     s2 =
-        (Td4[extract_byte(t2, 3)] & 0xff000000) ^
-        (Td4[extract_byte(t1, 2)] & 0x00ff0000) ^
-        (Td4[extract_byte(t0, 1)] & 0x0000ff00) ^
-        (Td4[extract_byte(t3, 0)] & 0x000000ff) ^
+        (Td4[byte(t2, 3)] & 0xff000000) ^
+        (Td4[byte(t1, 2)] & 0x00ff0000) ^
+        (Td4[byte(t0, 1)] & 0x0000ff00) ^
+        (Td4[byte(t3, 0)] & 0x000000ff) ^
         rk[2];
     STORE32H(s2, pt+8);
     s3 =
-        (Td4[extract_byte(t3, 3)] & 0xff000000) ^
-        (Td4[extract_byte(t2, 2)] & 0x00ff0000) ^
-        (Td4[extract_byte(t1, 1)] & 0x0000ff00) ^
-        (Td4[extract_byte(t0, 0)] & 0x000000ff) ^
+        (Td4[byte(t3, 3)] & 0xff000000) ^
+        (Td4[byte(t2, 2)] & 0x00ff0000) ^
+        (Td4[byte(t1, 1)] & 0x0000ff00) ^
+        (Td4[byte(t0, 0)] & 0x000000ff) ^
         rk[3];
     STORE32H(s3, pt+12);
 
@@ -34770,3 +34948,579 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
 /* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_getiv.c,v $ */
 /* $Revision: 1.7 $ */
 /* $Date: 2006/12/28 01:27:24 $ */ 
+
+#undef M
+#undef S
+#define add add_
+
+/**
+  @file tweetnacl.c
+*/
+
+/* automatically generated file, do not edit */
+
+#define FOR(i,n) for (i = 0;i < n;++i)
+#define sv static void
+
+typedef unsigned char u8;
+typedef ulong32 u32;
+typedef ulong64 u64;
+typedef long64 i64;
+typedef i64 gf[16];
+
+static const u8
+  nine[32] = {9};
+static const gf
+  gf0 = {0},
+  gf1 = {1},
+  gf121665 = {0xDB41,1},
+  D = {0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203},
+  D2 = {0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406},
+  X = {0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169},
+  Y = {0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666},
+  I = {0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83};
+
+static int vn(const u8 *x,const u8 *y,int n)
+{
+  int i;
+  u32 d = 0;
+  FOR(i,n) d |= x[i]^y[i];
+  return (1 & ((d - 1) >> 8)) - 1;
+}
+
+static int tweetnacl_crypto_verify_32(const u8 *x,const u8 *y)
+{
+  return vn(x,y,32);
+}
+
+sv set25519(gf r, const gf a)
+{
+  int i;
+  FOR(i,16) r[i]=a[i];
+}
+
+sv car25519(gf o)
+{
+  int i;
+  i64 c;
+  FOR(i,16) {
+    o[i]+=(1LL<<16);
+    c=o[i]>>16;
+    o[(i+1)*(i<15)]+=c-1+37*(c-1)*(i==15);
+    o[i]-=c<<16;
+  }
+}
+
+sv sel25519(gf p,gf q,int b)
+{
+  i64 t,i,c=~(b-1);
+  FOR(i,16) {
+    t= c&(p[i]^q[i]);
+    p[i]^=t;
+    q[i]^=t;
+  }
+}
+
+sv pack25519(u8 *o,const gf n)
+{
+  int i,j,b;
+  gf m,t;
+  FOR(i,16) t[i]=n[i];
+  car25519(t);
+  car25519(t);
+  car25519(t);
+  FOR(j,2) {
+    m[0]=t[0]-0xffed;
+    for(i=1;i<15;i++) {
+      m[i]=t[i]-0xffff-((m[i-1]>>16)&1);
+      m[i-1]&=0xffff;
+    }
+    m[15]=t[15]-0x7fff-((m[14]>>16)&1);
+    b=(m[15]>>16)&1;
+    m[14]&=0xffff;
+    sel25519(t,m,1-b);
+  }
+  FOR(i,16) {
+    o[2*i]=t[i]&0xff;
+    o[2*i+1]=t[i]>>8;
+  }
+}
+
+static int neq25519(const gf a, const gf b)
+{
+  u8 c[32],d[32];
+  pack25519(c,a);
+  pack25519(d,b);
+  return tweetnacl_crypto_verify_32(c,d);
+}
+
+static u8 par25519(const gf a)
+{
+  u8 d[32];
+  pack25519(d,a);
+  return d[0]&1;
+}
+
+sv unpack25519(gf o, const u8 *n)
+{
+  int i;
+  FOR(i,16) o[i]=n[2*i]+((i64)n[2*i+1]<<8);
+  o[15]&=0x7fff;
+}
+
+sv A(gf o,const gf a,const gf b)
+{
+  int i;
+  FOR(i,16) o[i]=a[i]+b[i];
+}
+
+sv Z(gf o,const gf a,const gf b)
+{
+  int i;
+  FOR(i,16) o[i]=a[i]-b[i];
+}
+
+sv M(gf o,const gf a,const gf b)
+{
+  i64 i,j,t[31];
+  FOR(i,31) t[i]=0;
+  FOR(i,16) FOR(j,16) t[i+j]+=a[i]*b[j];
+  FOR(i,15) t[i]+=38*t[i+16];
+  FOR(i,16) o[i]=t[i];
+  car25519(o);
+  car25519(o);
+}
+
+sv S(gf o,const gf a)
+{
+  M(o,a,a);
+}
+
+sv inv25519(gf o,const gf i)
+{
+  gf c;
+  int a;
+  FOR(a,16) c[a]=i[a];
+  for(a=253;a>=0;a--) {
+    S(c,c);
+    if(a!=2&&a!=4) M(c,c,i);
+  }
+  FOR(a,16) o[a]=c[a];
+}
+
+sv pow2523(gf o,const gf i)
+{
+  gf c;
+  int a;
+  FOR(a,16) c[a]=i[a];
+  for(a=250;a>=0;a--) {
+    S(c,c);
+    if(a!=1) M(c,c,i);
+  }
+  FOR(a,16) o[a]=c[a];
+}
+
+int tweetnacl_crypto_scalarmult(u8 *q,const u8 *n,const u8 *p)
+{
+  u8 z[32];
+  i64 x[80],r,i;
+  gf a,b,c,d,e,f;
+  FOR(i,31) z[i]=n[i];
+  z[31]=(n[31]&127)|64;
+  z[0]&=248;
+  unpack25519(x,p);
+  FOR(i,16) {
+    b[i]=x[i];
+    d[i]=a[i]=c[i]=0;
+  }
+  a[0]=d[0]=1;
+  for(i=254;i>=0;--i) {
+    r=(z[i>>3]>>(i&7))&1;
+    sel25519(a,b,r);
+    sel25519(c,d,r);
+    A(e,a,c);
+    Z(a,a,c);
+    A(c,b,d);
+    Z(b,b,d);
+    S(d,e);
+    S(f,a);
+    M(a,c,a);
+    M(c,b,e);
+    A(e,a,c);
+    Z(a,a,c);
+    S(b,a);
+    Z(c,d,f);
+    M(a,c,gf121665);
+    A(a,a,d);
+    M(c,c,a);
+    M(a,d,f);
+    M(d,b,x);
+    S(b,e);
+    sel25519(a,b,r);
+    sel25519(c,d,r);
+  }
+  FOR(i,16) {
+    x[i+16]=a[i];
+    x[i+32]=c[i];
+    x[i+48]=b[i];
+    x[i+64]=d[i];
+  }
+  inv25519(x+32,x+32);
+  M(x+16,x+16,x+32);
+  pack25519(q,x+16);
+  return 0;
+}
+
+int tweetnacl_crypto_scalarmult_base(u8 *q,const u8 *n)
+{
+  return tweetnacl_crypto_scalarmult(q,n,nine);
+}
+
+static LTC_INLINE int tweetnacl_crypto_hash_ctx(u8 *out,const u8 *m,u64 n,const u8 *ctx,u32 cs)
+{
+  unsigned long len = 64;
+  int hash_idx = find_hash("sha512");
+
+  if (n > ULONG_MAX) return CRYPT_OVERFLOW;
+
+  if(cs == 0)
+    return hash_memory(hash_idx, m, n, out, &len);
+
+  return hash_memory_multi(hash_idx, out, &len, ctx, cs, m, n, NULL);
+}
+
+static LTC_INLINE int tweetnacl_crypto_hash(u8 *out,const u8 *m,u64 n)
+{
+  return tweetnacl_crypto_hash_ctx(out, m, n, NULL, 0);
+}
+
+sv add(gf p[4],gf q[4])
+{
+  gf a,b,c,d,t,e,f,g,h;
+
+  Z(a, p[1], p[0]);
+  Z(t, q[1], q[0]);
+  M(a, a, t);
+  A(b, p[0], p[1]);
+  A(t, q[0], q[1]);
+  M(b, b, t);
+  M(c, p[3], q[3]);
+  M(c, c, D2);
+  M(d, p[2], q[2]);
+  A(d, d, d);
+  Z(e, b, a);
+  Z(f, d, c);
+  A(g, d, c);
+  A(h, b, a);
+
+  M(p[0], e, f);
+  M(p[1], h, g);
+  M(p[2], g, f);
+  M(p[3], e, h);
+}
+
+sv cswap(gf p[4],gf q[4],u8 b)
+{
+  int i;
+  FOR(i,4)
+    sel25519(p[i],q[i],b);
+}
+
+sv pack(u8 *r,gf p[4])
+{
+  gf tx, ty, zi;
+  inv25519(zi, p[2]);
+  M(tx, p[0], zi);
+  M(ty, p[1], zi);
+  pack25519(r, ty);
+  r[31] ^= par25519(tx) << 7;
+}
+
+sv scalarmult(gf p[4],gf q[4],const u8 *s)
+{
+  int i;
+  set25519(p[0],gf0);
+  set25519(p[1],gf1);
+  set25519(p[2],gf1);
+  set25519(p[3],gf0);
+  for (i = 255;i >= 0;--i) {
+    u8 b = (s[i/8]>>(i&7))&1;
+    cswap(p,q,b);
+    add(q,p);
+    add(p,p);
+    cswap(p,q,b);
+  }
+}
+
+sv scalarbase(gf p[4],const u8 *s)
+{
+  gf q[4];
+  set25519(q[0],X);
+  set25519(q[1],Y);
+  set25519(q[2],gf1);
+  M(q[3],X,Y);
+  scalarmult(p,q,s);
+}
+
+int tweetnacl_crypto_sk_to_pk(u8 *pk, const u8 *sk)
+{
+  u8 d[64];
+  gf p[4];
+  tweetnacl_crypto_hash(d, sk, 32);
+  d[0] &= 248;
+  d[31] &= 127;
+  d[31] |= 64;
+
+  scalarbase(p,d);
+  pack(pk,p);
+
+  return 0;
+}
+
+int tweetnacl_crypto_sign_keypair(prng_state *prng, int wprng, u8 *pk, u8 *sk)
+{
+  int err;
+
+  /* randombytes(sk,32); */
+  if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
+     return err;
+  }
+
+  if (prng_descriptor[wprng].read(sk,32, prng) != 32) {
+     return CRYPT_ERROR_READPRNG;
+  }
+
+  if ((err = tweetnacl_crypto_sk_to_pk(pk, sk)) != CRYPT_OK) {
+     return err;
+  }
+
+  /* FOR(i,32) sk[32 + i] = pk[i];
+   * we don't copy the pk in the sk */
+  return CRYPT_OK;
+}
+
+static const u64 L[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10};
+
+sv modL(u8 *r,i64 x[64])
+{
+  i64 carry,i,j;
+  for (i = 63;i >= 32;--i) {
+    carry = 0;
+    for (j = i - 32;j < i - 12;++j) {
+      x[j] += carry - 16 * x[i] * L[j - (i - 32)];
+      carry = (x[j] + 128) >> 8;
+      x[j] -= carry << 8;
+    }
+    x[j] += carry;
+    x[i] = 0;
+  }
+  carry = 0;
+  FOR(j,32) {
+    x[j] += carry - (x[31] >> 4) * L[j];
+    carry = x[j] >> 8;
+    x[j] &= 255;
+  }
+  FOR(j,32) x[j] -= carry * L[j];
+  FOR(i,32) {
+    x[i+1] += x[i] >> 8;
+    r[i] = x[i] & 255;
+  }
+}
+
+sv reduce(u8 *r)
+{
+  i64 x[64],i;
+  FOR(i,64) x[i] = (u64) r[i];
+  FOR(i,64) r[i] = 0;
+  modL(r,x);
+}
+
+int tweetnacl_crypto_sign(u8 *sm,u64 *smlen,const u8 *m,u64 mlen,const u8 *sk,const u8 *pk, const u8 *ctx, u64 cs)
+{
+  u8 d[64],h[64],r[64];
+  i64 i,j,x[64];
+  gf p[4];
+
+  tweetnacl_crypto_hash(d, sk, 32);
+  d[0] &= 248;
+  d[31] &= 127;
+  d[31] |= 64;
+
+  *smlen = mlen+64;
+  FOR(i,(i64)mlen) sm[64 + i] = m[i];
+  FOR(i,32) sm[32 + i] = d[32 + i];
+
+  tweetnacl_crypto_hash_ctx(r, sm+32, mlen+32,ctx,cs);
+  reduce(r);
+  scalarbase(p,r);
+  pack(sm,p);
+
+  FOR(i,32) sm[i+32] = pk[i];
+  tweetnacl_crypto_hash_ctx(h,sm,mlen + 64,ctx,cs);
+  reduce(h);
+
+  FOR(i,64) x[i] = 0;
+  FOR(i,32) x[i] = (u64) r[i];
+  FOR(i,32) FOR(j,32) x[i+j] += h[i] * (u64) d[j];
+  modL(sm + 32,x);
+
+  return 0;
+}
+
+static int unpackneg(gf r[4],const u8 p[32])
+{
+  gf t, chk, num, den, den2, den4, den6;
+  set25519(r[2],gf1);
+  unpack25519(r[1],p);
+  S(num,r[1]);
+  M(den,num,D);
+  Z(num,num,r[2]);
+  A(den,r[2],den);
+
+  S(den2,den);
+  S(den4,den2);
+  M(den6,den4,den2);
+  M(t,den6,num);
+  M(t,t,den);
+
+  pow2523(t,t);
+  M(t,t,num);
+  M(t,t,den);
+  M(t,t,den);
+  M(r[0],t,den);
+
+  S(chk,r[0]);
+  M(chk,chk,den);
+  if (neq25519(chk, num)) M(r[0],r[0],I);
+
+  S(chk,r[0]);
+  M(chk,chk,den);
+  if (neq25519(chk, num)) return -1;
+
+  if (par25519(r[0]) == (p[31]>>7)) Z(r[0],gf0,r[0]);
+
+  M(r[3],r[0],r[1]);
+  return 0;
+}
+
+int tweetnacl_crypto_sign_open(int *stat, u8 *m,u64 *mlen,const u8 *sm,u64 smlen,const u8 *ctx,u64 cs,const u8 *pk)
+{
+  u64 i;
+  u8 s[32],t[32],h[64];
+  gf p[4],q[4];
+
+  *stat = 0;
+  if (*mlen < smlen) return CRYPT_BUFFER_OVERFLOW;
+  *mlen = -1;
+  if (smlen < 64) return CRYPT_INVALID_ARG;
+
+  if (unpackneg(q,pk)) return CRYPT_ERROR;
+
+  XMEMMOVE(m,sm,smlen);
+  XMEMMOVE(s,m + 32,32);
+  XMEMMOVE(m + 32,pk,32);
+  tweetnacl_crypto_hash_ctx(h,m,smlen,ctx,cs);
+  reduce(h);
+  scalarmult(p,q,h);
+
+  scalarbase(q,s);
+  add(p,q);
+  pack(t,p);
+
+  smlen -= 64;
+  if (tweetnacl_crypto_verify_32(sm, t)) {
+    FOR(i,smlen) m[i] = 0;
+    zeromem(m, smlen);
+    return CRYPT_OK;
+  }
+
+  *stat = 1;
+  XMEMMOVE(m,m + 64,smlen);
+  *mlen = smlen;
+  return CRYPT_OK;
+}
+
+int tweetnacl_crypto_ph(u8 *out,const u8 *msg,u64 msglen)
+{
+  return tweetnacl_crypto_hash(out, msg, msglen);
+}
+
+#undef add
+
+/**
+  @file x25519_import_raw.c
+  Set the parameters of a X25519 key, Steffen Jaeckel
+*/
+
+#ifdef LTC_CURVE25519
+
+/**
+   Set the parameters of a X25519 key
+
+   @param in       The key
+   @param inlen    The length of the key
+   @param which    Which type of key (PK_PRIVATE or PK_PUBLIC)
+   @param key      [out] Destination of the key
+   @return CRYPT_OK if successful
+*/
+int x25519_import_raw(const unsigned char *in, unsigned long inlen, int which, curve25519_key *key)
+{
+   LTC_ARGCHK(in   != NULL);
+   LTC_ARGCHK(inlen == 32uL);
+   LTC_ARGCHK(key  != NULL);
+
+   if (which == PK_PRIVATE) {
+      XMEMCPY(key->priv, in, sizeof(key->priv));
+      tweetnacl_crypto_scalarmult_base(key->pub, key->priv);
+   } else if (which == PK_PUBLIC) {
+      XMEMCPY(key->pub, in, sizeof(key->pub));
+   } else {
+      return CRYPT_INVALID_ARG;
+   }
+   key->pka = LTC_PKA_X25519;
+   key->type = which;
+
+   return CRYPT_OK;
+}
+
+#endif
+
+/**
+  @file x25519_shared_secret.c
+  Create a X25519 shared secret, Steffen Jaeckel
+*/
+
+#ifdef LTC_CURVE25519
+
+/**
+   Create a X25519 shared secret.
+   @param private_key     The private X25519 key in the pair
+   @param public_key      The public X25519 key in the pair
+   @param out             [out] The destination of the shared data
+   @param outlen          [in/out] The max size and resulting size of the shared data.
+   @return CRYPT_OK if successful
+*/
+int x25519_shared_secret(const    curve25519_key *private_key,
+                         const    curve25519_key *public_key,
+                               unsigned char *out, unsigned long *outlen)
+{
+   LTC_ARGCHK(private_key        != NULL);
+   LTC_ARGCHK(public_key         != NULL);
+   LTC_ARGCHK(out                != NULL);
+   LTC_ARGCHK(outlen             != NULL);
+
+   if (public_key->pka != LTC_PKA_X25519) return CRYPT_PK_INVALID_TYPE;
+   if (private_key->type != PK_PRIVATE) return CRYPT_PK_INVALID_TYPE;
+
+   if (*outlen < 32uL) {
+      *outlen = 32uL;
+      return CRYPT_BUFFER_OVERFLOW;
+   }
+
+   tweetnacl_crypto_scalarmult(out, private_key->priv, public_key->pub);
+   *outlen = 32uL;
+
+   return CRYPT_OK;
+}
+
+#endif
