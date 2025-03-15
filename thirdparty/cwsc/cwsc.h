@@ -54,6 +54,7 @@ void cwsc_listen(cwsc_WebSocket* ws);
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifndef CWSC_MALLOC
 #include <stdlib.h>

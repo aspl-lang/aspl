@@ -279,6 +279,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$web_socket_client$connect(ASPL_OBJECT_T
     ws->on_message = aspl_util_internet$WebSocketClient$message_callback;
     ws->on_error = aspl_util_internet$WebSocketClient$error_callback;
     ws->on_close = aspl_util_internet$WebSocketClient$close_callback;
+    tls_sni_set(ws->tls_context, handle->uri); // TODO: Should we use this here? It looks like it is required for HTTP for "www.google.com" for example - but do we also need it for WebSockets?
     cwsc_connect(handle->handle, handle->uri, strncmp(handle->uri, "wss", strlen("wss")) == 0 ? 443 : 80);
     cwsc_listen(handle->handle);
     return ASPL_UNINITIALIZED;
