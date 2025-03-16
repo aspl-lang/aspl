@@ -258,7 +258,7 @@ if(requestedProduct == "apple"){
 }elseif(requestedProduct == "banana"){
     print("You successfully bought a banana")
 }else{
-    print("I'm sorry, but we don't offer the product: " + product)
+    print("I'm sorry, but we don't offer the product: " + requestedProduct)
 }
 ```
 
