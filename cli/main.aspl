@@ -422,14 +422,22 @@ if(subcommand == "compile" || subcommand == "build"){
             print(console.red("aspl update: not in a git repository"))
             exit(1)
         }
-        os.execute("cmd /C cd " + io.full_directory_path(io.get_executable_path()) + " && git pull")
+        $if windows{
+            os.execute("cmd /C cd " + io.full_directory_path(io.get_executable_path()) + " && git pull")
+        }$else{
+            os.execute("sh -c 'cd " + io.full_directory_path(io.get_executable_path()) + " && git pull'")
+        }
         cli.utils.download_templates()
         cli.utils.download_executable()
     }else{
         var module = os.args()[i]
         var moduleParts = module.split("/")
         var moduleName = moduleParts[moduleParts.length - 1]
-        os.execute("cmd /C cd " + ModuleUtils:getModulePath(moduleName) + " && git pull")
+        $if windows{
+            os.execute("cmd /C cd " + ModuleUtils:getModulePath(moduleName) + " && git pull")
+        }$else{
+            os.execute("sh -c 'cd " + ModuleUtils:getModulePath(moduleName) + " && git pull'")
+        }
     }
 }elseif(subcommand == "internal-update-1"){
     $if windows{

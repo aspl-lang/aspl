@@ -6,9 +6,8 @@ import zip
 import os
 
 function download_templates(){
-    var githubToken = fetch_github_token()
     var asset = fetch_asset_id("templates.zip")
-    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Authorization" => ["token " + githubToken], "Accept" => ["application/octet-stream"]})
+    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Accept" => ["application/octet-stream"]})
     io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), response.text)
     zip.unzip(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), ".")
     io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]))
@@ -17,7 +16,6 @@ function download_templates(){
 // download_executable downloads the latest aspl cli executable
 // Warning: this function never returns and starts a new process instead
 function download_executable(){
-    var githubToken = fetch_github_token()
     var assetName = "aspl"
     $if windows{
         assetName += "_windows"
@@ -60,7 +58,7 @@ function download_executable(){
         }
     }
     var asset = fetch_asset_id(assetName)
-    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Authorization" => ["token " + githubToken], "Accept" => ["application/octet-stream"]})
+    var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Accept" => ["application/octet-stream"]})
     $if windows{
         io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), response.text)
         os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), ["internal-update-1"])
@@ -72,20 +70,11 @@ function download_executable(){
     exit(0)
 }
 
-function fetch_github_token() returns string{
-    if(io.exists_file("github.token")){
-        return io.read_file("github.token").trim()
-    }
-    print(console.red("aspl update: github token not found, please create a file named github.token in the current directory and put your github token in it"))
-    exit(1)
-}
-
 function fetch_asset_id(string name) returns string{
-    var githubToken = fetch_github_token()
     var sha = ""
     var asset = ""
     {
-        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/contents/latest.txt", "", {"Authorization" => ["token " + githubToken]})
+        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/contents/latest.txt")
         var contents = map<string, any>(json.decode(response.text))
         var content = string(contents["content"]).trim()
         if(content.endsWith("\\n")){
@@ -94,7 +83,7 @@ function fetch_asset_id(string name) returns string{
         sha = encoding.base64.decode(content).trim()
     }
     {
-        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/tags/SHA-" + sha, "", {"Authorization" => ["token " + githubToken]})
+        var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/tags/SHA-" + sha)
         var contents = map<string, any>(json.decode(response.text))
         var assets = list<any>(contents["assets"])
         foreach(assets as a){
