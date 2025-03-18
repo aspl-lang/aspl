@@ -1,14 +1,10 @@
-/*
-Returns the current time since the Unix Epoch (UTC)
-*/
+// now returns the current time since the Unix Epoch (UTC)
 [public]
 function now() returns Timestamp{
     return new Timestamp(long(implement("time.nanotime_utc")))
 }
 
-/*
-Returns the current time since the Unix Epoch (local timezone)
-*/
+// local returns the current time since the Unix Epoch (local timezone)
 [public]
 function local() returns Timestamp{
     return new Timestamp(long(implement("time.nanotime_local")))
