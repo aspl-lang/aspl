@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a bug in ASPL
+title: "module: concise bug description"
+labels: bug, unreviewed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        Please note the [conventions for naming issues in the ASPL monorepo](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md#conventions-in-the-aspl-monorepo) for information on how to choose a good title.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Please describe the bug you are reporting. What symptoms does it cause?
+    validations:
+      required: true
+  - type: textarea
+    id: reproducing
+    attributes:
+      label: Reproducing instructions
+      description: How can you reproduce this behaviour? Insert code here if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: expectations
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen instead?
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide information about your local testing environment here (operating system, version of ASPL (`aspl version`), ...).
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about your bug report here.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Contributing guidelines
+      description: I have read the [contributing guidelines](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md) and verified that his bug has not been reported previously.
+      options:
+        - label: I agree to follow this project's contributing guidelines
+          required: true

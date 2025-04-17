@@ -1,0 +1,25 @@
+name: Question
+description: Ask a question about ASPL
+title: "module: concise question"
+labels: help wanted, question, unreviewed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking an interest in ASPL!
+        Please note the [conventions for naming issues in the ASPL monorepo](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md#conventions-in-the-aspl-monorepo) for information on how to choose a good title.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Ask your question here.
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Contributing guidelines
+      description: I have read the [contributing guidelines](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md) and verified that his bug has not been asked previously.
+      options:
+        - label: I agree to follow this project's contributing guidelines
+          required: true

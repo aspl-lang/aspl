@@ -1,7 +1,8 @@
+blank_issues_enabled: true
 contact_links:
   - name: Discussion Q&A
     url: https://github.com/aspl-lang/aspl/discussions/categories/q-a
     about: You can ask and answer questions here
-  - name: Discord
+  - name: Discord server
     url: https://discord.gg/UUNzAFrKU2
-    about: You can ask and answer questions here
+    about: You can report bugs, suggest features, ask and answer questions, and more here

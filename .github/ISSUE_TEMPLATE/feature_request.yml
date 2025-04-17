@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new feature for ASPL
+title: "module: concise feature description"
+labels: enhancement, unreviewed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request!
+        Please note the [conventions for naming issues in the ASPL monorepo](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md#conventions-in-the-aspl-monorepo) for information on how to choose a good title.
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature idea
+      description: |
+        Provide a clear and concise description/explanation of your feature suggestion.
+        If your idea is releated to a problem, please also elaborate on that problem, so that someone not familiar with it can still understand your feature request and why it is neccessary. If this idea is releated to a bug or other kind of existing issue, please also link to it here.
+    validations:
+      required: true
+  - type: textarea
+    id: solutions
+    attributes:
+      label: Possible solutions/implementations
+      description: Offer possible solutions/implementations here.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What alternative solutions or features have considered?
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about your feature request here.
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Contributing guidelines
+      description: I have read the [contributing guidelines](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md) and verified that his feature has not been suggested previously.
+      options:
+        - label: I agree to follow this project's contributing guidelines
+          required: true
