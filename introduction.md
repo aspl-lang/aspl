@@ -365,10 +365,8 @@ var map<string, int> m = {"Universe" => 42}
 print(m["Universe"]) // 42
 m["zero"] = 0
 print(m["zero"]) // 0
-m.removeKey("zero")
+m.remove("zero")
 print(m) // {"Universe" => 42}
-m.removeValue(42)
-print(m) // {}
 ```
 
 ## Functions
