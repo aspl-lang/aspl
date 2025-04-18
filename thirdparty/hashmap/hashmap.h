@@ -245,7 +245,6 @@ int HASHMAP_FUNC_NAME(hashmap_remove)(HASHMAP_STRUCT_NAME(HashMap)* m, HASHMAP_K
         HASHMAP_STRUCT_NAME(Pair)* pair = bucket->pairs[i];
         if (HASHMAP_STRUCT_NAME(equals_key)(pair->key, key))
         {
-            HASHMAP_FREE(pair);
             for (int j = 0; j < m->len; j++)
             {
                 if (m->pairs[j] == pair)
@@ -276,8 +275,9 @@ int HASHMAP_FUNC_NAME(hashmap_remove)(HASHMAP_STRUCT_NAME(HashMap)* m, HASHMAP_K
                 }
                 HASHMAP_FREE(bucket->pairs);
                 bucket->pairs = new_pairs;
-                bucket->num_pairs--;
             }
+            bucket->num_pairs--;
+            HASHMAP_FREE(pair);
 
             const float load_factor_threshold = 0.25;
             if ((float)m->len / m->buckets_length < load_factor_threshold)
