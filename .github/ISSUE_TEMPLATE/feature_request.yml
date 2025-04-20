@@ -14,7 +14,8 @@ body:
       label: Feature idea
       description: |
         Provide a clear and concise description/explanation of your feature suggestion.
-        If your idea is releated to a problem, please also elaborate on that problem, so that someone not familiar with it can still understand your feature request and why it is neccessary. If this idea is releated to a bug or other kind of existing issue, please also link to it here.
+
+        If your idea is related to a problem, please also elaborate on that problem, so that someone not familiar with it can still understand your feature request and why it is necessary. If this idea is related to a bug or other kind of existing issue, please also link to it here.
     validations:
       required: true
   - type: textarea
