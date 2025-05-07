@@ -1,6 +1,7 @@
 class TokenList{
 
 	property list<Token>* tokens
+	property int position
 	
 	[public]
 	method construct(list<Token> tokens){
@@ -9,26 +10,24 @@ class TokenList{
 
 	[public]	
 	method peek(int amount = 0) returns Token{
-		return (*tokens)[amount]
+		return (*tokens)[position + amount]
 	}
 	
 	[public]
 	method shift(int amount = 1){
-		repeat(amount, i = 0){
-			(*tokens).removeAt(i)
-		}
+		position += amount
 	}
 	
 	[public]
 	method next(int offset = 0) returns Token{
-		var Token token = (*tokens)[offset]
+		var Token token = (*tokens)[position + offset]
 		shift(offset + 1)
 		return token
 	}
 	
 	[public]
 	method count() returns int{
-		return (*tokens).length
+		return (*tokens).length - position
 	}
 
 	[public]
