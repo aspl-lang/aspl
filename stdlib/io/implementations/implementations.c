@@ -252,7 +252,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$exists(ASPL_OBJECT_TYPE* path)
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$read_string(ASPL_OBJECT_TYPE* path)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
-    FILE* file = fopen(pathStr, "rb"); // rb because the length is in bytes (which is not necessarily the same as characters)
+    FILE* file = fopen(pathStr, "rb"); // rb because the length is in bytes (which is not necessarily the same as in characters)
     if (file)
     {
         fseek(file, 0, SEEK_END);
@@ -298,7 +298,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$read_bytes(ASPL_OBJECT_TYPE* path)
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$write_string(ASPL_OBJECT_TYPE* path, ASPL_OBJECT_TYPE* string)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
-    FILE* file = fopen(pathStr, "wb"); // wb because the length is in bytes (which is not necessarily the same as characters)    if (file)
+    FILE* file = fopen(pathStr, "wb"); // wb because the length is in bytes (which is not necessarily the same as in characters)
     if (file)
     {
         fwrite(ASPL_ACCESS(*string).value.string->str, 1, ASPL_ACCESS(*string).value.string->length, file);
