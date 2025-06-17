@@ -3,7 +3,7 @@ import json
 import math
 
 var usd = math.round(double(input("Enter a value of $ you want to convert to €: ")), 2)
-var data = map<string, any>(json.decode(internet.get("http://open.er-api.com/v6/latest/USD").text)) // TODO: Use https here when it works
+var data = map<string, any>(json.decode(internet.get("http://open.er-api.com/v6/latest/USD").data.fetchAsString())) // TODO: Use https here when it works
 var rates = map<string, float>(data["rates"])
 var rate = rates["EUR"]
 var euro = math.round(usd * rate, 2)

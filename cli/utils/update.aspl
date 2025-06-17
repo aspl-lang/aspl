@@ -8,7 +8,7 @@ import os
 function download_templates(){
     var asset = fetch_asset_id("templates.zip")
     var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Accept" => ["application/octet-stream"]})
-    io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), response.text)
+    io.write_file_bytes(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), response.data.fetchAsBytes())
     zip.unzip(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), ".")
     io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]))
 }
@@ -60,10 +60,10 @@ function download_executable(){
     var asset = fetch_asset_id(assetName)
     var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"Accept" => ["application/octet-stream"]})
     $if windows{
-        io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), response.text)
+        io.write_file_bytes(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), response.data.fetchAsBytes())
         os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated.exe"]), ["internal-update-1"])
     }$else{
-        io.write_file(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), response.text)
+        io.write_file_bytes(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), response.data.fetchAsBytes())
         os.execute("chmod +x " + io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]))
         os.execvp("./" + io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), ["internal-update-1"])
     }
@@ -75,7 +75,7 @@ function fetch_asset_id(string name) returns string{
     var asset = ""
     {
         var response = internet.get("https://api.github.com/repos/aspl-lang/cd/contents/latest.txt")
-        var contents = map<string, any>(json.decode(response.text))
+        var contents = map<string, any>(json.decode(response.data.fetchAsString()))
         var content = string(contents["content"]).trim()
         if(content.endsWith("\\n")){
             content = content.before(content.length - 2)
@@ -84,7 +84,7 @@ function fetch_asset_id(string name) returns string{
     }
     {
         var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/tags/SHA-" + sha)
-        var contents = map<string, any>(json.decode(response.text))
+        var contents = map<string, any>(json.decode(response.data.fetchAsString()))
         var assets = list<any>(contents["assets"])
         foreach(assets as a){
             if(map<string, any>(a)["name"] == name){
