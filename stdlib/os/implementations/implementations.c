@@ -68,14 +68,14 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_os$command$execvp(ASPL_OBJECT_TYPE* command, ASP
     ASPL_OBJECT_TYPE commandObj = (ASPL_OBJECT_TYPE)*command;
     ASPL_OBJECT_TYPE argsObj = (ASPL_OBJECT_TYPE)*args;
     const char* commandStr = ASPL_ACCESS(commandObj).value.string->str;
-    int numArgs = ASPL_ACCESS(argsObj).value.list->length - 1;
+    int numArgs = ASPL_ACCESS(argsObj).value.list->length;
     const char** argsv = (const char**)ASPL_MALLOC(sizeof(const char*) * (numArgs + 2));
 
     argsv[0] = commandStr;
 
     for (int i = 1; i <= numArgs; i++)
     {
-        argsv[i] = ASPL_ACCESS(ASPL_ACCESS(argsObj).value.list->value[i]).value.string->str;
+        argsv[i] = ASPL_ACCESS(ASPL_ACCESS(argsObj).value.list->value[i - 1]).value.string->str;
     }
 
     argsv[numArgs + 1] = NULL;  // The last element of argsv should be NULL.
