@@ -1,0 +1,21 @@
+[public]
+class HttpResponseData {
+
+    property any handle
+
+    [public]
+    method construct(any handle) {
+        this.handle = handle
+    }
+
+    [public]
+    method fetchAsString() returns string {
+        return string(implement("internet.http.response_data.fetch_as_string", this.handle))
+    }
+
+    [public]
+    method fetchAsBytes() returns list<byte> {
+        return list<byte>(implement("internet.http.response_data.fetch_as_bytes", this.handle))
+    }
+
+}

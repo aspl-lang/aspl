@@ -53,6 +53,11 @@ void aspl_callback_invoke(ASPL_OBJECT_TYPE closure);
 void aspl_callback_string__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* message);
 void aspl_callback_integer_string__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* code, ASPL_OBJECT_TYPE* message);
 
+typedef struct ASPL_handle_internet$http$ResponseData {
+    unsigned char* data;
+    size_t length;
+} ASPL_handle_internet$http$ResponseData;
+
 ASPL_OBJECT_TYPE aspl_util_perform_http_request(const char* method, ASPL_OBJECT_TYPE* url, ASPL_OBJECT_TYPE* data, ASPL_OBJECT_TYPE* headers) {
     size_t headerCount = ASPL_ACCESS(*headers).kind == ASPL_OBJECT_KIND_NULL ? 0 : ASPL_ACCESS(*headers).value.map->hashmap->len;
     echttp_Header* headerList = ASPL_MALLOC(sizeof(echttp_Header) * headerCount);
@@ -71,7 +76,10 @@ ASPL_OBJECT_TYPE aspl_util_perform_http_request(const char* method, ASPL_OBJECT_
     }
     echttp_Response response = echttp_request(method, ASPL_ACCESS(*url).value.string->str, ASPL_ACCESS(*data).value.string->str, ASPL_ACCESS(*data).value.string->length, headerList, headerCount);
     ASPL_OBJECT_TYPE* responseList = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
-    responseList[0] = ASPL_STRING_LITERAL(response.data);
+    ASPL_handle_internet$http$ResponseData* responseData = ASPL_MALLOC(sizeof(ASPL_handle_internet$http$ResponseData));
+    responseData->data = (unsigned char*)response.data;
+    responseData->length = response.response_size;
+    responseList[0] = ASPL_HANDLE_LITERAL(responseData);
     ASPL_OBJECT_TYPE* responseHeaders = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * response.header_count * 2);
     for (size_t i = 0; i < response.header_count; i++)
     {
@@ -138,6 +146,22 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$connect(ASPL_OBJECT_TYPE* url, ASP
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$patch(ASPL_OBJECT_TYPE* url, ASPL_OBJECT_TYPE* data, ASPL_OBJECT_TYPE* headers)
 {
     return aspl_util_perform_http_request("patch", url, data, headers);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$response_data$fetch_as_string(ASPL_OBJECT_TYPE* handle)
+{
+    return ASPL_STRING_LITERAL((char*)((ASPL_handle_internet$http$ResponseData*)ASPL_ACCESS(*handle).value.handle)->data);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_internet$http$response_data$fetch_as_bytes(ASPL_OBJECT_TYPE* handle)
+{
+    ASPL_handle_internet$http$ResponseData* responseData = (ASPL_handle_internet$http$ResponseData*)ASPL_ACCESS(*handle).value.handle;
+    ASPL_OBJECT_TYPE* bytes = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * responseData->length);
+    for (int i = 0; i < responseData->length; i++)
+    {
+        bytes[i] = ASPL_BYTE_LITERAL(responseData->data[i]);
+    }
+    return ASPL_LIST_LITERAL("list<byte>", 10, bytes, responseData->length);
 }
 
 typedef struct ASPL_handle_TcpSocketClient

@@ -1,8 +1,8 @@
 [public]
 class HttpResponse {
-    
+
     [readpublic]
-    property string text
+    property HttpResponseData data
     [readpublic]
     property map<string, list<string>> headers
     [readpublic]
@@ -13,8 +13,8 @@ class HttpResponse {
     property string httpVersion
 
     [public]
-    method construct(string text, map<string, list<string>> headers, int statusCode, string statusMessage, string httpVersion) {
-        this.text = text
+    method construct(HttpResponseData data, map<string, list<string>> headers, int statusCode, string statusMessage, string httpVersion) {
+        this.data = data
         this.headers = headers
         this.statusCode = statusCode
         this.statusMessage = statusMessage
