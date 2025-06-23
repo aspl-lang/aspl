@@ -918,6 +918,7 @@ typedef enum {
     sha256 = 4,
     sha384 = 5,
     sha512 = 6,
+    _intrinsic = 8, // rfc8422
     _md5_sha1 = 255
 } TLSHashAlgorithm;
 
@@ -927,10 +928,11 @@ typedef enum {
     anonymous = 0,
     rsa_pkcs1 = 1,
     ecdsa = 3,
-    rsa_pss = 8
+    // rsa_pss seems broken
+    // rsa_pss = 8
 } TLSSignatureAlgorithm;
 
-#define TLS_SIGN_ALGO_NUMBER (3)  // rsa_pkcs1, rsa_pss_rsae, ecdsa
+#define TLS_SIGN_ALGO_NUMBER (2)  // rsa_pkcs1, rsa_pss_rsae, ecdsa
 
 struct _private_OID_chain {
     void *top;
@@ -1966,6 +1968,9 @@ int _private_tls_verify_rsa(struct TLSContext *context, unsigned int hash_type, 
     }
     if ((hash_idx < 0) || (err)) {
         DEBUG_PRINT("Unsupported hash type: %i\n", hash_type);
+#ifdef TLS_UNSECURE_ALLOW_UNSUPPORTED_SIGNATURES
+        return 1;
+#endif
         return TLS_GENERIC_ERROR;
     }
     int rsa_stat = 0;
@@ -2642,6 +2647,9 @@ int _private_tls_verify_ecdsa(struct TLSContext *context, unsigned int hash_type
     }
     if ((hash_idx < 0) || (err)) {
         DEBUG_PRINT("Unsupported hash type: %i\n", hash_type);
+#ifdef TLS_UNSECURE_ALLOW_UNSUPPORTED_SIGNATURES
+        return 1;
+#endif
         return TLS_GENERIC_ERROR;
     }
     int ecc_stat = 0;
@@ -6426,7 +6434,7 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                 for (TLSHashAlgorithm hash = sha256; !(hash > sha512); hash = (TLSHashAlgorithm) ((int) hash + 1)) {
                     tls_packet_uint16(packet, ((uint16_t) (hash) << 8) | ecdsa);
                     tls_packet_uint16(packet, ((uint16_t) (hash) << 8) | rsa_pkcs1);
-                    tls_packet_uint16(packet, (rsa_pss << 8) | (uint16_t) (hash));
+                    // tls_packet_uint16(packet, (rsa_pss << 8) | (uint16_t) (hash));
                 }
             }
         }
@@ -9211,7 +9219,11 @@ unsigned char *_private_tls_compute_hash(int algorithm, const unsigned char *mes
 int tls_certificate_verify_signature(struct TLSCertificate *cert, struct TLSCertificate *parent) {
     if ((!cert) || (!parent) || (!cert->sign_key) || (!cert->fingerprint) || (!cert->sign_len) || (!parent->der_bytes) || (!parent->der_len)) {
         DEBUG_PRINT("CANNOT VERIFY SIGNATURE\n");
+#ifdef TLS_UNSECURE_ALLOW_UNSUPPORTED_CERTIFICATES
+        return 1;
+#else
         return 0;
+#endif
     }
     tls_init();
     int hash_len = _private_tls_hash_len(cert->algorithm);
@@ -10017,50 +10029,39 @@ struct TLSPacket *tls_build_certificate(struct TLSContext *context) {
     }
     struct TLSPacket *packet = tls_create_packet(context, TLS_HANDSHAKE, context->version, 0);
     tls_packet_uint8(packet, 0x0B);
-    if (all_certificate_size) {
 #ifdef WITH_TLS_13
-        // context
-        if ((context->version == TLS_V13) || (context->version == DTLS_V13)) {
-            tls_packet_uint24(packet, all_certificate_size + 4);
-            tls_packet_uint8(packet, 0);
-        } else
+    // context
+    if ((context->version == TLS_V13) || (context->version == DTLS_V13)) {
+        tls_packet_uint24(packet, all_certificate_size + 4);
+        tls_packet_uint8(packet, 0);
+    } else
 #endif
-            tls_packet_uint24(packet, all_certificate_size + 3);
+        tls_packet_uint24(packet, all_certificate_size + 3);
 
-        if (context->dtls)
-            _private_dtls_handshake_data(context, packet, all_certificate_size + 3);
+    if (context->dtls)
+        _private_dtls_handshake_data(context, packet, all_certificate_size + 3);
 
-        tls_packet_uint24(packet, all_certificate_size);
-        for (i = 0; i < certificates_count; i++) {
-            struct TLSCertificate *cert = certificates[i];
-            if ((cert) && (cert->der_len)) {
+    tls_packet_uint24(packet, all_certificate_size);
+    for (i = 0; i < certificates_count; i++) {
+        struct TLSCertificate *cert = certificates[i];
+        if ((cert) && (cert->der_len)) {
 #ifdef TLS_ECDSA_SUPPORTED
-                // is RSA certificate ?
-                if ((is_ecdsa) && (!cert->ec_algorithm))
-                    continue;
-                // is ECC certificate ?
-                if ((!is_ecdsa) && (cert->ec_algorithm))
-                    continue;
+            // is RSA certificate ?
+            if ((is_ecdsa) && (!cert->ec_algorithm))
+                continue;
+            // is ECC certificate ?
+            if ((!is_ecdsa) && (cert->ec_algorithm))
+                continue;
 #endif
-                // 2 times -> one certificate
-                tls_packet_uint24(packet, cert->der_len);
-                tls_packet_append(packet, cert->der_bytes, cert->der_len);
+            // 2 times -> one certificate
+            tls_packet_uint24(packet, cert->der_len);
+            tls_packet_append(packet, cert->der_bytes, cert->der_len);
 #ifdef WITH_TLS_13
-                // extension
-                if ((context->version == TLS_V13) || (context->version == DTLS_V13))
-                    tls_packet_uint16(packet, 0);
+            // extension
+            if ((context->version == TLS_V13) || (context->version == DTLS_V13))
+                tls_packet_uint16(packet, 0);
 #endif
-            }
         }
-    } else {
-        tls_packet_uint24(packet, all_certificate_size);
-#ifdef WITH_TLS_13
-        if ((context->version == TLS_V13) || (context->version == DTLS_V13))
-            tls_packet_uint8(packet, 0);
-#endif
-
-        if (context->dtls)
-            _private_dtls_handshake_data(context, packet, all_certificate_size);
     }
     tls_packet_update(packet);
     if (context->dtls)
