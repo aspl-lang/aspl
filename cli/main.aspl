@@ -445,7 +445,7 @@ if(subcommand == "compile" || subcommand == "build"){
         os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated.exe"]), ["internal-update-2"])
     }$else{
         io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]))
-        os.execvp(io.join_path(["./", io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]), ["internal-update-2"])
+        os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_not_updated"]), ["internal-update-2"])
     }
     exit(0)
 }elseif(subcommand == "internal-update-2"){
@@ -454,7 +454,7 @@ if(subcommand == "compile" || subcommand == "build"){
         os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl.exe"]), ["internal-update-3"])
     }$else{
         io.move(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl_updated"]), io.join_path([io.full_directory_path(io.get_executable_path()), "aspl"]))
-        os.execvp(io.join_path(["./", io.full_directory_path(io.get_executable_path()), "aspl"]), ["internal-update-3"])
+        os.execvp(io.join_path([io.full_directory_path(io.get_executable_path()), "aspl"]), ["internal-update-3"])
     }
     exit(0)
 }elseif(subcommand == "internal-update-3"){
