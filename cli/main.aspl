@@ -1,15 +1,15 @@
 import os
 import console
-import aspl.parser
-import aspl.compiler
-import aspl.compiler.utils
 import io
+import aspl.parser
 import aspl.parser.ast
 import aspl.parser.ast.statements
 import aspl.parser.functions
 import aspl.parser.properties
 import aspl.parser.methods
 import aspl.parser.utils
+import aspl.compiler
+import aspl.compiler.utils
 import cli.utils
 
 if(os.args().length < 2){
@@ -159,7 +159,7 @@ if(subcommand == "compile" || subcommand == "build"){
 }elseif(subcommand == "test-all"){
     test_all()
 }elseif(subcommand == "format"){
-    print(console.yellow("Coming soon..."))
+    print(console.yellow("aspl format: coming soon..."))
 }elseif(subcommand == "document" || subcommand == "doc"){
     i++
     if(os.args().length < i + 1){
@@ -419,7 +419,7 @@ if(subcommand == "compile" || subcommand == "build"){
     i++
     if(os.args().length < i + 1){
         if(!io.exists_directory(io.join_path([io.full_directory_path(io.get_executable_path()), ".git"]))){
-            print(console.red("aspl update: not in a git repository"))
+            print(console.red("aspl update: not in a Git repository"))
             exit(1)
         }
         $if windows{
@@ -465,7 +465,7 @@ if(subcommand == "compile" || subcommand == "build"){
     }
     print(console.green("aspl update: successfully updated ASPL to the latest version (" + cli.utils.get_current_version() + ")"))
 }elseif(subcommand == "version"){
-    print("aspl version: " + cli.utils.get_current_version() + " (Git SHA " + cli.utils.get_git_sha()+ ")")
+    print("aspl version: " + cli.utils.get_current_version() + " (Git SHA " + cli.utils.get_git_sha() + ")")
 }elseif(subcommand == "build-minimal-template"){
     io.create_directory("minimal_template")
     io.write_file("minimal_template/main.aspl", "")
