@@ -78,7 +78,7 @@ ASPL_OBJECT_TYPE aspl_util_perform_http_request(const char* method, ASPL_OBJECT_
     ASPL_OBJECT_TYPE* responseList = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
     ASPL_handle_internet$http$ResponseData* responseData = ASPL_MALLOC(sizeof(ASPL_handle_internet$http$ResponseData));
     responseData->data = ASPL_MALLOC_ATOMIC(response.response_size + 1);
-    mempcpy(responseData->data, response.data, response.response_size);
+    memcpy(responseData->data, response.data, response.response_size);
     responseData->data[response.response_size] = '\0';
     responseData->length = response.response_size;
     responseList[0] = ASPL_HANDLE_LITERAL(responseData);
