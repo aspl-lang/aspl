@@ -9,7 +9,7 @@ function download_templates(){
     var asset = fetch_asset_id("templates.zip")
     var response = internet.get("https://api.github.com/repos/aspl-lang/cd/releases/assets/" + asset, "", {"User-Agent" => ["ASPL CLI"], "Accept" => ["application/octet-stream"]})
     io.write_file_bytes(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), response.data.fetchAsBytes())
-    zip.unzip(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), ".")
+    zip.unzip(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]), io.full_directory_path(io.get_executable_path()))
     io.delete_file(io.join_path([io.full_directory_path(io.get_executable_path()), "templates.zip"]))
 }
 
