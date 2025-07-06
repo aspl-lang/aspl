@@ -77,7 +77,9 @@ ASPL_OBJECT_TYPE aspl_util_perform_http_request(const char* method, ASPL_OBJECT_
     echttp_Response response = echttp_request(method, ASPL_ACCESS(*url).value.string->str, ASPL_ACCESS(*data).value.string->str, ASPL_ACCESS(*data).value.string->length, headerList, headerCount);
     ASPL_OBJECT_TYPE* responseList = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
     ASPL_handle_internet$http$ResponseData* responseData = ASPL_MALLOC(sizeof(ASPL_handle_internet$http$ResponseData));
-    responseData->data = (unsigned char*)response.data;
+    responseData->data = ASPL_MALLOC_ATOMIC(response.response_size + 1);
+    mempcpy(responseData->data, response.data, response.response_size);
+    responseData->data[response.response_size] = '\0';
     responseData->length = response.response_size;
     responseList[0] = ASPL_HANDLE_LITERAL(responseData);
     ASPL_OBJECT_TYPE* responseHeaders = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * response.header_count * 2);
@@ -95,6 +97,7 @@ ASPL_OBJECT_TYPE aspl_util_perform_http_request(const char* method, ASPL_OBJECT_
     responseList[2] = ASPL_INT_LITERAL(response.status_code);
     responseList[3] = ASPL_STRING_LITERAL(response.reason_phrase);
     responseList[4] = ASPL_STRING_LITERAL(response.http_version);
+    echttp_release(response);
     return ASPL_LIST_LITERAL(
         "list<string|map<string, list<string>>|integer>",
         47,
