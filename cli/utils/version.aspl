@@ -10,7 +10,7 @@ function get_git_sha() returns string{
 
 function get_current_version() returns string{
     var string nextRelease = "0.2"
-    var bool isDevelopementBuild = true
+    var bool isDevelopementBuild = false
     if(isDevelopementBuild){
         return "v" + nextRelease + "-" + get_git_sha()
     }else{
