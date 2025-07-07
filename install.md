@@ -25,3 +25,6 @@ Hello World!
 
 Congratulations! You have successfully installed ASPL!
 <br>Be sure to check out the [introduction](introduction.md) next to learn more about ASPL and how to use it.
+
+> [!TIP]
+> Once you have installed ASPL on your computer, you can always easily upgrade to the latest version of it using the `aspl update` command! By doing this once in a while, you'll make sure to get access to new features, bug fixes, improved documentation, and much more without needing to manually reinstall anything.
