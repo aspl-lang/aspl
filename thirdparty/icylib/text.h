@@ -230,13 +230,13 @@ void icylib_measure_text_size(const char* text, const char* font_path, int pixel
 
     float scale = stbtt_ScaleForPixelHeight(font, pixel_size);
 
-    int ascent, zero;
-    stbtt_GetFontVMetrics(font, &ascent, &zero, &zero);
+    int ascent, descent, lineGap;
+    stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
 
     int advance, lsb, x0, y0, x1, y1;
     double x_cursor = 0.0;
     double max_x = 0.0;
-    double y_cursor = 0.0;
+    double y_cursor = ascent * scale;
 
     size_t text_len = strlen(text);
     for (size_t i = 0; i < text_len; ++i) {
@@ -244,7 +244,7 @@ void icylib_measure_text_size(const char* text, const char* font_path, int pixel
             if (x_cursor > max_x) {
                 max_x = x_cursor;
             }
-            y_cursor += ascent * scale;
+            y_cursor += (ascent - descent + lineGap) * scale;
             x_cursor = 0;
             continue;
         }
@@ -256,12 +256,10 @@ void icylib_measure_text_size(const char* text, const char* font_path, int pixel
 
         if (i < text_len - 1) {
             x_cursor += advance * scale;
-            x_cursor += scale * stbtt_GetCodepointKernAdvance(font, c, (int)text[i + 1]);
+            x_cursor += stbtt_GetCodepointKernAdvance(font, c, (int)text[i + 1]) * scale;
+        }else{
+            x_cursor += x1;
         }
-    }
-
-    if (text_len >= 1) {
-        x_cursor += advance * scale;
     }
 
     if (x_cursor > max_x) {
@@ -269,7 +267,88 @@ void icylib_measure_text_size(const char* text, const char* font_path, int pixel
     }
 
     *result_x = max_x;
-    *result_y = y_cursor + ascent * scale;
+    *result_y = y_cursor;
+}
+
+void icylib_draw_text(unsigned char* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, void (*set_pixel)(unsigned char* image, int, int, icylib_Color)) {
+    double width, height;
+    icylib_measure_text_size(text, fontPath, pixelSize, &width, &height);
+
+    stbtt_fontinfo* font = NULL;
+    icylib_FontCache* fonts = icylib_get_font_cache();
+
+    for (int i = 0; i < fonts->length; ++i) {
+        if (strcmp(fonts->data[i].name, fontPath) == 0) {
+            font = fonts->data[i].font;
+            break;
+        }
+    }
+    if (font == NULL) {
+        unsigned char* font_file;
+        icylib_read_bytes(fontPath, &font_file);
+
+        font = ICYLIB_MALLOC(sizeof(stbtt_fontinfo));
+
+        int offset = stbtt_GetFontOffsetForIndex(font_file, 0);
+        stbtt_InitFont(font, font_file, offset);
+
+        fonts->data = ICYLIB_REALLOC(fonts->data, sizeof(icylib_FontCacheEntry) * (fonts->length + 1));
+        fonts->data[fonts->length].name = fontPath;
+        fonts->data[fonts->length].font = font;
+        fonts->length++;
+    }
+
+    float scale = stbtt_ScaleForPixelHeight(font, pixelSize);
+
+    int ascent, descent, lineGap;
+    stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
+
+    int advance, lsb, x0, y0, x1, y1;
+
+    float x_cursor = x;
+    if (horizontalAlignment == ICYLIB_HORIZONTAL_ALIGNMENT_CENTER) {
+        x_cursor -= width / 2;
+    }
+    else if (horizontalAlignment == ICYLIB_HORIZONTAL_ALIGNMENT_RIGHT) {
+        x_cursor -= width;
+    }
+    float y_cursor = y + ascent * scale;
+    if (verticalAlignment == ICYLIB_VERTICAL_ALIGNMENT_CENTER) {
+        y_cursor -= height / 2;
+    }
+    else if (verticalAlignment == ICYLIB_VERTICAL_ALIGNMENT_BOTTOM) {
+        y_cursor -= height;
+    }
+    for (size_t i = 0; i < strlen(text); ++i) {
+        if (text[i] == '\n') {
+            y_cursor += (ascent - descent + lineGap) * scale;
+            x_cursor = x;
+            continue;
+        }
+
+        int c = (int)text[i];
+
+        stbtt_GetCodepointHMetrics(font, c, &advance, &lsb);
+        stbtt_GetCodepointBitmapBox(font, c, scale, scale, &x0, &y0, &x1, &y1);
+
+        int w = 0;
+        int h = 0;
+        unsigned char* bitmap = stbtt_GetCodepointBitmap(font, 0, scale, c, &w, &h, 0, 0);
+        for (int b = 0; b < h; ++b) {
+            for (int a = 0; a < w; ++a) {
+                if (bitmap[b * w + a] != 0) {
+                    int pixel_x = (int)x_cursor + x0 + a;
+                    int pixel_y = (int)y_cursor + y0 + b;
+                    set_pixel(image, pixel_x, pixel_y, icylib_color_from_rgba(color.r, color.g, color.b, (unsigned char)(bitmap[b * w + a])));
+                }
+            }
+        }
+
+        if (i < strlen(text) - 1) {
+            x_cursor += advance * scale;
+            x_cursor += stbtt_GetCodepointKernAdvance(font, c, (int)text[i + 1]) * scale;
+        }
+    }
 }
 
 #endif
