@@ -10,6 +10,12 @@ jobs:
     container:
       image: debian:buster # use an older Debian version to support older glibc versions
     steps:
+      - name: Patch sources.list for Debian buster archive
+        run: |
+          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
+          sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list
+          sed -i '/deb-src/d' /etc/apt/sources.list
+          apt-get update
       - name: Install Git
         run: |
           apt-get update
@@ -120,6 +126,12 @@ jobs:
       image: debian:buster # use an older Debian version to support older glibc versions
     needs: [build-runtime-linux, build-runtime-windows, build-runtime-macos]
     steps:
+      - name: Patch sources.list for Debian buster archive
+        run: |
+          sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
+          sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list
+          sed -i '/deb-src/d' /etc/apt/sources.list
+          apt-get update
       - name: Install Git
         run: |
           apt-get update
