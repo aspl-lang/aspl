@@ -634,7 +634,7 @@ Classes are the base of <a href="https://en.wikipedia.org/wiki/Object-oriented_p
 <br>Classes can have properties and methods.
 ```aspl
 class Hello{
-    
+
     property string name
     property int number = 5
 
