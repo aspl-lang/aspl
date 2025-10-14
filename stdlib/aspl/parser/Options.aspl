@@ -125,6 +125,10 @@ class Options {
     [public]
     [static]
     [threadlocal]
+    property bool useD3D11 = false
+    [public]
+    [static]
+    [threadlocal]
     property bool enableErrorHandling = false
     [public]
     [static]

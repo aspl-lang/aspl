@@ -102,6 +102,8 @@ if(os.args()[1].startsWith("-")){
             Options:stackSize = int(os.args()[i])
         }elseif(option == "-ssl"){
             Options:useSsl = true
+        }elseif(option == "-d3d11"){
+            Options:useD3D11 = true
         }elseif(option == "-enableErrorHandling"){
             Options:enableErrorHandling = true
         }elseif(option == "-noCachedTemplate"){
@@ -123,6 +125,16 @@ if(os.args()[1].startsWith("-")){
         }
         if(Options:targetOs == "macos"){
             print(console.red("aspl: `-ssl` option is not yet supported for macOS"))
+            exit(2)
+        }
+    }
+    if(Options:useD3D11){
+        if(Options:backend != "c"){
+            print(console.red("aspl: `-d3d11` option can only be used with the C backend"))
+            exit(2)
+        }
+        if(Options:targetOs != "windows"){
+            print(console.red("aspl: `-d3d11` option is only supported for Windows"))
             exit(2)
         }
     }

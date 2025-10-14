@@ -483,7 +483,13 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$measure_text_size(ASPL_OBJECT_TY
 #ifndef ASPL_USE_SSL
 #define SOKOL_IMPL
 #ifndef __ANDROID__
+#ifdef ASPL_GFX_API_GLORE
 #define SOKOL_GLCORE
+#elif ASPL_GFX_API_D3D11
+#define SOKOL_D3D11
+#else
+#define SOKOL_GLCORE // default
+#endif
 #define SOKOL_NO_ENTRY
 #endif
 #endif
@@ -538,6 +544,17 @@ void aspl_callback_float_float_float_float__invoke(ASPL_OBJECT_TYPE closure, ASP
 void aspl_callback_list_list_long_OR_float_OR_integer_OR_boolean____invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* touches);
 #endif
 
+void aspl_util_graphics$sokol_logger(const char* tag, uint32_t log_level, uint32_t log_item, const char* message, uint32_t line_nr, const char* filename, void* user_data) {
+    // TODO: Find a cleaner way to do this
+    #ifdef SOKOL_D3D11
+    const char* filter = "WIN32_D3D11_CREATE_DEVICE_AND_SWAPCHAIN_WITH_DEBUG_FAILED";
+    if (strncmp(message, filter, strlen(filter)) == 0) {
+        return;
+    }
+    #endif
+    return slog_func(tag, log_level, log_item, message, line_nr, filename, user_data);
+}
+
 void aspl_util_graphics$Window_load_callback(void* userdata) {
     struct GC_stack_base sb; // TODO: Is this only required for Android?
     GC_get_stack_base(&sb);
@@ -545,10 +562,11 @@ void aspl_util_graphics$Window_load_callback(void* userdata) {
 
     sg_setup(&(sg_desc) {
         // .context = sapp_sgcontext(), TODO: Is this actually required?
-        .logger.func = slog_func,
+        .logger.func = aspl_util_graphics$sokol_logger,
+        .environment = sglue_environment()
     });
     sgl_setup(&(sgl_desc_t) {
-        .logger.func = slog_func,
+        .logger.func = aspl_util_graphics$sokol_logger
     });
 
     ASPL_handle_graphics$Window* handle = (ASPL_handle_graphics$Window*)userdata;
@@ -785,7 +803,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$new() {
     ASPL_handle_graphics$Window* handle = ASPL_MALLOC(sizeof(ASPL_handle_graphics$Window));
     sapp_desc* desc = ASPL_MALLOC(sizeof(sapp_desc));
     *desc = (sapp_desc){
-        .logger.func = slog_func,
+        .logger.func = aspl_util_graphics$sokol_logger,
         .width = 640,
         .height = 480,
         .high_dpi = 1,

@@ -67,6 +67,7 @@ ASPL supports most modern operating systems and easily cross-compiles between th
     * [Conditional compilation](#conditional-compilation)
     * [Choosing a backend](#choosing-a-backend)
     * [Stack vs. heaped based builds](#stack-vs-heaped-based-builds)
+    * [Choosing a graphics API](#choosing-a-graphics-api)
 * [Resource embedding](#resource-embedding)
 * [Debugging](#debugging)
     * [Breakpoints](#breakpoints)
@@ -985,6 +986,12 @@ Various performance tests have shown that neither of these methods is per se fas
 
 > [!TIP]
 > Some very large programs might experience stack-overflow issues when allocating on the stack; passing `-heapBased` can potentially fix this. Alternatively, you can also try increasing the stack size using the `-stacksize` compiler option (although this is not supported on all platforms).
+
+## Choosing a graphics API
+> [!NOTE]
+> This section only applies to the C backend and when the target OS is Windows.
+
+By default, the `graphics` stdlib module uses the OpenGL API to communicate drawing calls to Windows - this is primarily done for compatibility reasons. That being said, using Direct3D 11 (D3D11) is preferred for production builds for several reasons, including significantly lower CPU usage and thus energy consumption on some devices (see [here](https://github.com/floooh/sokol/issues/1295)) and no flickering bugs in fullscreen mode. If you are sure that the machine that you want to deploy your ASPL app to has D3D11 installed, consider passing the `-d3d11` flag to the compiler to use the D3D11 interface instead of OpenGL.
 
 ## Resource embedding
 You can embed resources (such as images, audio files, etc.) directly into your executable using the `$embed` compile-time function:

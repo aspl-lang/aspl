@@ -242,6 +242,10 @@ function build_ccmd(string sourceFile, string outputFile) returns string{
         ccmd += " -lssl"
         ccmd += " -L " + io.full_directory_path(io.get_executable_path()) + "/thirdparty/ssl/" + Options:targetOs + "/bin"
     }
+    if(Options:useD3D11){
+        ccmd += " -DASPL_GFX_API_D3D11"
+        ccmd += " -ld3d11"
+    }
     if(Options:targetOs == "windows" && Options:guiApp){
         ccmd += " -Wl,--subsystem,windows"
     }
