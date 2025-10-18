@@ -2484,7 +2484,7 @@ class Parser{
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
-					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
 				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new DivideExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
@@ -2521,7 +2521,7 @@ class Parser{
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
-					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
+					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
 				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new ModuloExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
