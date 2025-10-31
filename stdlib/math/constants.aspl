@@ -53,18 +53,22 @@ function feigenbaum_alpha() returns double{
 	return 2.502907875095892d
 }
 
+[public]
 function feigenbaum_delta() returns double{
 	return 4.669201609102990d
 }
 
+[public]
 function catalan_constant() returns double{
 	return 0.91596559417721d
 }
 
+[public]
 function khinchin_constant() returns double{
 	return 2.685452001065306d
 }
 
+[public]
 function glaisher_kinkelin() returns double{
 	return 1.282427129100622d
 }
