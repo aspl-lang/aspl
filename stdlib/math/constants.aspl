@@ -7,3 +7,69 @@ function pi() returns double{
 function e() returns double{
 	return 2.718281828459045d
 }
+
+[public]
+function ln_2() returns double{
+	return 0.693147180559945d
+}
+
+[public]
+function ln_10() returns double{
+	return 2.302585092994046d
+}
+
+[public]
+function golden_ratio() returns double{
+	return 1.618033988749895d
+}
+
+[public]
+function root_2() returns double{
+	return 1.414213562373095d
+}
+
+[public]
+function root_3() returns double{
+	return 1.732050807568877d
+}
+
+[public]
+function root_5() returns double{
+	return 2.236067977499790d
+}
+
+[public]
+function euler_mascheroni() returns double{
+	return 0.577215664901533d
+}
+
+[public]
+function apery_constant() returns double{
+	return 1.202056903159594d
+}
+
+[public]
+function feigenbaum_alpha() returns double{
+	return 2.502907875095892d
+}
+
+[public]
+function feigenbaum_delta() returns double{
+	return 4.669201609102990d
+}
+
+[public]
+function catalan_constant() returns double{
+	return 0.91596559417721d
+}
+
+[public]
+function khinchin_constant() returns double{
+	return 2.685452001065306d
+}
+
+[public]
+function glaisher_kinkelin() returns double{
+	return 1.282427129100622d
+}
+
