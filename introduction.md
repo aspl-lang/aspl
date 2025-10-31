@@ -158,6 +158,7 @@ Note that you cannot assign a value of a wrong type to a variable:
 var s = "Hello"
 s = 0 // error, the variable 's' can only hold strings
 ```
+It was previously possible to use variable (and [property](#properties)) assignments as [expressions](#expression-vs-statement), e.g. as in `print(i = 1)`; however, this feature has been deprecated for simplicity and safety reasons and will be removed in the future.
 
 ## Type system
 ASPL has a very advanced and powerful <a href="https://en.wikipedia.org/wiki/Type_system">type system</a>.
@@ -705,6 +706,7 @@ a.number = -1
 print(a.number) // -1
 print(b.number) // 42
 ```
+It was previously possible to use property (and [variable](#variables)) assignments as [expressions](#expression-vs-statement), e.g. as in `print(a.number = 1)`; however, this feature has been deprecated for simplicity and safety reasons and will be removed in the future.
 
 ### Static properties
 Static properties are properties that are not bound to an instance of a class, but to the class itself:

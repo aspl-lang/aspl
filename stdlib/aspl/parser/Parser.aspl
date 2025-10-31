@@ -623,108 +623,108 @@ class Parser{
 	method parseToken(Token token, TokenList tokens, bool standalone = false, PrecedenceLevel precedenceLevel = PrecedenceLevel.None, Expression? previousExpression = null, Types? expectedTypes = null) returns Node{
 		if(token.type == TokenType.Byte){
 			if(token.value.endsWith("b")){
-				return applyOperators(new ByteLiteral(byte(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+				return applyOperators(new ByteLiteral(byte(token.value.before(token.value.length - 1)), token.location), tokens, standalone, precedenceLevel)
 			}else{
 				if(expectedTypes != null){
 					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
-						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
-						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
-						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
-						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
-						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 					}
 				}
-				return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+				return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.Integer){
 			if(expectedTypes != null){
 				if(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
-					return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+					return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
-					return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+					return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
-					return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+					return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
-					return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+					return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
-					return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+					return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 				}
 			}
-			return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+			return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Long){
 			if(token.value.endsWith("l")){
-				return applyOperators(new LongLiteral(long(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+				return applyOperators(new LongLiteral(long(token.value.before(token.value.length - 1)), token.location), tokens, standalone, precedenceLevel)
 			}else{
 				if(expectedTypes != null){
 					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
-						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
-						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
-						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
-						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
-						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 					}
 				}
-				return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+				return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.Float){
 			if(token.value.endsWith("f")){
-				return applyOperators(new FloatLiteral(float(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+				return applyOperators(new FloatLiteral(float(token.value.before(token.value.length - 1)), token.location), tokens, standalone, precedenceLevel)
 			}else{
 				if(expectedTypes != null){
 					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
-						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
-						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
-						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
-						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
-						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 					}
 				}
-				return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+				return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.Double){
 			if(token.value.endsWith("d")){
-				return applyOperators(new DoubleLiteral(double(token.value.before(token.value.length - 1)), token.location), tokens, precedenceLevel)
+				return applyOperators(new DoubleLiteral(double(token.value.before(token.value.length - 1)), token.location), tokens, standalone, precedenceLevel)
 			}else{
 				if(expectedTypes != null){
 					if(Type:matches(Types(expectedTypes), new Types([Type:fromString("double")]))){
-						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("byte")]))){
-						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new ByteLiteral(byte(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("integer")]))){
-						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new IntegerLiteral(int(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("long")]))){
-						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new LongLiteral(long(token.value), token.location), tokens, standalone, precedenceLevel)
 					}elseif(Type:matches(Types(expectedTypes), new Types([Type:fromString("float")]))){
-						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, precedenceLevel)
+						return applyOperators(new FloatLiteral(float(token.value), token.location), tokens, standalone, precedenceLevel)
 					}
 				}
-				return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, precedenceLevel)
+				return applyOperators(new DoubleLiteral(double(token.value), token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.String){
-			return applyOperators(new StringLiteral(token.value, StringToken(token).literalString, token.location), tokens, precedenceLevel)
+			return applyOperators(new StringLiteral(token.value, StringToken(token).literalString, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Identifier){
 			if(token.value == "import"){
 				parseTypeIdentifier(tokens) // ignore the import statement as it has already been processed
 				return new NopStatement()
 			}
 			elseif(token.value == "null"){
-				return applyOperators(new NullLiteral(token.location), tokens, precedenceLevel)
+				return applyOperators(new NullLiteral(token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "false"){
-				return applyOperators(new BooleanLiteral(false, token.location), tokens, precedenceLevel)
+				return applyOperators(new BooleanLiteral(false, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "true"){
-				return applyOperators(new BooleanLiteral(true, token.location), tokens, precedenceLevel)
+				return applyOperators(new BooleanLiteral(true, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "assert"){
 				var expression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("bool")])))
 				if(!Type:matches(new Types([Type:fromString("bool")]), expression.getType())){
@@ -732,6 +732,9 @@ class Parser{
 				}
 				return new AssertStatement(expression, token.location)
 			}elseif(token.value == "var"){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable declarations are deprecated and should be avoided", token.location)
+				}
 				if(tokens.peek().type != TokenType.Identifier){
 					aspl.parser.utils.syntax_error("Expected identifier after 'var'", tokens.peek().location)
 				}
@@ -753,7 +756,7 @@ class Parser{
 					}
 				}
 				var v = Variable:register(identifier.value, types, token.location)
-				return applyOperators(new VariableDeclareExpression(v, value, token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableDeclareExpression(v, value, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "function"){
 				if(tokens.peek().type != TokenType.Identifier){
 					aspl.parser.utils.syntax_error("Expected identifier after 'function'", tokens.peek().location)
@@ -1102,7 +1105,7 @@ class Parser{
 				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
 				Scope:pop()
 				Scope:passCapturedVariables(capturedVariables)
-				return applyOperators(new CallbackLiteral(c, capturedVariables, token.location), tokens, precedenceLevel)
+				return applyOperators(new CallbackLiteral(c, capturedVariables, token.location), tokens, standalone, precedenceLevel)
 			}
 			elseif(token.value == "if" || token.value == "elseif"){ // see below for elseif implementation
 				if(tokens.peek().type != TokenType.ParenthesisOpen){
@@ -1349,7 +1352,7 @@ class Parser{
 				}
 				tokens.shift()
 				ImplementationCallUtils:usedImplementationCalls[call.value] = args.length
-				return applyOperators(new ImplementationCallExpression(call.value, args, token.location), tokens, precedenceLevel)
+				return applyOperators(new ImplementationCallExpression(call.value, args, token.location), tokens, standalone, precedenceLevel)
 			}
 			elseif(token.value == "oftype"){
 				if(previousExpression == null){
@@ -1366,7 +1369,7 @@ class Parser{
 				if(!Type:matches(new Types([type]), Expression(previousExpression).getType())){
 					aspl.parser.utils.warning("Expression of type '" + Expression(previousExpression).getType().toString() + "' will never be of type '" + type.toString() + "'", token.location)
 				}*/
-				return applyOperators(new OfTypeExpression(Expression(previousExpression), type, token.location), tokens, precedenceLevel)
+				return applyOperators(new OfTypeExpression(Expression(previousExpression), type, token.location), tokens, standalone, precedenceLevel)
 			}
 			elseif(token.value == "break"){
 				var level = 1
@@ -1576,7 +1579,7 @@ class Parser{
 				var list<Expression> arguments = []
 				if(Method:methods.containsKey(c.type.toString())){
 					if(Method:exists(c.type, "construct")){
-						var constructor = Method:get(c.type, "construct")
+					var constructor = Method:get(c.type, "construct")
 						foreach(constructor.parameters as parameter){
 							if(tokens.peek().type == TokenType.ParenthesisClose){
 								if(!parameter.optional){
@@ -1593,12 +1596,12 @@ class Parser{
 								tokens.shift()
 							}
 						}
-						if(!constructor.isPublic && module.id != c.module.id){
-							aspl.parser.utils.warning("Cannot instantiate the class '" + c.type.identifier + "' that has a private constructor here", token.location) // TODO: Make this a generic_error after the grace period
-						}
+					if(!constructor.isPublic && module.id != c.module.id){
+						aspl.parser.utils.warning("Cannot instantiate the class '" + c.type.identifier + "' that has a private constructor here", token.location) // TODO: Make this a generic_error after the grace period
+					}
 					}
 				}
-				tokens.shift()
+					tokens.shift()
 				foreach(c.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
 						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
@@ -1611,7 +1614,7 @@ class Parser{
 				if(!c.isPublic && module.id != c.module.id){
 					aspl.parser.utils.warning("Cannot instantiate the private class '" + c.type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new ClassInstantiateExpression(c, arguments, token.location), tokens, precedenceLevel)
+				return applyOperators(new ClassInstantiateExpression(c, arguments, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "property"){
 				if(currentClass == null){
 					aspl.parser.utils.generic_error("Cannot declare a property outside of a class", token.location)
@@ -1760,7 +1763,7 @@ class Parser{
 					aspl.parser.utils.generic_error("Cannot use the 'this' keyword in a static context", token.location)
 				}
 				Scope:passCapturedVariables(["this"])
-				return applyOperators(new ThisExpression(Class(currentClass), token.location), tokens, precedenceLevel)
+				return applyOperators(new ThisExpression(Class(currentClass), token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "parent" && tokens.peek().type == TokenType.ParenthesisOpen){
 				if(currentClass == null){
 					aspl.parser.utils.generic_error("Cannot use the 'parent' keyword outside of a class", token.location)
@@ -1787,7 +1790,7 @@ class Parser{
 				if(tokens.peek().type != TokenType.Dot){
 					aspl.parser.utils.syntax_error("Expected '.' after 'parent' expression", tokens.peek().location)
 				}
-				return applyOperators(new ParentExpression(parentClass, token.location), tokens, precedenceLevel)
+				return applyOperators(new ParentExpression(parentClass, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "throw"){
 				var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 				if(!(value oftype ClassInstantiateExpression) || !ClassInstantiateExpression(value).c.isError){
@@ -1822,19 +1825,22 @@ class Parser{
 				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
 				Scope:pop()
 				Scope:passCapturedVariables(capturedVariables)
-				return applyOperators(new CatchExpression(previousExpression?!, variable, code, capturedVariables, standalone, token.location), tokens, precedenceLevel) // TODO: The standalone variable will always be false here
+				return applyOperators(new CatchExpression(previousExpression?!, variable, code, capturedVariables, standalone, token.location), tokens, standalone, precedenceLevel) // TODO: The standalone variable will always be false here
 			}elseif(Variable:exists(token.value)){
 				if(!tokens.empty()){
 					if(tokens.peek().type == TokenType.Equals){
+						if(!standalone){
+							aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", token.location)
+						}
 						tokens.shift()
 						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, Variable:get(token.value).types))
 						if(!Type:matches(Variable:get(token.value).types, value.getType())){
 							aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + Variable:get(token.value).types.toString() + "'", value.location)
 						}
-						return applyOperators(new VariableAssignExpression(Variable:get(token.value), value, token.location), tokens, precedenceLevel)
+						return applyOperators(new VariableAssignExpression(Variable:get(token.value), value, token.location), tokens, standalone, precedenceLevel)
 					}
 				}
-				return applyOperators(new VariableAccessExpression(Variable:get(token.value), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAccessExpression(Variable:get(token.value), token.location), tokens, standalone, precedenceLevel)
 			}
 			var typeIdentifier = peekTypeIdentifier(tokens, token)
 			if(tokens.length > typeIdentifier.tokenCount && (tokens.peek(typeIdentifier.tokenCount).type == TokenType.ParenthesisOpen) && Type:existsByName(this, typeIdentifier.identifier)){
@@ -1846,7 +1852,7 @@ class Parser{
 				if(!value.getType().canCast(target)){
 					aspl.parser.utils.type_error("Cannot cast from type '" + value.getType().toString() + "' to type '" + target.toString() + "'", value.location)
 				}
-				return applyOperators(new CastExpression(value, target, token.location), tokens, precedenceLevel)
+				return applyOperators(new CastExpression(value, target, token.location), tokens, standalone, precedenceLevel)
 			}
 			if(tokens.length > typeIdentifier.tokenCount && tokens.peek(typeIdentifier.tokenCount).type == TokenType.Colon){
 				if(!Type:existsByName(this, typeIdentifier.identifier)){
@@ -1915,7 +1921,7 @@ class Parser{
 					}else{
 						tokens.shift()
 					}
-					return applyOperators(node, tokens, precedenceLevel)
+					return applyOperators(node, tokens, standalone, precedenceLevel)
 				}else{
 					if(Enum:enums.containsKey(type.toString())){
 						aspl.parser.utils.syntax_error("Enums fields are accessed with a '.' (dot) instead of a ':' (colon), so use " + typeIdentifier.identifier + "." + name.value + " instead of " + typeIdentifier.identifier + ":" + name.value, name.location)
@@ -1929,6 +1935,9 @@ class Parser{
 					}
 					if(!tokens.empty()){
 						if(tokens.peek().type == TokenType.Equals){
+							if(!standalone){
+								aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", token.location)
+							}
 							tokens.shift()
 							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
 							if(!Type:matches(p.types, value.getType())){
@@ -1953,7 +1962,7 @@ class Parser{
 							}elseif(!p.isPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
 								aspl.parser.utils.warning("Cannot assign to the private property " + p.type.identifier + ":" + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 							}
-							return applyOperators(new StaticPropertyAssignExpression(p, type, value, token.location), tokens, precedenceLevel)
+							return applyOperators(new StaticPropertyAssignExpression(p, type, value, token.location), tokens, standalone, precedenceLevel)
 						}
 					}
 					if(!Class:classes[p.type.toString()].isPublic && module.id != Class:classes[p.type.toString()].module.id){
@@ -1971,7 +1980,7 @@ class Parser{
 					if(!p.isPublic && !p.isReadPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
 						aspl.parser.utils.warning("Cannot access the private property " + p.type.identifier + ":" + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 					}
-					return applyOperators(new StaticPropertyAccessExpression(p, type, token.location), tokens, precedenceLevel)
+					return applyOperators(new StaticPropertyAccessExpression(p, type, token.location), tokens, standalone, precedenceLevel)
 				}
 			}else{
 				if(typeIdentifier.identifier.contains(".")){
@@ -1989,7 +1998,7 @@ class Parser{
 						if(!Enum:enums[type.toString()].isPublic && module.id != Enum:enums[type.toString()].module.id){
 							aspl.parser.utils.warning("Cannot access the private enum " + type.toString() + " here", token.location) // TODO: Make this a generic_error after the grace period
 						}
-						return applyOperators(new EnumFieldAccessExpression(map<string, aspl.parser.enums.EnumField>(Enum:enums[type.toString()].fields)[field], token.location), tokens, precedenceLevel)
+						return applyOperators(new EnumFieldAccessExpression(map<string, aspl.parser.enums.EnumField>(Enum:enums[type.toString()].fields)[field], token.location), tokens, standalone, precedenceLevel)
 					}
 				}
 			}
@@ -2019,7 +2028,7 @@ class Parser{
 					}
 				}
 				tokens.shift()
-				return applyOperators(new ListLiteral(type, values, token.location), tokens, precedenceLevel)
+				return applyOperators(new ListLiteral(type, values, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "map"){
 				if(tokens.peek().type != TokenType.LessThan){
 					aspl.parser.utils.syntax_error("Expected '<' after 'map'", tokens.peek().location)
@@ -2059,7 +2068,7 @@ class Parser{
 					}
 				}
 				tokens.shift()
-				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, precedenceLevel)
+				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, standalone, precedenceLevel)
 			}
 			if(Function:exists(IdentifierUtils:handleFunctionIdentifier(this, peekFunctionIdentifier(tokens, token).identifier)) && ((tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount).type == TokenType.ParenthesisOpen) || ((tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount).type == TokenType.Plus) && (tokens.peek(peekFunctionIdentifier(tokens, token).tokenCount + 1).type == TokenType.ParenthesisOpen)))){
 				var identifierFirstToken = tokens.peek()
@@ -2114,7 +2123,7 @@ class Parser{
 				}else{
 					tokens.shift()
 				}
-				return applyOperators(node, tokens, precedenceLevel)
+				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}elseif(currentClass != null && Method:exists(Class(currentClass).type, token.value) && ((tokens.peek().type == TokenType.ParenthesisOpen) || (tokens.length > 1 && (tokens.peek().type == TokenType.Plus) && (tokens.peek(1).type == TokenType.ParenthesisOpen)))){
 				var name = token
 				var newThread = false
@@ -2182,11 +2191,14 @@ class Parser{
 				}else{
 					tokens.shift()
 				}
-				return applyOperators(Expression(node), tokens, precedenceLevel)
+				return applyOperators(Expression(node), tokens, standalone, precedenceLevel)
 			}elseif(currentClass != null && Property:exists(Class(currentClass).type, token.value)){
 				var p = Property:get(Class(currentClass).type, token.value)
 				if(!tokens.empty()){
 					if(tokens.peek().type == TokenType.Equals){
+						if(!standalone){
+							aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", token.location)
+						}
 						tokens.shift()
 						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
 						if(!Type:matches(p.types, value.getType())){
@@ -2210,10 +2222,10 @@ class Parser{
 							}
 						}
 						if(p.isStatic){
-							return applyOperators(new StaticPropertyAssignExpression(p, p.type, value, token.location), tokens, precedenceLevel)
+							return applyOperators(new StaticPropertyAssignExpression(p, p.type, value, token.location), tokens, standalone, precedenceLevel)
 						}else{
 							Scope:passCapturedVariables(["this"])
-							return applyOperators(new NonStaticPropertyAssignExpression(p, new ThisExpression(Class(currentClass), token.location), value, token.location), tokens, precedenceLevel)
+							return applyOperators(new NonStaticPropertyAssignExpression(p, new ThisExpression(Class(currentClass), token.location), value, token.location), tokens, standalone, precedenceLevel)
 						}
 					}
 				}
@@ -2235,27 +2247,27 @@ class Parser{
 					}
 				}
 				if(p.isStatic){
-					return applyOperators(new StaticPropertyAccessExpression(p, Class(currentClass).type, token.location), tokens, precedenceLevel)
+					return applyOperators(new StaticPropertyAccessExpression(p, Class(currentClass).type, token.location), tokens, standalone, precedenceLevel)
 				}else{
 					Scope:passCapturedVariables(["this"])
-					return applyOperators(new NonStaticPropertyAccessExpression(p, new ThisExpression(Class(currentClass), token.location), token.location), tokens, precedenceLevel)
+					return applyOperators(new NonStaticPropertyAccessExpression(p, new ThisExpression(Class(currentClass), token.location), token.location), tokens, standalone, precedenceLevel)
 				}
 			}
 		}elseif(token.type == TokenType.ParenthesisOpen){
 			var result = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None))
 			if(tokens.peek().type == TokenType.ParenthesisClose){
 				tokens.shift()
-				return applyOperators(result, tokens, precedenceLevel)
+				return applyOperators(result, tokens, standalone, precedenceLevel)
 			}else{
 				aspl.parser.utils.syntax_error("Expected closing parenthesis", tokens.peek().location)
 			}
 		}elseif(token.type == TokenType.CheckEquals){
-			return applyOperators(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckEquals)), token.location), tokens, precedenceLevel)
+			return applyOperators(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckEquals)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.CheckNotEquals){
-			return applyOperators(new NegateExpression(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckNotEquals)), token.location), token.location), tokens, precedenceLevel)
+			return applyOperators(new NegateExpression(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckNotEquals)), token.location), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Negate){
 			if(previousExpression == null){
-				return applyOperators(new NegateExpression(aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Negate, null, new Types([Type:fromString("bool")]))), token.location), tokens, precedenceLevel)
+				return applyOperators(new NegateExpression(aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Negate, null, new Types([Type:fromString("bool")]))), token.location), tokens, standalone, precedenceLevel)
 			}
 			if(!Options:enableErrorHandling){
 				aspl.parser.utils.generic_error("Experimental error handling ('-enableErrorHandling') is not enabled for this build", token.location)
@@ -2266,7 +2278,7 @@ class Parser{
 			if(!ErrorUtils:canCallableThrow(Scope:getCurrentBundle().func)){
 				aspl.parser.utils.syntax_error("Cannot propagate an error in a callable that does not declare the [throws] attribute", token.location)
 			}
-			return applyOperators(new PropagateErrorExpression(previousExpression, token.location), tokens, precedenceLevel)
+			return applyOperators(new PropagateErrorExpression(previousExpression, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.And){
 			var a = Expression(previousExpression)
 			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.And))
@@ -2278,7 +2290,7 @@ class Parser{
 					aspl.parser.utils.type_error("The '&&' (and) operator can only be used with enums that have the 'flags' attribute", token.location)
 				}
 			}
-			return applyOperators(new AndExpression(a, b, token.location), tokens, precedenceLevel)
+			return applyOperators(new AndExpression(a, b, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Or){
 			var a = Expression(previousExpression)
 			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Or))
@@ -2290,7 +2302,7 @@ class Parser{
 					aspl.parser.utils.type_error("The '||' (or) operator can only be used with enums that have the 'flags' attribute", token.location)
 				}
 			}
-			return applyOperators(new OrExpression(a, b, token.location), tokens, precedenceLevel)
+			return applyOperators(new OrExpression(a, b, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Xor){
 			var a = Expression(previousExpression)
 			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Xor))
@@ -2302,20 +2314,26 @@ class Parser{
 					aspl.parser.utils.type_error("The '^' (xor) operator can only be used with enums that have the 'flags' attribute", token.location)
 				}
 			}
-			return applyOperators(new XorExpression(a, b, token.location), tokens, precedenceLevel)
+			return applyOperators(new XorExpression(a, b, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Plus){
 			if(previousExpression == null){
-				return applyOperators(new PlusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, precedenceLevel)
+				return applyOperators(new PlusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, standalone, precedenceLevel)
 			}
-			return applyOperators(new PlusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, precedenceLevel)
+			return applyOperators(new PlusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Plus)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.PlusEquals){
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2326,8 +2344,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2341,13 +2362,19 @@ class Parser{
 				}elseif(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '+=' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.PlusPlus){
 			if(previousExpression oftype VariableAccessExpression){
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new PlusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
 					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
 						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
@@ -2355,8 +2382,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
 					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
 				}
@@ -2366,22 +2396,28 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new PlusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '++' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.Minus){
 			if(previousExpression == null){
-				return applyOperators(new MinusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, precedenceLevel)
+				return applyOperators(new MinusExpression(new IntegerLiteral(0, null), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, standalone, precedenceLevel)
 			}
-			return applyOperators(new MinusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, precedenceLevel)
+			return applyOperators(new MinusExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Minus)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.MinusEquals){
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2392,8 +2428,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2406,13 +2445,19 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '-=' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.MinusMinus){
 			if(previousExpression oftype VariableAccessExpression){
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MinusExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(NonStaticPropertyAccessExpression(previousExpression).p.isReadPublic){
 					if(currentClass != null && !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type]))){
 						aspl.parser.utils.warning("Cannot assign to the property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here; it is read-only from outside the class it was defined in", token.location) // TODO: Make this a generic_error after the grace period
@@ -2420,8 +2465,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].isPublic && module.id != Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].module.id){
 					aspl.parser.utils.warning("Cannot assign to a property from the private class '" + Class:classes[StaticPropertyAccessExpression(previousExpression).p.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
 				}
@@ -2431,7 +2479,7 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MinusExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), new IntegerLiteral(1, token.location), token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '--' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.Asterisk){
@@ -2440,17 +2488,23 @@ class Parser{
 				if(!pointer.getType().isPointer()){
 					aspl.parser.utils.syntax_error("Cannot dereference a value of type '" + pointer.getType().toString() + "' (not a pointer)", pointer.location)
 				}
-				return applyOperators(new DereferenceExpression(pointer, token.location), tokens, precedenceLevel)
+				return applyOperators(new DereferenceExpression(pointer, token.location), tokens, standalone, precedenceLevel)
 			}
-			return applyOperators(new MultiplyExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Asterisk)), token.location), tokens, precedenceLevel)
+			return applyOperators(new MultiplyExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Asterisk)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.MultiplyEquals){
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MultiplyExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new MultiplyExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2461,8 +2515,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2475,19 +2532,25 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new MultiplyExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '*=' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.Slash){
-			return applyOperators(new DivideExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Slash)), token.location), tokens, precedenceLevel)
+			return applyOperators(new DivideExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Slash)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.DivideEquals){
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new DivideExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new DivideExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2498,8 +2561,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2512,19 +2578,25 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new DivideExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '/=' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.Modulo){
-			return applyOperators(new ModuloExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Modulo)), token.location), tokens, precedenceLevel)
+			return applyOperators(new ModuloExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Modulo)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.ModuloEquals){
 			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 			if(previousExpression oftype VariableAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline variable assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(VariableAccessExpression(previousExpression).variable.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + VariableAccessExpression(previousExpression).variable.types.toString() + "'", value.location)
 				}
-				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new ModuloExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new VariableAssignExpression(VariableAccessExpression(previousExpression).variable, new ModuloExpression(new VariableAccessExpression(VariableAccessExpression(previousExpression).variable, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype NonStaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(NonStaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + NonStaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2535,8 +2607,11 @@ class Parser{
 				}elseif(!NonStaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([NonStaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + NonStaticPropertyAccessExpression(previousExpression).p.type.identifier + "." + NonStaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAssignExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new NonStaticPropertyAccessExpression(NonStaticPropertyAccessExpression(previousExpression).p, NonStaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}elseif(previousExpression oftype StaticPropertyAccessExpression){
+				if(!standalone){
+					aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", previousExpression?!.location)
+				}
 				if(!Type:matches(StaticPropertyAccessExpression(previousExpression).p.types, value.getType())){
 					aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a property of type '" + StaticPropertyAccessExpression(previousExpression).p.types.toString() + "'", value.location)
 				}
@@ -2549,24 +2624,24 @@ class Parser{
 				if(!StaticPropertyAccessExpression(previousExpression).p.isPublic && (currentClass == null || !Type:matches(new Types([currentClass?!.type]), new Types([StaticPropertyAccessExpression(previousExpression).p.type])))){
 					aspl.parser.utils.warning("Cannot assign to the private property " + StaticPropertyAccessExpression(previousExpression).p.type.identifier + ":" + StaticPropertyAccessExpression(previousExpression).p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, precedenceLevel)
+				return applyOperators(new StaticPropertyAssignExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, new ModuloExpression(new StaticPropertyAccessExpression(StaticPropertyAccessExpression(previousExpression).p, StaticPropertyAccessExpression(previousExpression).base, token.location), value, token.location), token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("The '%=' operator must be used on something assignable, e.g. a variable", token.location)
 		}elseif(token.type == TokenType.LessThan){
-			return applyOperators(new LessThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThan)), token.location), tokens, precedenceLevel)
+			return applyOperators(new LessThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThan)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.LessThanOrEqual){
-			return applyOperators(new LessThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThanOrEqual)), token.location), tokens, precedenceLevel)
+			return applyOperators(new LessThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.LessThanOrEqual)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.GreaterThan){
-			return applyOperators(new GreaterThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThan)), token.location), tokens, precedenceLevel)
+			return applyOperators(new GreaterThanExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThan)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.GreaterThanOrEqual){
-			return applyOperators(new GreaterThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThanOrEqual)), token.location), tokens, precedenceLevel)
+			return applyOperators(new GreaterThanOrEqualExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.GreaterThanOrEqual)), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Ampersand){
 			if(previousExpression == null){
 				var expression = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Reference))
 				if(!(expression oftype VariableAccessExpression || expression oftype NonStaticPropertyAccessExpression || expression oftype StaticPropertyAccessExpression)){
 					aspl.parser.utils.syntax_error("The '&' operator must be used on something holding an object reference, e.g. a variable", token.location)
 				}
-				return applyOperators(new ReferenceExpression(expression, token.location), tokens, precedenceLevel)
+				return applyOperators(new ReferenceExpression(expression, token.location), tokens, standalone, precedenceLevel)
 			}
 			aspl.parser.utils.syntax_error("Unxpected '&'", token.location)
 		}elseif(token.type == TokenType.Dot){
@@ -2605,13 +2680,13 @@ class Parser{
 				if(tokens.peek().type != TokenType.ParenthesisClose){
 					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
 						aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + ".invoke' (expected " + m.parameters.length + ")", tokens.peek().location)
-					}else{
+						}else{
 						aspl.parser.utils.syntax_error("Expected ')' after arguments in callback invocation", tokens.peek().location)
 					}
 				}else{
 					tokens.shift()
 				}
-				return applyOperators(node, tokens, precedenceLevel)
+				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}
 			if(name.type != TokenType.Identifier){
 				aspl.parser.utils.syntax_error("Expected identifier after '.'", name.location)
@@ -2673,7 +2748,7 @@ class Parser{
 				}else{
 					tokens.shift()
 				}
-				return applyOperators(node, tokens, precedenceLevel)
+				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}else{
 				if(!Property:exists(Expression(previousExpression).getType().toType(), name.value)){
 					aspl.parser.utils.fatal_error("Unknown property " + Expression(previousExpression).getType().toType().toString() + "." +  name.value + "", name.location)
@@ -2684,6 +2759,9 @@ class Parser{
 				}
 				if(!tokens.empty()){
 					if(tokens.peek().type == TokenType.Equals){
+						if(!standalone){
+							aspl.parser.utils.warning("Inline property assignments are deprecated and should be avoided", token.location)
+						}
 						tokens.shift()
 						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, p.types))
 						if(!Type:matches(p.types, value.getType())){
@@ -2705,7 +2783,7 @@ class Parser{
 						}elseif(!p.isPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
 							aspl.parser.utils.warning("Cannot assign to the private property " + p.type.identifier + "." + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 						}
-						return applyOperators(new NonStaticPropertyAssignExpression(p, Expression(previousExpression), value, token.location), tokens, precedenceLevel)
+						return applyOperators(new NonStaticPropertyAssignExpression(p, Expression(previousExpression), value, token.location), tokens, standalone, precedenceLevel)
 					}
 				}
 				foreach(p.attributes as attribute){
@@ -2720,7 +2798,7 @@ class Parser{
 				if(!p.isPublic && !p.isReadPublic && (currentClass == null || !Type:matches(new Types([p.type]), new Types([currentClass?!.type])))){
 					aspl.parser.utils.warning("Cannot access the private property " + p.type.identifier + "." + p.name + " here", token.location) // TODO: Make this a generic_error after the grace period
 				}
-				return applyOperators(new NonStaticPropertyAccessExpression(p, Expression(previousExpression), token.location), tokens, precedenceLevel)
+				return applyOperators(new NonStaticPropertyAccessExpression(p, Expression(previousExpression), token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.BracketOpen){
 			if(AttributeUtils:parseAttributesIfAny(this, token, tokens)){
@@ -2753,9 +2831,9 @@ class Parser{
 								}
 							}
 						}
-						return applyOperators(new ListAssignExpression(Expression(previousExpression), index, value, token.location), tokens, precedenceLevel)
+						return applyOperators(new ListAssignExpression(Expression(previousExpression), index, value, token.location), tokens, standalone, precedenceLevel)
 					}
-					return applyOperators(new ListIndexExpression(Expression(previousExpression), index, token.location), tokens, precedenceLevel)
+					return applyOperators(new ListIndexExpression(Expression(previousExpression), index, token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(new Types([Type:fromString("map")]), Expression(previousExpression).getType(), true)){
 					var k = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
 					foreach(Expression(previousExpression).getType().types as type){
@@ -2786,9 +2864,9 @@ class Parser{
 								}
 							}
 						}
-						return applyOperators(new MapAssignExpression(Expression(previousExpression), k, value, token.location), tokens, precedenceLevel)
+						return applyOperators(new MapAssignExpression(Expression(previousExpression), k, value, token.location), tokens, standalone, precedenceLevel)
 					}
-					return applyOperators(new MapAccessExpression(Expression(previousExpression), k, token.location), tokens, precedenceLevel)
+					return applyOperators(new MapAccessExpression(Expression(previousExpression), k, token.location), tokens, standalone, precedenceLevel)
 				}elseif(Type:matches(new Types([Type:fromString("string")]), Expression(previousExpression).getType())){
 					var index = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, new Types([Type:fromString("integer")])))
 					if(!Type:matches(new Types([Type:fromString("integer")]), index.getType())){
@@ -2802,7 +2880,7 @@ class Parser{
 					if(tokens.peek().type == TokenType.Equals){
 						aspl.parser.utils.syntax_error("Cannot modify a string", tokens.peek().location)
 					}
-					return applyOperators(new StringIndexExpression(Expression(previousExpression), index, token.location), tokens, precedenceLevel)
+					return applyOperators(new StringIndexExpression(Expression(previousExpression), index, token.location), tokens, standalone, precedenceLevel)
 				}else{
 					aspl.parser.utils.syntax_error("Cannot index a value of the type '" + Expression(previousExpression).getType().toString() + "'", token.location)
 				}
@@ -2843,7 +2921,7 @@ class Parser{
 				}
 			}
 			tokens.shift()
-			return applyOperators(new ListLiteral(Types(type), values, token.location), tokens, precedenceLevel)
+			return applyOperators(new ListLiteral(Types(type), values, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.BraceOpen){
 			if(standalone){
 				return new BlockStatement(parseBlock(tokens, token), false, token.location)
@@ -2906,7 +2984,7 @@ class Parser{
 					aspl.parser.utils.type_error("Map value type not specified", token.location)
 					valueType = new Types([])
 				}
-				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, precedenceLevel)
+				return applyOperators(new MapLiteral(keyType, valueType, pairs, token.location), tokens, standalone, precedenceLevel)
 			}
 		}elseif(token.type == TokenType.QuestionAndExclamationMark){
 			if(previousExpression == null){
@@ -2915,7 +2993,7 @@ class Parser{
 			if(!Type:matches(Expression(previousExpression).getType(), new Types([Type:fromString("null")]))){
 				aspl.parser.utils.type_error("The ?! operator can only be used on nullable expressions (expression of type " + Expression(previousExpression).getType().toString() + " given)", token.location)
 			}
-			return applyOperators(new CastExpression(Expression(previousExpression), Expression(previousExpression).getType().withoutType(Type:fromString("null")).toType(), token.location), tokens, precedenceLevel)
+			return applyOperators(new CastExpression(Expression(previousExpression), Expression(previousExpression).getType().withoutType(Type:fromString("null")).toType(), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Dollar){
 			if(tokens.peek().type == TokenType.Identifier){
 				if(tokens.peek().value == "if"){
@@ -2973,7 +3051,7 @@ class Parser{
 						aspl.parser.utils.syntax_error("Expected ) after compile-time embed ($embed)")
 					}
 					tokens.shift()
-					return applyOperators(new EmbedFileExpression(file, token.location), tokens, precedenceLevel)
+					return applyOperators(new EmbedFileExpression(file, token.location), tokens, standalone, precedenceLevel)
 				}elseif(tokens.peek().value == "include"){
 					tokens.shift()
 					if(tokens.peek().type != TokenType.ParenthesisOpen){
@@ -3010,7 +3088,7 @@ class Parser{
 		aspl.parser.utils.syntax_error("Unexpected token '" + token.value + "' (" + token.type + ")", token.location)
 	}
 
-	method applyOperators(Expression expression, TokenList tokens, PrecedenceLevel currentLevel) returns Expression{
+	method applyOperators(Expression expression, TokenList tokens, bool standalone, PrecedenceLevel currentLevel) returns Expression{
 		if(ErrorUtils:canExpressionThrow(expression) && (tokens.empty() || (tokens.peek().type != TokenType.Negate && tokens.peek().value != "catch"))){ // TODO: Move this somewhere else for performance & readability
 			aspl.parser.utils.syntax_error("Expected '!' or 'catch' after invocation of an error-prone callable", expression.location)
 		}
@@ -3019,9 +3097,9 @@ class Parser{
 		}
 		var nextToken = tokens.peek()
 		if(currentLevel < PrecedenceUtils:getTokenPrecendenceLevel(nextToken)){
-			var result = parseToken(nextToken, tokens, false, PrecedenceUtils:getTokenPrecendenceLevel(tokens.next()), expression)
+			var result = parseToken(nextToken, tokens, standalone, PrecedenceUtils:getTokenPrecendenceLevel(tokens.next()), expression)
 			if(result oftype Expression){
-				return applyOperators(Expression(result), tokens, currentLevel)
+				return applyOperators(Expression(result), tokens, standalone, currentLevel)
 			}
 		}
 		return expression
@@ -3329,5 +3407,5 @@ class Parser{
 		}
 		aspl.parser.utils.syntax_error("Expected closing brace", token.location)
 	}
-	
+
 }
