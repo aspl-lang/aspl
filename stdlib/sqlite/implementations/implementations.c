@@ -92,7 +92,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_sqlite$statement$bind(ASPL_OBJECT_TYPE* handle, 
     {
         char* blob = ASPL_MALLOC(ASPL_ACCESS(*value).value.list->length);
         for (int i = 0; i < ASPL_ACCESS(*value).value.list->length; i++) {
-            blob[i] = ASPL_LIST_GET(*value, ASPL_INT_LITERAL(i)).value.integer8;
+            blob[i] = ASPL_ACCESS(ASPL_LIST_GET(*value, ASPL_INT_LITERAL(i))).value.integer8;
         }
         rc = sqlite3_bind_blob(stmt, index, blob, ASPL_ACCESS(*value).value.list->length, SQLITE_TRANSIENT);
         break;
