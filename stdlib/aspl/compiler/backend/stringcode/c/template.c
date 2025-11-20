@@ -2033,6 +2033,37 @@ ASPL_OBJECT_TYPE ASPL_DIVIDE(ASPL_OBJECT_TYPE a, ASPL_OBJECT_TYPE b)
     ASPL_OBJECT_TYPE objB = (ASPL_OBJECT_TYPE)b;
     ASPL_OBJECT_TYPE result = ASPL_UNINITIALIZED;
 
+    switch (ASPL_ACCESS(objB).kind)
+    {
+    case ASPL_OBJECT_KIND_BYTE:
+        if (ASPL_ACCESS(objB).value.integer8 == 0) {
+            ASPL_PANIC("Division by zero");
+        }
+        break;
+    case ASPL_OBJECT_KIND_INTEGER:
+        if (ASPL_ACCESS(objB).value.integer32 == 0) {
+            ASPL_PANIC("Division by zero");
+        }
+        break;
+    case ASPL_OBJECT_KIND_LONG:
+        if (ASPL_ACCESS(objB).value.integer64 == 0) {
+            ASPL_PANIC("Division by zero");
+        }
+        break;
+    case ASPL_OBJECT_KIND_FLOAT:
+        if (ASPL_ACCESS(objB).value.float32 == 0) {
+            ASPL_PANIC("Division by zero");
+        }
+        break;
+    case ASPL_OBJECT_KIND_DOUBLE:
+        if (ASPL_ACCESS(objB).value.float64 == 0) {
+            ASPL_PANIC("Division by zero");
+        }
+        break;
+    default:
+        break;
+    }
+
     switch (ASPL_ACCESS(objA).kind)
     {
     case ASPL_OBJECT_KIND_BYTE:
