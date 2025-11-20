@@ -1108,7 +1108,6 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
             char pushed = 0;
             if (ASPL_ACCESS(object).kind == ASPL_OBJECT_KIND_INTEGER || ASPL_ACCESS(object).kind == ASPL_OBJECT_KIND_ENUM_FIELD) {
                 if (hashmap_str_to_voidptr_hashmap_contains_key(context->environment_context->enums, target_type)) {
-
                     pushed = 1;
                     switch (ASPL_ACCESS(object).kind)
                     {
@@ -1117,6 +1116,9 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
                         break;
                     case ASPL_OBJECT_KIND_ENUM_FIELD:
                         aspl_ailinterpreter_stack_push(context->stack, object);
+                        break;
+                    default:
+                        // impossible
                         break;
                     }
                 }
