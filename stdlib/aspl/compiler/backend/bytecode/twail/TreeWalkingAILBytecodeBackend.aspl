@@ -16,12 +16,21 @@ import aspl.parser.utils
 // NOTE: This backend is deprecated; only use it if you actually need it!
 class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
 
+    property int VERSION_MAJOR = 1 // BC-breaking changes (and also no FC between major versions)
+    property int VERSION_MINOR = 1 // FC-breaking changes (but with BC between minor versions)
+
     [public]
     method compile(ParserResult result) returns CompilationResult{
         var output = new ByteList()
         output.add(Instruction.Manifest)
+        output.add(84b) // T
+        output.add(87b) // W
+        output.add(65b) // A
+        output.add(73b) // I
+        output.add(76b) // L
         var manifestBody = new ByteList()
-        // TODO: Encode manifest information
+        manifestBody.add(VERSION_MAJOR)
+        manifestBody.add(VERSION_MINOR)
         output.add(manifestBody.length)
         output.add(manifestBody)
         foreach(result.nodes as node){

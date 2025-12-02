@@ -3,6 +3,9 @@
 
 #define ASPL_INTERPRETER_MODE
 
+#define ASPL_AILI_AIL_VERSION_MAJOR 1
+#define ASPL_AILI_AIL_VERSION_MINOR 1
+
 #include "byte_list.h"
 #include "interpreter.h"
 
