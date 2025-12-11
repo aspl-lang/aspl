@@ -1006,7 +1006,7 @@ You can, for example, then load this image with the graphics module:
 import graphics
 
 var image = Canvas:fromFileData($embed("image.png"))
-img.save("embedded.png")
+image.save("embedded.png")
 ```
 
 ## Debugging
