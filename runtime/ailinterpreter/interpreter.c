@@ -543,7 +543,7 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
             }
             long long start = bytes->position;
             int length = aspl_ailinterpreter_read_int(bytes);
-            if(length >= 0){ // BC: Previous AIL versions (before 1.1) did not include a version identifier in the manifest.
+            if(length > 0){ // BC: Previous AIL versions (before 1.1) did not include a version identifier in the manifest.
                 int version_major = aspl_ailinterpreter_read_int(bytes);
                 int version_minor = aspl_ailinterpreter_read_int(bytes);
                 if(version_major != ASPL_AILI_AIL_VERSION_MAJOR || version_minor > ASPL_AILI_AIL_VERSION_MINOR){
