@@ -39,7 +39,7 @@ function root_5() returns double{
 }
 
 [public]
-function euler_mascheroni() returns double{
+function euler_mascheroni_constant() returns double{
 	return 0.577215664901533d
 }
 
@@ -49,12 +49,12 @@ function apery_constant() returns double{
 }
 
 [public]
-function feigenbaum_alpha() returns double{
+function feigenbaum_alpha_constant() returns double{
 	return 2.502907875095892d
 }
 
 [public]
-function feigenbaum_delta() returns double{
+function feigenbaum_delta_constant() returns double{
 	return 4.669201609102990d
 }
 
@@ -69,7 +69,6 @@ function khinchin_constant() returns double{
 }
 
 [public]
-function glaisher_kinkelin() returns double{
+function glaisher_kinkelin_constant() returns double{
 	return 1.282427129100622d
 }
-
