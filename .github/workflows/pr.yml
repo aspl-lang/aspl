@@ -1,0 +1,75 @@
+name: PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+jobs:
+  validate-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Validate title
+        id: validate
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ "$PR_TITLE" != *:* ]]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+          else
+            echo "missing=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Comment if title is invalid
+        if: steps.validate.outputs.missing == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split("/");
+            github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: context.issue.number,
+              body: "Your PR title does not seem to adhere to the [conventions for naming pull requests in the ASPL monorepo](https://github.com/aspl-lang/aspl/blob/main/CONTRIBUTING.md#conventions-in-the-aspl-monorepo). Please check them out and update the title of this PR accordingly."
+            })
+  ci:
+    runs-on: ubuntu-latest # TODO: Also test the PR on other operating systems
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd ~
+          cp $GITHUB_WORKSPACE/install.sh .
+          ./install.sh
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --quiet -y build-essential
+          sudo apt-get install --quiet -y libglfw3-dev libxi-dev libxcursor-dev # for the graphics module
+      - name: Build ASPL runtime templates
+        run: |
+          cd $GITHUB_WORKSPACE
+          aspl -os linux -cc gcc build-minimal-template
+          mv -f Template templates/linux/x86_64/minimal
+          aspl -os linux -cc gcc build-full-template
+          mv -f Template templates/linux/x86_64/full
+      - name: Build ASPL compiler
+        run: |
+          cd $GITHUB_WORKSPACE
+          cd cli
+          aspl -prod -os linux -backend c -heapBased -useDynamicCTemplate -cc gcc -showcc compile . # use GCC as it tends to optimize better
+          mv cli ~/aspl/aspl
+      - name: Run tests
+        run: |
+          cd $GITHUB_WORKSPACE
+          echo "Testing the C backend..."
+          aspl -backend c -cc gcc -showcc test-all || exit $?
+          echo "Testing the AIL backend..."
+          aspl -backend ail -cc gcc -showcc test-all || exit $?
