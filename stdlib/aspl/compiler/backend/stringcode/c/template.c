@@ -3374,7 +3374,7 @@ ASPL_OBJECT_TYPE ASPL_CAST(ASPL_OBJECT_TYPE obj, char* type)
         case ASPL_OBJECT_KIND_STRING:
             newObj = ASPL_ALLOC_OBJECT();
             ASPL_ACCESS(newObj).kind = ASPL_OBJECT_KIND_INTEGER;
-            ASPL_ACCESS(newObj).value.integer32 = atoi(ASPL_ACCESS(obj).value.string->str);
+            ASPL_ACCESS(newObj).value.integer32 = atol(ASPL_ACCESS(obj).value.string->str);
             break;
         default:
             ASPL_PANIC("Cannot cast an object of type %s to type int", aspl_object_get_type_pointer(obj));
@@ -3409,7 +3409,7 @@ ASPL_OBJECT_TYPE ASPL_CAST(ASPL_OBJECT_TYPE obj, char* type)
         case ASPL_OBJECT_KIND_STRING:
             newObj = ASPL_ALLOC_OBJECT();
             ASPL_ACCESS(newObj).kind = ASPL_OBJECT_KIND_LONG;
-            ASPL_ACCESS(newObj).value.integer64 = atoi(ASPL_ACCESS(obj).value.string->str);
+            ASPL_ACCESS(newObj).value.integer64 = atoll(ASPL_ACCESS(obj).value.string->str);
             break;
         default:
             ASPL_PANIC("Cannot cast an object of type %s to type long", aspl_object_get_type_pointer(obj));
