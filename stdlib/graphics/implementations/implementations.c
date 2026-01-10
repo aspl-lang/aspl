@@ -507,14 +507,15 @@ void sokol_free(void* ptr, void* user_data) {
     ASPL_FREE(ptr);
 }
 
-typedef struct StreamingImage {
+typedef struct {
     sg_image image;
     sg_sampler sampler;
-} StreamingImage;
+} ASPL_util_graphics$StreamingImage;
 
 typedef struct ASPL_handle_graphics$Window {
     sapp_desc* desc;
-    StreamingImage* canvas_image;
+    ASPL_util_graphics$StreamingImage* canvas_image;
+    char retain_canvas;
     char keys_down[512];
     char mouse_buttons_down[32];
 
@@ -578,7 +579,7 @@ void aspl_util_graphics$Window_load_callback(void* userdata) {
 #endif
 }
 
-StreamingImage new_streaming_image(int width, int height, int channels) {
+ASPL_util_graphics$StreamingImage aspl_util_graphics$create_streaming_image(int width, int height, int channels) {
     sg_image_desc desc = {
         .width = width,
         .height = height,
@@ -594,12 +595,20 @@ StreamingImage new_streaming_image(int width, int height, int channels) {
         .wrap_u = SG_WRAP_CLAMP_TO_EDGE,
         .wrap_v = SG_WRAP_CLAMP_TO_EDGE,
     };
-    return (StreamingImage) { .image = sg_make_image(&desc), .sampler = sg_make_sampler(&sampler_desc) };
+    return (ASPL_util_graphics$StreamingImage) { .image = sg_make_image(&desc), .sampler = sg_make_sampler(&sampler_desc) };
 }
 
 void aspl_util_graphics$Window_paint_callback(void* userdata) {
     ASPL_handle_graphics$Window* handle = (ASPL_handle_graphics$Window*)userdata;
-    ASPL_OBJECT_TYPE canvas = ASPL_IMPLEMENT_graphics$canvas$new_from_size(C_REFERENCE(ASPL_INT_LITERAL(sapp_width())), C_REFERENCE(ASPL_INT_LITERAL(sapp_height())));
+    static ASPL_OBJECT_TYPE* cachedCanvas = 0;
+    static int cachedWidth = 0;
+    static int cachedHeight = 0;
+    if (handle->retain_canvas == 0 || cachedCanvas == 0 || cachedWidth != sapp_width() || cachedHeight != sapp_height()) {
+        cachedCanvas = C_REFERENCE(ASPL_IMPLEMENT_graphics$canvas$new_from_size(C_REFERENCE(ASPL_INT_LITERAL(sapp_width())), C_REFERENCE(ASPL_INT_LITERAL(sapp_height()))));
+        cachedWidth = sapp_width();
+        cachedHeight = sapp_height();
+    }
+    ASPL_OBJECT_TYPE canvas = *cachedCanvas;
 #ifdef ASPL_INTERPRETER_MODE
     ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { canvas } };
     aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(handle->paint_callback).value.callback, arguments);
@@ -607,15 +616,15 @@ void aspl_util_graphics$Window_paint_callback(void* userdata) {
     aspl_callback_any__invoke(handle->paint_callback, C_REFERENCE(canvas));
 #endif
     if (handle->canvas_image == 0) {
-        handle->canvas_image = ASPL_MALLOC(sizeof(StreamingImage));
-        *handle->canvas_image = new_streaming_image(((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->width, ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->height, 4);
+        handle->canvas_image = ASPL_MALLOC(sizeof(ASPL_util_graphics$StreamingImage));
+        *handle->canvas_image = aspl_util_graphics$create_streaming_image(((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->width, ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->height, 4);
     }
     else if (sg_query_image_desc(handle->canvas_image->image).width != ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->width || sg_query_image_desc(handle->canvas_image->image).height != ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->height) {
         sg_destroy_image(handle->canvas_image->image);
         sg_destroy_sampler(handle->canvas_image->sampler);
-        *handle->canvas_image = new_streaming_image(((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->width, ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->height, 4);
+        *handle->canvas_image = aspl_util_graphics$create_streaming_image(((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->width, ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->height, 4);
     }
-    StreamingImage image = *handle->canvas_image;
+    ASPL_util_graphics$StreamingImage image = *handle->canvas_image;
     sg_image_data data = {
         .subimage[0][0] = {
             .ptr = ((icylib_RegularImage*)ASPL_ACCESS(canvas).value.handle)->data,
@@ -932,6 +941,17 @@ sapp_desc aspl_global_sapp_desc;
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$show(ASPL_OBJECT_TYPE* window) {
     aspl_global_sapp_desc = *((ASPL_handle_graphics$Window*)ASPL_ACCESS(*window).value.handle)->desc;
     sapp_run(((ASPL_handle_graphics$Window*)ASPL_ACCESS(*window).value.handle)->desc);
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$get_canvas_retain_mode(ASPL_OBJECT_TYPE* window) {
+    ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
+    return ASPL_BOOL_LITERAL(handle->retain_canvas);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$set_canvas_retain_mode(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* value) {
+    ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
+    handle->retain_canvas = ASPL_ACCESS(*value).value.boolean;
     return ASPL_UNINITIALIZED;
 }
 

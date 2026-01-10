@@ -134,7 +134,19 @@ class Window{
 	method show(){
 		implement("graphics.window.show", handle)
 	}
-	
+
+	// isRetainMode returns if this window is in "canvas retain mode", i.e. it preserves drawings between frames
+	[public]
+	method isRetainMode() returns bool{
+		return bool(implement("graphics.window.get_canvas_retain_mode", handle))
+	}
+
+	// setRetainMode enables/disables "canvas retain mode" for this window, i.e. preservation of drawings between frames
+	[public]
+	method setRetainMode(bool value = true){
+		implement("graphics.window.set_canvas_retain_mode", handle, value)
+	}
+
 	[public]
 	method isFullscreen() returns bool{
 		return bool(implement("graphics.window.is_fullscreen"))
