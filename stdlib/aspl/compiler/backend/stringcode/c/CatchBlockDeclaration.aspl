@@ -14,7 +14,8 @@ class CatchBlockDeclaration {
 
     method construct(CatchExpression block){
         this.block = block
-        this.id = self:_id++
+        this.id = self:_id
+        self:_id++
     }
 
 }

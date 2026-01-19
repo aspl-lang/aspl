@@ -13,7 +13,8 @@ class CallbackDeclaration {
 
     method construct(CallbackLiteral literal){
         this.literal = literal
-        this.id = self:_id++
+        this.id = self:_id
+        self:_id++
     }
 
 }

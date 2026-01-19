@@ -383,7 +383,8 @@ class AILBytecodeBackend extends BytecodeBackend {
 
     method encodeRepeatStatement(RepeatStatement statement) returns ByteList{
         var bytes = new ByteList()
-        var variable = "_temp_" + tempVariableId++
+        var variable = "_temp_" + tempVariableId
+        tempVariableId++
         if(statement.variable != null){
             variable = statement.variable
         }
@@ -427,8 +428,10 @@ class AILBytecodeBackend extends BytecodeBackend {
 
     method encodeForeachStatement(ForeachStatement statement) returns ByteList{
         var bytes = new ByteList()
-        var collectionVariable = "_temp_" + tempVariableId++
-        var indexVariable = "_temp_" + tempVariableId++
+        var collectionVariable = "_temp_" + tempVariableId
+        tempVariableId++
+        var indexVariable = "_temp_" + tempVariableId
+        tempVariableId++
         var string? mapKeyVariable = null
         if(Type:matches(new Types([Type:fromString("map")]), statement.collection.getType(), true)){
             mapKeyVariable = statement.key
