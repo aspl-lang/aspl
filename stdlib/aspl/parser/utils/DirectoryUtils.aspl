@@ -3,7 +3,7 @@ import io
 [public]
 [static]
 class DirectoryUtils {
-    
+
     [public]
     [static]
     method index(string dir) returns list<string>{
@@ -14,10 +14,11 @@ class DirectoryUtils {
                 $if windows{
                     folder = io.abs(io.join_path([dir, file])) // io.glob() does not include the directory on Windows (see https://github.com/vlang/v/issues/15448)
                 }
-                if(!folder.startsWith(dir)){
+                folder = folder.replace("\\", "/")
+                if(!folder.startsWith(dir.replace("\\", "/"))){
                     continue // TODO: bug in the glob implementation on Linux; TODO: is this still up to date?
                 }
-                if(folder.endsWith(".git") || folder.endsWith(".git/") || folder.endsWith(".git\\")){
+                if(folder.endsWith(".git") || folder.endsWith(".git/")){
                     continue
                 }
                 foreach(DirectoryUtils:index(folder) as f){
@@ -30,6 +31,7 @@ class DirectoryUtils {
                 $if windows{
                     f = io.abs(io.join_path([dir, file])) // io.glob() does not include the directory on Windows (see https://github.com/vlang/v/issues/15448)
                 }
+                f = f.replace("\\", "/")
                 if(!files.contains(f)){
                     files.add(f)
                 }

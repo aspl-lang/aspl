@@ -29,7 +29,7 @@ $if main{
 function parse() returns ParserResult
 {
     Timings:startPass("parse")
-    foreach(DirectoryUtils:index(Module:mainModule.directory) as file){
+    foreach(DirectoryUtils:index(Module:mainModule.sourceDirectory) as file){
         if(!Parser:importProcessedFiles.contains(file)){
             Parser:importProcessedFiles.add(file)
             var Parser parser = new Parser(Module:mainModule, file)
@@ -37,13 +37,13 @@ function parse() returns ParserResult
         }
     }
     foreach(Module:modules as module){
-        foreach(DirectoryUtils:index(module.directory) as file){
+        foreach(DirectoryUtils:index(module.sourceDirectory) as file){
             var Parser parser = new Parser(module, file)
             parser.parse(ParseMode.PreprocessTypes)
         }
     }
     foreach(Module:modules as module){
-        foreach(DirectoryUtils:index(module.directory) as file){
+        foreach(DirectoryUtils:index(module.sourceDirectory) as file){
             var Parser parser = new Parser(module, file)
             parser.parse(ParseMode.Preprocess)
         }
@@ -53,7 +53,7 @@ function parse() returns ParserResult
     }
     var list<Node> nodes = list<Node>[]
     foreach(Module:modules as module){
-        foreach(DirectoryUtils:index(module.directory) as file){
+        foreach(DirectoryUtils:index(module.sourceDirectory) as file){
             var Parser parser = new Parser(module, file)
             foreach(parser.parse().nodes as node){
                 nodes.add(node)

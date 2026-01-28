@@ -26,11 +26,11 @@ class Parser{
 	[public]
 	property string currentNamespace{
 		get{
-			var modulePath = module.directory
-			if(modulePath.endsWith("/") || modulePath.endsWith("\\")){
-				modulePath = modulePath.before(modulePath.length - 1)
+			var moduleSourcePath = module.sourceDirectory
+			if(moduleSourcePath.endsWith("/") || moduleSourcePath.endsWith("\\")){
+				moduleSourcePath = moduleSourcePath.before(moduleSourcePath.length - 1)
 			}
-			var relativePath = io.full_directory_path(io.abs(file)).after(modulePath.length - 1).replace("/", ".").replace("\\", ".")
+			var relativePath = io.full_directory_path(io.abs(file)).after(moduleSourcePath.length - 1).replace("/", ".").replace("\\", ".")
 			if(relativePath.startsWith(".")){
 				relativePath = relativePath.after(0)
 			}
@@ -135,7 +135,7 @@ class Parser{
 						if(io.exists_directory(path)){
 							var m = new Module(module, path)
 							Module:modules[module] = m
-							foreach(DirectoryUtils:index(m.directory) as file){
+							foreach(DirectoryUtils:index(m.sourceDirectory) as file){
 								if(!self:importProcessedFiles.contains(file)){
 									self:importProcessedFiles.add(file)
 									var Parser parser = new Parser(m, file)
@@ -153,7 +153,7 @@ class Parser{
 						if(namespace.split(".", 2).length > 1){
 							namespaceWithoutModule = namespace.split(".", 2)[1]
 						}
-						if(!io.exists_directory(Module:modules[module].directory + "/" + namespaceWithoutModule.replace(".", "/"))){
+						if(!io.exists_directory(io.join_path([Module:modules[module].sourceDirectory, namespaceWithoutModule.replace(".", "/")]))){
 							aspl.parser.utils.generic_error("Namespace '" + namespace + "' not found", tokens.peek().location)
 						}else{
 							importTable.importNamespace(namespace)

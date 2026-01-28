@@ -1,3 +1,5 @@
+import io
+
 [public]
 class Module {
 
@@ -32,11 +34,18 @@ class Module {
     }
     [readpublic]
     property string directory
+    [readpublic]
+    property string sourceDirectory
 
     [public]
     method construct(string name, string directory){
         this.name = name
         this.directory = directory
+        if(io.exists_directory(io.join_path([directory, "src"]))){
+            this.sourceDirectory = io.join_path([directory, "src"])
+        }else{
+            this.sourceDirectory = directory
+        }
     }
 
 }
