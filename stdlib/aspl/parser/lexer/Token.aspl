@@ -3,11 +3,15 @@ import aspl.parser.utils
 [public]
 class Token{
 
-	[readpublic]
+	[static]
+	property map<TokenType, TokenPattern>? _patterns = null
+
+	[public]
 	[static]
 	property map<TokenType, TokenPattern> patterns{
 		get{
-			return map<TokenType, TokenPattern>{
+			if(_patterns == null){
+				_patterns = map<TokenType, TokenPattern>{
 				TokenType.CommentSingleline => new RegexTokenPattern("^//[^\n\r]*"),
 				TokenType.Double => new RegexTokenPattern("^-?[0-9]+((\\.[0-9]+d)|d)"),
 				TokenType.Float => new RegexTokenPattern("^-?[0-9]+((\\.[0-9]+(f?))|f)"),
@@ -54,6 +58,8 @@ class Token{
 				TokenType.QuestionMark => new RegularTokenPattern("?"),
 				TokenType.Identifier => new RegexTokenPattern("^[\\w_]+")
 			}
+			}
+			return _patterns?!
 		}
 	}
 
