@@ -2816,6 +2816,9 @@ class Parser{
 						aspl.parser.utils.syntax_error("Expected ']' after index", tokens.peek().location)
 					}
 					if(tokens.peek().type == TokenType.Equals){
+						if(!standalone){
+							aspl.parser.utils.warning("Inline list element assignments are deprecated and should be avoided", token.location)
+						}
 						tokens.shift()
 						var Types? types = null
 						foreach(Expression(previousExpression).getType().types as type){
@@ -2849,6 +2852,9 @@ class Parser{
 						aspl.parser.utils.syntax_error("Expected ']' after map access", tokens.peek().location)
 					}
 					if(tokens.peek().type == TokenType.Equals){
+						if(!standalone){
+							aspl.parser.utils.warning("Inline map value assignments are deprecated and should be avoided", token.location)
+						}
 						tokens.shift()
 						var Types? types = null
 						foreach(Expression(previousExpression).getType().types as type){
