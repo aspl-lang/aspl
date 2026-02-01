@@ -3068,11 +3068,24 @@ class Parser{
 						aspl.parser.utils.syntax_error("Expected string after compile-time include ($include)")
 					}
 					var string file = io.join_path([io.full_directory_path(io.abs(file)), tokens.next().value])
+					var IncludePhase phase = IncludePhase.Regular
+					if(tokens.peek().type == TokenType.Comma && tokens.peek(1).type == TokenType.String){
+						tokens.shift()
+						var phaseToken = tokens.next()
+						var phaseStr = phaseToken.value
+						if(phaseStr == "early"){
+							phase = IncludePhase.Early
+						}elseif(phaseStr == "regular"){
+							phase = IncludePhase.Regular
+						}else{
+							aspl.parser.utils.generic_error("Invalid compile-time include ($include) phase '" + phase + "'", phaseToken.location)
+						}
+					}
 					if(tokens.peek().type != TokenType.ParenthesisClose){
 						aspl.parser.utils.syntax_error("Expected ) after compile-time include ($include)")
 					}
 					tokens.shift()
-					return new IncludeFileStatement(file, token.location)
+					return new IncludeFileStatement(file, phase, token.location)
 				}elseif(tokens.peek().value == "link"){
 					tokens.shift()
 					if(tokens.peek().type != TokenType.ParenthesisOpen){

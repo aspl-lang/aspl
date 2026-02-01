@@ -173,7 +173,7 @@ class StringcodeBackend extends Backend {
         }elseif(node oftype EmbedFileExpression){
             return indentStub + encodeFileEmbedding(EmbedFileExpression(node)) + terminator
         }elseif(node oftype IncludeFileStatement){
-            IncludeUtils:include(IncludeFileStatement(node).file)
+            IncludeUtils:include(IncludeFileStatement(node).file, IncludeFileStatement(node).phase)
             return indentStub + "// Including file " + IncludeFileStatement(node).file // no line terminator
         }elseif(node oftype LinkLibraryStatement){
             LinkUtils:libraries.add(LinkLibraryStatement(node).library)

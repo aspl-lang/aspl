@@ -7,6 +7,7 @@ import aspl.parser
 import aspl.parser.utils
 import io
 import os
+import strings
 import appbundle.generator
 
 $if main{
@@ -81,19 +82,34 @@ function compile(string main) returns CompilationResult{
             }elseif(IncludeUtils:files.length > 0){
                 templateType = "full"
             }
-            foreach(IncludeUtils:files as file){
+            foreach(IncludeUtils:files as file => _){
                 if(!ModuleUtils:isFilePartOfStdlib(file)){
                     templateType = "none"
                     break
                 }
             }
             if(templateType == "none"){
-                var mainFile = "#include \"runtime/ailinterpreter/main.c\"\n\n" // TODO: Speed this up using a string builder
-                foreach(IncludeUtils:files as include){
-                    mainFile += "#include \"" + include + "\"\n"
+                var mainFile = new StringBuilder()
+                var anyEarlyIncludes = false
+                foreach(IncludeUtils:files as file => phase){
+                    if(phase == IncludePhase.Early){
+                        mainFile.append("#include \"" + file + "\"\n")
+                        anyEarlyIncludes = true
+                    }
                 }
-                if(IncludeUtils:files.length > 0){
-                    mainFile += "\n"
+                if(anyEarlyIncludes){
+                    mainFile.append("\n")
+                }
+                mainFile.append("#include \"runtime/ailinterpreter/main.c\"\n\n")
+                var anyRegularIncludes = false
+                foreach(IncludeUtils:files as file => phase){
+                    if(phase == IncludePhase.Regular){
+                        mainFile.append("#include \"" + file + "\"\n")
+                        anyRegularIncludes = true
+                    }
+                }
+                if(anyRegularIncludes){
+                    mainFile.append("\n")
                 }
                 foreach(ImplementationCallUtils:usedImplementationCalls as call => argc){
                     var callWrapper = ""
@@ -110,9 +126,9 @@ function compile(string main) returns CompilationResult{
                     }
                     callWrapper += ");\n"
                     callWrapper += "}\n\n"
-                    mainFile += callWrapper
+                    mainFile.append(callWrapper)
                 }
-                io.write_file(exeFile + ".c", mainFile)
+                io.write_file(exeFile + ".c", mainFile.toString())
                 var ccmd = build_ccmd(exeFile + ".c", exeFile)
                 ccmd += " -DASPL_AILI_BUNDLED"
                 if(ImplementationCallUtils:usedImplementationCalls.length > 0){

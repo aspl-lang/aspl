@@ -161,7 +161,7 @@ class BytecodeBackend extends Backend {
         }elseif(node oftype EmbedFileExpression){
             return encodeFileEmbedding(EmbedFileExpression(node))
         }elseif(node oftype IncludeFileStatement){
-            IncludeUtils:include(IncludeFileStatement(node).file)
+            IncludeUtils:include(IncludeFileStatement(node).file, IncludeFileStatement(node).phase)
             return new ByteList()
         }elseif(node oftype LinkLibraryStatement){
             LinkUtils:libraries.add(LinkLibraryStatement(node).library)

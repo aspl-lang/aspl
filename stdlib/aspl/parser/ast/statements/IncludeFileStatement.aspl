@@ -6,10 +6,13 @@ class IncludeFileStatement extends Statement{
 
 	[readpublic]
 	property string file
+	[readpublic]
+	property IncludePhase phase
 	
-	method construct(string file, Location? location){
+	method construct(string file, IncludePhase phase, Location? location){
         parent(Node).construct(location)
 		this.file = file
+		this.phase = phase
 	}
 	
 }

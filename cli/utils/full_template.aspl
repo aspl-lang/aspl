@@ -18,8 +18,12 @@ function gather_implementation_calls(){
             }
         }
         if(isImplementationFile){
-            IncludeUtils:include(file)
+            IncludeUtils:include(file, IncludePhase.Regular)
         }
+    }
+    foreach(find_files_recursively("stdlib", "implementations_early.h") as file){ // TODO: Also allow other file names
+        // TODO: This could theoretically be a false positive (for files that aren't implementation files in spite of their name), which is why we have the `isImplementationFile` check for `.c` files above, but this is highly unlikely
+        IncludeUtils:include(file, IncludePhase.Early)
     }
     // The following libraries are required for the graphics module
     if(Options:targetOs == "windows"){

@@ -1,19 +1,21 @@
+import aspl.parser.utils
+
 [public]
 [static]
 class IncludeUtils {
-    
-    [public]
-    [static]
-    [threadlocal]
-    property list<string> files
 
     [public]
     [static]
-    method include(string file) {
-        if(files.contains(file)) {
+    [threadlocal]
+    property map<string, IncludePhase> files
+
+    [public]
+    [static]
+    method include(string file, IncludePhase phase) {
+        if(files.containsKey(file)) {
             return
         }
-        files.add(file)
+        files[file] = phase
     }
 
 }
