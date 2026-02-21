@@ -604,7 +604,7 @@ void aspl_util_graphics$Window_paint_callback(void* userdata) {
     static int cachedWidth = 0;
     static int cachedHeight = 0;
     if (handle->retain_canvas == 0 || cachedCanvas == 0 || cachedWidth != sapp_width() || cachedHeight != sapp_height()) {
-        cachedCanvas = C_REFERENCE(ASPL_IMPLEMENT_graphics$canvas$new_from_size(C_REFERENCE(ASPL_INT_LITERAL(sapp_width())), C_REFERENCE(ASPL_INT_LITERAL(sapp_height()))));
+        cachedCanvas = C_REFERENCE(ASPL_IMPLEMENT_graphics$canvas$regular$new_from_size(C_REFERENCE(ASPL_INT_LITERAL(sapp_width())), C_REFERENCE(ASPL_INT_LITERAL(sapp_height()))));
         cachedWidth = sapp_width();
         cachedHeight = sapp_height();
     }
