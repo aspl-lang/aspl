@@ -457,13 +457,15 @@ class AILBytecodeBackend extends BytecodeBackend {
         actualCode.add(Instruction.LessThan)
         var conditionLength = actualCode.length
         var body = new ByteList()
-        body.add(Instruction.AccessVariable).add(collectionVariable, IntType.Short)
-        body.add(Instruction.AccessVariable).add(indexVariable, IntType.Short)
-        body.add(Instruction.AccessCollectionValueWithIndex)
-        body.add(Instruction.RegisterVariable).add(valueVariable, IntType.Short)
-        body.add(1, IntType.Short)
-        body.add("any", IntType.Short)
-        body.add(Instruction.Pop) // pop the result of the variable declaration
+        if(valueVariable != null){
+            body.add(Instruction.AccessVariable).add(collectionVariable, IntType.Short)
+            body.add(Instruction.AccessVariable).add(indexVariable, IntType.Short)
+            body.add(Instruction.AccessCollectionValueWithIndex)
+            body.add(Instruction.RegisterVariable).add(valueVariable, IntType.Short)
+            body.add(1, IntType.Short)
+            body.add("any", IntType.Short)
+            body.add(Instruction.Pop) // pop the result of the variable declaration
+        }
         if(mapKeyVariable != null){
             body.add(Instruction.AccessVariable).add(collectionVariable, IntType.Short)
             body.add(Instruction.AccessVariable).add(indexVariable, IntType.Short)
