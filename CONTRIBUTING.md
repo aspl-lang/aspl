@@ -28,7 +28,7 @@ None of these conventions are set in stone and may change over time, but they _s
 All titles of issues/PRs as well as all commit messages should follow this pattern: `module: concise description`
 
 Examples:
-* graphics: add `Canvas:fromData` to load images directly from a bitmap buffer in memory
+* graphics: add `RegularCanvas:fromData` to load images directly from a bitmap buffer in memory
 * cli: fix the `update` subcommand
 * introduction: fix a typo (wrong variable name in example code)
 

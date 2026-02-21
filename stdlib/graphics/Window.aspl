@@ -30,7 +30,7 @@ class Window{
 	[public]
 	property callback onLoad = callback(){}
 	[public]
-	property callback<Canvas> onPaint = callback(Canvas canvas){}
+	property callback<Canvas> onPaint = callback(Canvas canvas){} // `canvas` is currently guaranteed to be a `RegularCanvas` but this might change in the future (when we implement GPU acceleration)
 	[public]
 	property callback<int, int> onResize = callback(int width, int height){}
 	[public]
@@ -77,7 +77,7 @@ class Window{
 			this.height = newHeight
 		})
 		implement("graphics.window.set_on_paint", handle, callback(any handle){
-			var Canvas canvas = new Canvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), handle)
+			var canvas = new RegularCanvas(int(implement("graphics.canvas.regular.get_width", handle)), int(implement("graphics.canvas.regular.get_height", handle)), handle)
 			// TODO: The below two lines are needed since the window doesn't update its size correctly sometimes
 			this.width = canvas.width
 			this.height = canvas.height

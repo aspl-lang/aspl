@@ -12,11 +12,11 @@
 #include "thirdparty/icylib/primitive_chunked_image.h"
 #include "thirdparty/icylib/lazy_chunked_image.h"
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$new_from_size(ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$new_from_size(ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
     return ASPL_HANDLE_LITERAL(icylib_regular_create_from_size(ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32, 4));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_pixel(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_pixel(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y) {
     icylib_Color color = icylib_regular_get_pixel(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32);
     ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 4);
     array[0] = ASPL_BYTE_LITERAL(color.a);
@@ -26,7 +26,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_pixel(ASPL_OBJECT_TYPE* hand
     return ASPL_LIST_LITERAL("list<integer>", 13, array, 4);
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$set_pixel(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$set_pixel(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     if (ASPL_ACCESS(*blend).value.boolean) {
         icylib_regular_set_pixel_blend(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8));
     }
@@ -36,102 +36,102 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$set_pixel(ASPL_OBJECT_TYPE* hand
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$fill(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_fill(ASPL_ACCESS(*handle).value.handle, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_image(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* image, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_image(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* image, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_draw_image(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, ASPL_ACCESS(*image).value.handle, ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_line(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* thickness, ASPL_OBJECT_TYPE* blend, ASPL_OBJECT_TYPE* antialias) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_line(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* thickness, ASPL_OBJECT_TYPE* blend, ASPL_OBJECT_TYPE* antialias) {
     icylib_regular_draw_line_with_thickness(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*thickness).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean, ASPL_ACCESS(*antialias).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_draw_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$fill_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_fill_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     ASPL_PANIC("Unimplemented");
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$fill_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     ASPL_PANIC("Unimplemented");
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_circle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_circle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_draw_circle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$fill_circle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_circle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_fill_circle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*font_path).value.string->str, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$replace_color(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* old_a, ASPL_OBJECT_TYPE* old_r, ASPL_OBJECT_TYPE* old_g, ASPL_OBJECT_TYPE* old_b, ASPL_OBJECT_TYPE* new_a, ASPL_OBJECT_TYPE* new_r, ASPL_OBJECT_TYPE* new_g, ASPL_OBJECT_TYPE* new_b, ASPL_OBJECT_TYPE* blend) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$replace_color(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* old_a, ASPL_OBJECT_TYPE* old_r, ASPL_OBJECT_TYPE* old_g, ASPL_OBJECT_TYPE* old_b, ASPL_OBJECT_TYPE* new_a, ASPL_OBJECT_TYPE* new_r, ASPL_OBJECT_TYPE* new_g, ASPL_OBJECT_TYPE* new_b, ASPL_OBJECT_TYPE* blend) {
     icylib_regular_replace_color(ASPL_ACCESS(*handle).value.handle, icylib_color_from_rgba(ASPL_ACCESS(*old_r).value.integer8, ASPL_ACCESS(*old_g).value.integer8, ASPL_ACCESS(*old_b).value.integer8, ASPL_ACCESS(*old_a).value.integer8), icylib_color_from_rgba(ASPL_ACCESS(*new_r).value.integer8, ASPL_ACCESS(*new_g).value.integer8, ASPL_ACCESS(*new_b).value.integer8, ASPL_ACCESS(*new_a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$replace_color_ignore_alpha(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* old_r, ASPL_OBJECT_TYPE* old_g, ASPL_OBJECT_TYPE* old_b, ASPL_OBJECT_TYPE* new_r, ASPL_OBJECT_TYPE* new_g, ASPL_OBJECT_TYPE* new_b) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$replace_color_ignore_alpha(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* old_r, ASPL_OBJECT_TYPE* old_g, ASPL_OBJECT_TYPE* old_b, ASPL_OBJECT_TYPE* new_r, ASPL_OBJECT_TYPE* new_g, ASPL_OBJECT_TYPE* new_b) {
     icylib_regular_replace_color_ignore_alpha(ASPL_ACCESS(*handle).value.handle, icylib_color_from_rgb(ASPL_ACCESS(*old_r).value.integer8, ASPL_ACCESS(*old_g).value.integer8, ASPL_ACCESS(*old_b).value.integer8), icylib_color_from_rgb(ASPL_ACCESS(*new_r).value.integer8, ASPL_ACCESS(*new_g).value.integer8, ASPL_ACCESS(*new_b).value.integer8));
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$blur(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* radius) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$blur(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* radius) {
     icylib_regular_blur(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*radius).value.integer32);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$resize_with_size(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$resize_with_size(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
     icylib_regular_resize(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$resize_with_scale(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* scale) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$resize_with_scale(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* scale) {
     icylib_regular_resize_scale(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*scale).value.float32);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$extend_to(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$extend_to(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
     icylib_regular_extend_to(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_sub_image(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_sub_image(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
     return ASPL_HANDLE_LITERAL(icylib_regular_get_sub_image(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$copy(ASPL_OBJECT_TYPE* handle) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$copy(ASPL_OBJECT_TYPE* handle) {
     return ASPL_HANDLE_LITERAL(icylib_regular_copy(ASPL_ACCESS(*handle).value.handle));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$save_to_file(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* path) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$save_to_file(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* path) {
     icylib_regular_save_to_file(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*path).value.string->str);
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_file(ASPL_OBJECT_TYPE* path) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$load_from_file(ASPL_OBJECT_TYPE* path) {
     return ASPL_HANDLE_LITERAL(icylib_regular_load_from_file(ASPL_ACCESS(*path).value.string->str));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_file_data(ASPL_OBJECT_TYPE* bytes) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$load_from_file_data(ASPL_OBJECT_TYPE* bytes) {
     unsigned char* array = ASPL_MALLOC(ASPL_ACCESS(*bytes).value.list->length);
     for (int i = 0; i < ASPL_ACCESS(*bytes).value.list->length; i++) {
         array[i] = ASPL_ACCESS(ASPL_ACCESS(*bytes).value.list->value[i]).value.integer8;
@@ -139,7 +139,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_file_data(ASPL_OBJECT_
     return ASPL_HANDLE_LITERAL(icylib_regular_load_from_file_data(array, ASPL_ACCESS(*bytes).value.list->length));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_data(ASPL_OBJECT_TYPE* bytes, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height, ASPL_OBJECT_TYPE* channels) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$load_from_data(ASPL_OBJECT_TYPE* bytes, ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height, ASPL_OBJECT_TYPE* channels) {
     unsigned char* array = ASPL_MALLOC(ASPL_ACCESS(*bytes).value.list->length);
     for (int i = 0; i < ASPL_ACCESS(*bytes).value.list->length; i++) {
         array[i] = ASPL_ACCESS(ASPL_ACCESS(*bytes).value.list->value[i]).value.integer8;
@@ -147,19 +147,19 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$load_from_data(ASPL_OBJECT_TYPE*
     return ASPL_HANDLE_LITERAL(icylib_regular_create_from_memory(array, ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32, ASPL_ACCESS(*channels).value.integer32));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_width(ASPL_OBJECT_TYPE* handle) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_width(ASPL_OBJECT_TYPE* handle) {
     return ASPL_INT_LITERAL(((icylib_RegularImage*)ASPL_ACCESS(*handle).value.handle)->width);
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_height(ASPL_OBJECT_TYPE* handle) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_height(ASPL_OBJECT_TYPE* handle) {
     return ASPL_INT_LITERAL(((icylib_RegularImage*)ASPL_ACCESS(*handle).value.handle)->height);
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_width_from_file(ASPL_OBJECT_TYPE* path) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_width_from_file(ASPL_OBJECT_TYPE* path) {
     return ASPL_INT_LITERAL(icylib_regular_get_width_from_file(ASPL_ACCESS(*path).value.string->str));
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$get_height_from_file(ASPL_OBJECT_TYPE* path) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$get_height_from_file(ASPL_OBJECT_TYPE* path) {
     return ASPL_INT_LITERAL(icylib_regular_get_height_from_file(ASPL_ACCESS(*path).value.string->str));
 }
 

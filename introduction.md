@@ -1005,7 +1005,7 @@ You can, for example, then load this image with the graphics module:
 ```aspl
 import graphics
 
-var image = Canvas:fromFileData($embed("image.png"))
+var image = RegularCanvas:fromFileData($embed("image.png"))
 image.save("embedded.png")
 ```
 

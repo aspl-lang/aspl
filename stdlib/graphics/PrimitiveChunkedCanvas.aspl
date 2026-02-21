@@ -1,7 +1,7 @@
 import math.geometry
 
 [public]
-class PrimitiveChunkedCanvas extends ICanvas{
+class PrimitiveChunkedCanvas extends Canvas{
 
 	property any handle = null
 	[public]
@@ -45,7 +45,7 @@ class PrimitiveChunkedCanvas extends ICanvas{
 	}
 
 	[public]
-	method drawImage(Canvas image, int x, int y, bool blend = true){
+	method drawImage(RegularCanvas image, int x, int y, bool blend = true){
 		implement("graphics.canvas.primitive_chunked.draw_image", this.handle, image.getInternalHandle(), x, y, blend)
 	}
 
@@ -117,8 +117,8 @@ class PrimitiveChunkedCanvas extends ICanvas{
 	}
 
 	[public]
-	method getSubImage(int x, int y, int width, int height) returns Canvas{
-		return new Canvas(width, height, implement("graphics.canvas.primitive_chunked.get_sub_image", this.handle, x, y, width, height))
+	method getSubImage(int x, int y, int width, int height) returns RegularCanvas{
+		return new RegularCanvas(width, height, implement("graphics.canvas.primitive_chunked.get_sub_image", this.handle, x, y, width, height))
 	}
 
 	[public]

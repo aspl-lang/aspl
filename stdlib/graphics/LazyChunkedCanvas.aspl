@@ -1,7 +1,7 @@
 import math.geometry
 
 [public]
-class LazyChunkedCanvas extends ICanvas{
+class LazyChunkedCanvas extends Canvas{
 
 	property any handle = null
 	[readpublic]
@@ -48,7 +48,7 @@ class LazyChunkedCanvas extends ICanvas{
 	}
 
 	[public]
-	method drawImage(Canvas image, int x, int y, bool blend = true){
+	method drawImage(RegularCanvas image, int x, int y, bool blend = true){
 		implement("graphics.canvas.lazy_chunked.draw_image", handle, image.getInternalHandle(), x, y, blend)
 	}
 
@@ -120,8 +120,8 @@ class LazyChunkedCanvas extends ICanvas{
 	}
 
 	[public]
-	method getSubImage(int x, int y, int width, int height) returns Canvas{
-		return new Canvas(width, height, implement("graphics.canvas.lazy_chunked.get_sub_image", this.handle, x, y, width, height))
+	method getSubImage(int x, int y, int width, int height) returns RegularCanvas{
+		return new RegularCanvas(width, height, implement("graphics.canvas.lazy_chunked.get_sub_image", this.handle, x, y, width, height))
 	}
 
 	[public]
@@ -158,7 +158,7 @@ class LazyChunkedCanvas extends ICanvas{
 	[static]
 	method fromFile(string file, string directory) returns LazyChunkedCanvas{
 		var handle = implement("graphics.canvas.lazy_chunked.load_from_file", file, directory)
-		return new LazyChunkedCanvas(int(implement("graphics.canvas.get_width", handle)), int(implement("graphics.canvas.get_height", handle)), directory, handle)
+		return new LazyChunkedCanvas(int(implement("graphics.canvas.lazy_chunked.get_width", handle)), int(implement("graphics.canvas.lazy_chunked.get_height", handle)), directory, handle)
 	}
 	
 }
