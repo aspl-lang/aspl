@@ -128,15 +128,19 @@ class AILBytecodeBackend extends BytecodeBackend {
 
     method encodeFunctionCall(FunctionCallExpression expression) returns ByteList{
         var bytes = new ByteList()
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        foreach(expression.func.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         var identifier = expression.func.identifier
         if(expression.func oftype InternalFunction){
             identifier = "_" + identifier
         }
         bytes.add(Instruction.CallFunction).add(identifier, IntType.Long).add(expression.newThread)
-        bytes.add(expression.arguments.length)
+        bytes.add(expression.func.parameters.length)
         return bytes
     }
 
@@ -499,8 +503,12 @@ class AILBytecodeBackend extends BytecodeBackend {
     method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns ByteList{
         var bytes = new ByteList()
         bytes.add(this.encode(expression.base))
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         if(expression.exactClass == null){
             bytes.add(Instruction.CallMethod)
@@ -511,21 +519,25 @@ class AILBytecodeBackend extends BytecodeBackend {
         }
         bytes.add(expression.m.name, IntType.Short)
         bytes.add(expression.newThread)
-        bytes.add(expression.arguments.length)
+        bytes.add(expression.m.parameters.length)
         return bytes
     }
 
     method encodeStaticMethodCall(StaticMethodCallExpression expression) returns ByteList{
         var bytes = new ByteList()
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         bytes.add(Instruction.CallMethod)
         bytes.add(true)
         bytes.add(expression.base.toString(), IntType.Short)
         bytes.add(expression.m.name, IntType.Short)
         bytes.add(expression.newThread)
-        bytes.add(expression.arguments.length)
+        bytes.add(expression.m.parameters.length)
         return bytes
     }
 
@@ -585,10 +597,19 @@ class AILBytecodeBackend extends BytecodeBackend {
 
     method encodeClassInstantiation(ClassInstantiateExpression expression) returns ByteList{
         var bytes = new ByteList()
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        var argumentsCount = 0
+        if(Method:exists(expression.c.type, "construct")){
+            var constructor = Method:get(expression.c.type, "construct")
+            argumentsCount = constructor.parameters.length
+            foreach(constructor.parameters as parameter){
+                if(expression.arguments.containsKey(parameter.name)){
+                    bytes.add(this.encode(expression.arguments[parameter.name]))
+                }else{
+                    bytes.add(this.encode(parameter.defaultValue))
+                }
+            }
         }
-        bytes.add(Instruction.NewStatement).add(expression.c.type.toString(), IntType.Short).add(expression.arguments.length)
+        bytes.add(Instruction.NewStatement).add(expression.c.type.toString(), IntType.Short).add(argumentsCount)
         return bytes
     }
 

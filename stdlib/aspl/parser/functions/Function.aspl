@@ -17,19 +17,6 @@ class Function {
     [public]
     property list<Parameter> parameters
     [public]
-    property int minimumParameterCount{
-        get{
-            var count = 0
-            foreach(parameters as parameter){
-                if(parameter.optional){
-                    return count
-                }
-                count++
-            }
-            return count
-        }
-    }
-    [public]
     property Types returnTypes
     [readpublic]
     property list<AttributeInstance> attributes

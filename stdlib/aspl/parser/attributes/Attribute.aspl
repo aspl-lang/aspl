@@ -11,19 +11,6 @@ class Attribute {
     property string identifier
     [readpublic]
     property list<Parameter> parameters
-    [public]
-    property int minimumParameterCount{
-        get{
-            var count = 0
-            foreach(parameters as parameter){
-                if(parameter.optional){
-                    return count
-                }
-                count++
-            }
-            return count
-        }
-    }
     [readpublic]
     property AttributeUsage usage
     [readpublic]

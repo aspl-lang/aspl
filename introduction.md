@@ -44,6 +44,7 @@ ASPL supports most modern operating systems and easily cross-compiles between th
 * [Visibility modifiers](#visibility-modifiers)
 * [Memory management](#memory-management)
 * [Order of evaluation](#order-of-evaluation)
+* [Named arguments](#named-arguments)
 * [Error handling](#error-handling)
     * [Catch blocks](#catch-blocks)
     * [Error Propagation](#error-propagation)
@@ -524,6 +525,19 @@ if(l != null && l?!.length > 0){
 ```
 
 In this example, it is crucial that the `l != null` side of the `&&` operator is evaluated before the `l?!.length > 0` side, as `l?!.length` would throw an error if `l` was `null`.
+
+## Named arguments
+As explained in the chapter about [functions](#functions), callables (i.e. functions, methods, callbacks, ...) can receive a list of _arguments_, whose values are assigned to the callable's _parameters_. ASPL lets you choose between two different syntaxes for actually passing/specifying the arguments; they are called "positional" and "named" arguments. Positional arguments are the default, and you are probably already familiar with them; an example of the use of positional arguments is the following function call:
+```aspl
+print("Hello")
+```
+If one wanted to achieve the same functionality using named arguments, it would look something like this:
+```aspl
+print(value="Hello")
+```
+As you can probably tell, named arguments allow you to explicitly specify which parameter you are assigning which value to and thus also allow changing the order of arguments without changing the semantics, whereas positional arguments are unlabelled and the compiler automatically assigns the `n`th argument to the `n`th parameter of the callable.
+
+You can also mix positional and named arguments, but note that all positional arguments must come before _any_ named arguments.
 
 ## Error handling
 > [!IMPORTANT]

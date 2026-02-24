@@ -12,11 +12,11 @@ class NonStaticMethodCallExpression extends Expression{
 	[readpublic]
 	property Class? exactClass
 	[readpublic]
-	property list<Expression> arguments
+	property map<string, Expression> arguments
 	[readpublic]
 	property bool newThread
 	
-	method construct(Method m, Expression base, Class? exactClass, list<Expression> arguments, bool newThread, Location? location){
+	method construct(Method m, Expression base, Class? exactClass, map<string, Expression> arguments, bool newThread, Location? location){
         parent(Node).construct(location)
 		this.m = m
 		this.base = base

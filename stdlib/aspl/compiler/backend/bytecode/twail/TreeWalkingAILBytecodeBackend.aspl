@@ -126,9 +126,13 @@ class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
         if(expression.func oftype InternalFunction){
             identifier = "_" + identifier
         }
-        var bytes = new ByteList().add(Instruction.CallFunction).add(identifier, IntType.Long).add(expression.newThread).add(expression.arguments.length, IntType.Short)
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        var bytes = new ByteList().add(Instruction.CallFunction).add(identifier, IntType.Long).add(expression.newThread).add(expression.func.parameters.length, IntType.Short)
+        foreach(expression.func.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         return bytes
     }
@@ -365,9 +369,13 @@ class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
     method encodeNonStaticMethodCall(NonStaticMethodCallExpression expression) returns ByteList{
         var bytes = new ByteList().add(Instruction.CallMethod)
         .add(false)
-        .add(this.encode(expression.base)).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.arguments.length, IntType.Short)
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        .add(this.encode(expression.base)).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.m.parameters.length, IntType.Short)
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         return bytes
     }
@@ -375,9 +383,13 @@ class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
     method encodeStaticMethodCall(StaticMethodCallExpression expression) returns ByteList{
         var bytes = new ByteList().add(Instruction.CallMethod)
         .add(true)
-        .add(expression.base.toString(), IntType.Short).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.arguments.length, IntType.Short)
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        .add(expression.base.toString(), IntType.Short).add(expression.m.name, IntType.Short).add(expression.newThread).add(expression.m.parameters.length, IntType.Short)
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                bytes.add(this.encode(expression.arguments[parameter.name]))
+            }else{
+                bytes.add(this.encode(parameter.defaultValue))
+            }
         }
         return bytes
     }
@@ -443,9 +455,21 @@ class TreeWalkingAILBytecodeBackend extends BytecodeBackend {
     }
 
     method encodeClassInstantiation(ClassInstantiateExpression expression) returns ByteList{
-        var bytes = new ByteList().add(Instruction.NewStatement).add(expression.c.type.toString(), IntType.Short).add(expression.arguments.length, IntType.Short)
-        foreach(expression.arguments as argument){
-            bytes.add(this.encode(argument))
+        var argumentsCount = 0
+        if(Method:exists(expression.c.type, "construct")){
+            var constructor = Method:get(expression.c.type, "construct")
+            argumentsCount = constructor.parameters.length
+        }
+        var bytes = new ByteList().add(Instruction.NewStatement).add(expression.c.type.toString(), IntType.Short).add(argumentsCount, IntType.Short)
+        if(Method:exists(expression.c.type, "construct")){
+            var constructor = Method:get(expression.c.type, "construct")
+            foreach(constructor.parameters as parameter){
+                if(expression.arguments.containsKey(parameter.name)){
+                    bytes.add(this.encode(expression.arguments[parameter.name]))
+                }else{
+                    bytes.add(this.encode(parameter.defaultValue))
+                }
+            }
         }
         return bytes
     }

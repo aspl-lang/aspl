@@ -239,42 +239,7 @@ class Parser{
 					aspl.parser.utils.syntax_error("Expected identifier after 'function'", tokens.peek().location)
 				}
 				var identifier = tokens.next()
-				var list<Parameter> parameters = []
-				tokens.shift()
-				while(true){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						tokens.shift()
-						break
-					}
-					if(tokens.peek().type != TokenType.Identifier){
-						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
-					}
-					var types = parseTypesIfAny(tokens)
-					if(types.types.length == 0){
-						if(tokens.peek(1).type == TokenType.Identifier){
-							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
-						}else{
-							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
-						}
-					}
-					var parameter = tokens.next()
-					var Expression? defaultValue = null
-					if(tokens.peek().type == TokenType.Equals){
-						tokens.shift()
-						defaultValue = new NullLiteral(tokens.peek().location)
-						TokenUtils:skipTokensTillSeparator(tokens)
-					}
-					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
-					if(tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}else{
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-							break
-						}
-						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
-					}
-				}
+				var parameters = parseParameters(tokens, true)
 				var returnTypes = new Types([])
 				if(tokens.peek().value == "returns"){
 					tokens.shift()
@@ -324,42 +289,7 @@ class Parser{
 				if(Class(currentClass).isStatic && name.value == "construct"){
 					aspl.parser.utils.type_error("Static class " + Class(currentClass).type.toString() + " cannot have a constructor", token.location)
 				}
-				var list<Parameter> parameters = []
-				tokens.shift()
-				while(true){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						tokens.shift()
-						break
-					}
-					if(tokens.peek().type != TokenType.Identifier){
-						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
-					}
-					var types = parseTypesIfAny(tokens)
-					if(types.types.length == 0){
-						if(tokens.peek(1).type == TokenType.Identifier){
-							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
-						}else{
-							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
-						}
-					}
-					var parameter = tokens.next()
-					var Expression? defaultValue = null
-					if(tokens.peek().type == TokenType.Equals){
-						tokens.shift()
-						defaultValue = new NullLiteral(tokens.peek().location)
-						TokenUtils:skipTokensTillSeparator(tokens)
-					}
-					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
-					if(tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}else{
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-							break
-						}
-						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
-					}
-				}
+				var parameters = parseParameters(tokens, true)
 				var returnTypes = new Types([])
 				if(tokens.peek().value == "returns"){
 					tokens.shift()
@@ -581,32 +511,9 @@ class Parser{
 				}
 				if(isAttribute){
 					var attribute = Attribute:get(IdentifierUtils:handleTypeIdentifier(parseTypeIdentifier(tokens).identifier))
-					var list<Expression> arguments = []
+					var map<string, Expression> arguments = {}
 					if(tokens.peek().type == TokenType.ParenthesisOpen){
-						tokens.shift()
-						foreach(attribute.parameters as parameter){
-							if(tokens.peek().type == TokenType.ParenthesisClose){
-								if(!parameter.optional){
-									aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.minimumParameterCount + ")", tokens.peek().location)
-								}
-								break
-							}
-							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens))
-							if(!Type:matches(parameter.types, value.getType())){
-								aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-							}
-							arguments.add(value)
-							if(arguments.length < attribute.parameters.length && tokens.peek().type == TokenType.Comma){
-								tokens.shift()
-							}
-						}
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-						}else{
-							aspl.parser.utils.syntax_error("Expected ')' after attribute arguments", tokens.peek().location)
-						}
-					}elseif(attribute.parameters.length > 0 && !attribute.parameters[0].optional){
-						aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.minimumParameterCount + ")", tokens.peek().location)
+						arguments = parseArguments("attribute", attribute.identifier, attribute.parameters, tokens)
 					}
 					if(tokens.peek().type == TokenType.BracketClose){
 						tokens.shift()
@@ -762,50 +669,7 @@ class Parser{
 					aspl.parser.utils.syntax_error("Expected identifier after 'function'", tokens.peek().location)
 				}
 				var identifier = tokens.next()
-				Scope:pushBundle(null)
-				Scope:push()
-				var list<Parameter> parameters = []
-				tokens.shift()
-				while(true){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						tokens.shift()
-						break
-					}
-					if(tokens.peek().type != TokenType.Identifier){
-						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
-					}
-					var types = parseTypesIfAny(tokens)
-					if(types.types.length == 0){
-						if(tokens.peek(1).type == TokenType.Identifier){
-							aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
-						}else{
-							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
-						}
-					}
-					var parameter = tokens.next()
-					var Expression? defaultValue = null
-					if(tokens.peek().type == TokenType.Equals){
-						tokens.shift()
-						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
-						if(!Expression(defaultValue).isConstant()){
-							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
-						}
-						if(!Type:matches(types, Expression(defaultValue).getType())){
-							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
-						}
-					}
-					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
-					Variable:register(parameter.value, types, token.location)
-					if(tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}else{
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-							break
-						}
-						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
-					}
-				}
+				var parameters = parseParameters(tokens, false)
 				var f = CustomFunction(Function:functions[IdentifierUtils:relativeToAbsoluteIdentifier(this, identifier.value)])
 				var returnTypes = new Types([])
 				if(tokens.peek().value == "returns"){
@@ -827,11 +691,16 @@ class Parser{
 				}
 				f.parameters = parameters
 				f.returnTypes = returnTypes
+				Scope:pushBundle(null)
 				Scope:getCurrentBundle().func = f
+				Scope:push()
+				foreach(parameters as parameter){
+					Variable:register(parameter.name, parameter.types, parameter.location)
+				}
 				var statements = parseBlock(tokens, null, false)
-				f.code = statements
 				Scope:pop()
 				Scope:popBundle()
+				f.code = statements
 				f.register(token.location)
 				var comments = list<Token>[]
 				foreach(f.attributes as attribute){
@@ -848,57 +717,8 @@ class Parser{
 					aspl.parser.utils.syntax_error("Expected identifier after 'method'", tokens.peek().location)
 				}
 				var name = tokens.next()
+				var parameters = parseParameters(tokens, false)
 				var m = CustomMethod(Method:methods[Class(currentClass).type.toString()][name.value])
-				Scope:pushBundle(null)
-				Scope:push()
-				var list<Parameter> parameters = []
-				tokens.shift()
-				while(true){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						tokens.shift()
-						break
-					}
-					if(tokens.peek().type != TokenType.Identifier){
-						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
-					}
-					var types = parseTypesIfAny(tokens)
-					if(types.types.length == 0){
-						if(tokens.peek(1).type == TokenType.Identifier){
-							aspl.parser.utils.generic_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
-						}else{
-							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
-						}
-					}elseif(currentClass?!.isPublic && m.isPublic){
-						foreach(types.types as type){
-							if(!Type:isPublic(type)){
-								aspl.parser.utils.warning("The type '" + type.toString() + "' is not public and thus cannot be used as a parameter type of a public method in a public class", token.location) // TODO: Make this a generic_error after the grace period
-							}
-						}
-					}
-					var parameter = tokens.next()
-					var Expression? defaultValue = null
-					if(tokens.peek().type == TokenType.Equals){
-						tokens.shift()
-						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
-						if(!Expression(defaultValue).isConstant()){
-							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
-						}
-						if(!Type:matches(types, Expression(defaultValue).getType())){
-							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
-						}
-					}
-					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
-					Variable:register(parameter.value, types, token.location)
-					if(tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}else{
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-							break
-						}
-						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
-					}
-				}
 				var returnTypes = new Types([])
 				if(tokens.peek().value == "returns"){
 					tokens.shift()
@@ -919,8 +739,13 @@ class Parser{
 				}
 				m.parameters = parameters
 				m.returnTypes = returnTypes
+				Scope:pushBundle(null)
 				Scope:getCurrentBundle().func = m
-				var list<Node> statements = list<Node>[]
+				Scope:push()
+				foreach(parameters as parameter){
+					Variable:register(parameter.name, parameter.types, parameter.location)
+				}
+				var list<Node> statements = []
 				if(tokens.peek().type == TokenType.BraceOpen){
 					if(m.isAbstract){
 						aspl.parser.utils.syntax_error("Abstract methods cannot have a body", tokens.peek().location)
@@ -936,9 +761,9 @@ class Parser{
 				}else{
 					statements = list<Node>[]
 				}
-				m.code = statements
 				Scope:pop()
 				Scope:popBundle()
+				m.code = statements
 				m.register(token.location)
 				var comments = list<Token>[]
 				foreach(m.attributes as attribute){
@@ -1024,51 +849,13 @@ class Parser{
 				}
 				return new EscapeStatement(null, token.location)
 			}elseif(token.value == "callback"){
-				Scope:push(true)
-				var list<Parameter> parameters = []
 				if(tokens.peek().type != TokenType.ParenthesisOpen){
 					aspl.parser.utils.syntax_error("Expected '(' (opening parenthesis) after 'callback'", tokens.peek().location)
 				}
-				tokens.shift()
-				while(true){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						tokens.shift()
-						break
-					}
-					if(tokens.peek().type != TokenType.Identifier){
-						aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
-					}
-					var types = parseTypesIfAny(tokens)
-					if(types.types.length == 0){
-						if(tokens.peek(1).type == TokenType.Identifier){
-							aspl.parser.utils.generic_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
-						}else{
-							aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
-						}
-					}
-					var parameter = tokens.next()
-					var Expression? defaultValue = null
-					if(tokens.peek().type == TokenType.Equals){
-						aspl.parser.utils.generic_error("Optional callback parameters are not yet supported", tokens.peek().location) // TODO
-						/*tokens.shift()
-						defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
-						if(!Expression(defaultValue).isConstant()){
-							aspl.parser.utils.generic_error("Default parameter values must be constant", tokens.peek().location)
-						}
-						if(!Type:matches(types, Expression(defaultValue).getType())){
-							aspl.parser.utils.type_error("Default parameter value must be of the same type as the parameter", tokens.peek().location)
-						}*/
-					}
-					parameters.add(new Parameter(parameter.value, types, defaultValue, token.location))
-					Variable:register(parameter.value, types, token.location)
-					if(tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}else{
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							tokens.shift()
-							break
-						}
-						aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+				var parameters = parseParameters(tokens, false)
+				foreach(parameters as parameter){
+					if(parameter.optional){
+						aspl.parser.utils.generic_error("Optional callback parameters are not supported yet", parameter.location) // TODO
 					}
 				}
 				var returnTypes = new Types([])
@@ -1099,12 +886,16 @@ class Parser{
 				var c = new Callback(Type:fromString(type, this, token.location), parameters, returnTypes, null, Scope:getCurrentBundle(), token.location)
 				var oldFunction = Scope:getCurrentBundle().func
 				Scope:getCurrentBundle().func = c
+				Scope:push(true)
+				foreach(parameters as parameter){
+					Variable:register(parameter.name, parameter.types, parameter.location)
+				}
 				var statements = parseBlock(tokens, null, false)
-				Scope:getCurrentBundle().func = oldFunction
-				c.code = statements
 				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
 				Scope:pop()
+				Scope:getCurrentBundle().func = oldFunction
 				Scope:passCapturedVariables(capturedVariables)
+				c.code = statements
 				return applyOperators(new CallbackLiteral(c, capturedVariables, token.location), tokens, standalone, precedenceLevel)
 			}
 			elseif(token.value == "if" || token.value == "elseif"){ // see below for elseif implementation
@@ -1569,43 +1360,27 @@ class Parser{
 				if(tokens.peek().type != TokenType.ParenthesisOpen){
 					aspl.parser.utils.syntax_error("Expected '(' after class identifier in 'new' expression", tokens.peek().location)
 				}
-				tokens.shift()
 				if(c.isAbstract){
 					aspl.parser.utils.generic_error("Cannot instantiate the abstract class " + type.toString(), token.location)
 				}
 				if(c.isStatic){
 					aspl.parser.utils.generic_error("Cannot instantiate the static class " + type.toString(), token.location)
 				}
-				var list<Expression> arguments = []
-				if(Method:methods.containsKey(c.type.toString())){
-					if(Method:exists(c.type, "construct")){
+				var map<string, Expression> arguments = {}
+				if(Method:methods.containsKey(c.type.toString()) && Method:exists(c.type, "construct")){
 					var constructor = Method:get(c.type, "construct")
-						foreach(constructor.parameters as parameter){
-							if(tokens.peek().type == TokenType.ParenthesisClose){
-								if(!parameter.optional){
-									aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + constructor.type.toString() + "." + constructor.name + "' (expected " + constructor.minimumParameterCount + ")", tokens.peek().location)
-								}
-								break
-							}
-							var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-							if(!Type:matches(parameter.types, value.getType())){
-								aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-							}
-							arguments.add(value)
-							if(arguments.length < constructor.parameters.length && tokens.peek().type == TokenType.Comma){
-								tokens.shift()
-							}
-						}
+					arguments = parseArguments("method", constructor.identifier, constructor.parameters, tokens)
 					if(!constructor.isPublic && module.id != c.module.id){
 						aspl.parser.utils.warning("Cannot instantiate the class '" + c.type.identifier + "' that has a private constructor here", token.location) // TODO: Make this a generic_error after the grace period
 					}
-					}
-				}
+				}else{
 					tokens.shift()
+					tokens.shift()
+				}
 				foreach(c.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-							aspl.parser.utils.warning("Class " + c.type.toString() + " is deprecated: " + attribute.arguments[0].getConstantValue(), identifierFirstToken.location)
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+							aspl.parser.utils.warning("Class " + c.type.toString() + " is deprecated: " + attribute.arguments["message"].getConstantValue(), identifierFirstToken.location)
 						}else{
 							aspl.parser.utils.warning("Class " + c.type.toString() + " is deprecated", identifierFirstToken.location)
 						}
@@ -1877,50 +1652,23 @@ class Parser{
 					if(!m.isStatic){
 						aspl.parser.utils.generic_error("Cannot call the non-static method " + type.toString() + "." + name.value + " statically", name.location)
 					}
-					tokens.shift()
-					var list<Expression> arguments = []
-					foreach(m.parameters as parameter){
-						if(tokens.peek().type == TokenType.ParenthesisClose){
-							if(!parameter.optional){
-								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
-							}
-							break
-						}
-						var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-						if(!Type:matches(parameter.types, value.getType())){
-							aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-						}
-						arguments.add(value)
-						if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
-							tokens.shift()
-						}
-					}
 					foreach(m.attributes as attribute){
 						if(attribute.attribute.identifier == "deprecated"){
-							if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 							}else{
 								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated", name.location)
 							}
 						}
 					}
-					
 					if(!Class:classes[m.type.toString()].isPublic && module.id != Class:classes[m.type.toString()].module.id){
 						aspl.parser.utils.warning("Cannot call a method from the private class '" + Class:classes[m.type.toString()].type.identifier + "' here", token.location) // TODO: Make this a generic_error after the grace period
 					}
 					if(m oftype CustomMethod && !m.isPublic && (currentClass == null || !Type:matches(new Types([m.type]), new Types([currentClass?!.type])))){
 						aspl.parser.utils.warning("Cannot call the private method '" + m.type.identifier + ":" + m.name + "' here", token.location) // TODO: Make this a generic_error after the grace period
 					}
+					var arguments = parseArguments("method", m.identifier, m.parameters, tokens)
 					var node = new StaticMethodCallExpression(m, type, arguments, newThread, token.location)
-					if(tokens.peek().type != TokenType.ParenthesisClose){
-						if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
-							aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
-						}else{
-							aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
-						}
-					}else{
-						tokens.shift()
-					}
 					return applyOperators(node, tokens, standalone, precedenceLevel)
 				}else{
 					if(Enum:enums.containsKey(type.toString())){
@@ -1948,8 +1696,8 @@ class Parser{
 							}
 							foreach(p.attributes as attribute){
 								if(attribute.attribute.identifier == "deprecated"){
-									if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+									if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 									}else{
 										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated", name.location)
 									}
@@ -1970,8 +1718,8 @@ class Parser{
 					}
 					foreach(p.attributes as attribute){
 						if(attribute.attribute.identifier == "deprecated"){
-							if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-								aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+							if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+								aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 							}else{
 								aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated", name.location)
 							}
@@ -2083,28 +1831,10 @@ class Parser{
 					newThread = true
 					tokens.shift()
 				}
-				tokens.shift()
-				var list<Expression> arguments = []
-				foreach(func.parameters as parameter){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						if(!parameter.optional){
-							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for function '" + func.identifier + "' (expected " + func.minimumParameterCount + ")", tokens.peek().location)
-						}
-						break
-					}
-					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-					if(!Type:matches(parameter.types, value.getType())){
-						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-					}
-					arguments.add(value)
-					if(arguments.length < func.parameters.length && tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}
-				}
 				foreach(func.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-							aspl.parser.utils.warning("Function " + func.identifier + " is deprecated: " + attribute.arguments[0].getConstantValue(), identifierFirstToken.location)
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+							aspl.parser.utils.warning("Function " + func.identifier + " is deprecated: " + attribute.arguments["message"].getConstantValue(), identifierFirstToken.location)
 						}else{
 							aspl.parser.utils.warning("Function " + func.identifier + " is deprecated", identifierFirstToken.location)
 						}
@@ -2113,16 +1843,8 @@ class Parser{
 				if(func oftype CustomFunction && !func.isPublic && module.id != CustomFunction(func).module.id){
 					aspl.parser.utils.warning("Cannot call the private function '" + func.identifier + "' here", identifierFirstToken.location) // TODO: Make this a generic_error after the grace period
 				}
+				var arguments = parseArguments("function", func.identifier, func.parameters, tokens)
 				var node = new FunctionCallExpression(compileIdentifier, func, arguments, newThread, token.location)
-				if(tokens.peek().type != TokenType.ParenthesisClose){
-					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
-						aspl.parser.utils.fatal_error("Too many arguments given for function '" + func.identifier + "' (expected " + func.parameters.length + ")", tokens.peek().location)
-					}else{
-						aspl.parser.utils.syntax_error("Expected ')' after arguments in function call", tokens.peek().location)
-					}
-				}else{
-					tokens.shift()
-				}
 				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}elseif(currentClass != null && Method:exists(Class(currentClass).type, token.value) && ((tokens.peek().type == TokenType.ParenthesisOpen) || (tokens.length > 1 && (tokens.peek().type == TokenType.Plus) && (tokens.peek(1).type == TokenType.ParenthesisOpen)))){
 				var name = token
@@ -2132,35 +1854,13 @@ class Parser{
 					tokens.shift()
 				}
 				var m = Method:get(Class(currentClass).type, name.value)
-				tokens.shift()
-				var list<Expression> arguments = []
-				foreach(m.parameters as parameter){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						if(!parameter.optional){
-							if(m.isStatic){
-								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
-							}else{
-								aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
-							}
-						}
-						break
-					}
-					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-					if(!Type:matches(parameter.types, value.getType())){
-						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-					}
-					arguments.add(value)
-					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}
-				}
 				foreach(m.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
 							if(m.isStatic){
-								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+								aspl.parser.utils.warning("Method " + m.type.toString() + ":" + m.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 							}else{
-								aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+								aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 							}
 						}else{
 							if(m.isStatic){
@@ -2171,25 +1871,13 @@ class Parser{
 						}
 					}
 				}
+				var arguments = parseArguments("method", m.identifier, m.parameters, tokens)
 				var Expression? node = null
 				if(m.isStatic){
 					node = new StaticMethodCallExpression(m, Class(currentClass).type, arguments, newThread, token.location)
 				}else{
 					Scope:passCapturedVariables(["this"])
 					node = new NonStaticMethodCallExpression(m, new ThisExpression(Class(currentClass), token.location), null, arguments, newThread, token.location)
-				}
-				if(tokens.peek().type != TokenType.ParenthesisClose){
-					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
-						if(m.isStatic){
-							aspl.parser.utils.fatal_error("Too many arguments given for method '" + m.type.toString() + ":" + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
-						}else{
-							aspl.parser.utils.fatal_error("Too many arguments given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
-						}
-					}else{
-						aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
-					}
-				}else{
-					tokens.shift()
 				}
 				return applyOperators(Expression(node), tokens, standalone, precedenceLevel)
 			}elseif(currentClass != null && Property:exists(Class(currentClass).type, token.value)){
@@ -2206,11 +1894,11 @@ class Parser{
 						}
 						foreach(p.attributes as attribute){
 							if(attribute.attribute.identifier == "deprecated"){
-								if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+								if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
 									if(p.isStatic){
-										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+										aspl.parser.utils.warning("Property " + p.type.toString() + ":" + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), token.location)
 									}else{
-										aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+										aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), token.location)
 									}
 								}else{
 									if(p.isStatic){
@@ -2231,11 +1919,11 @@ class Parser{
 				}
 				foreach(p.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
 							if(p.isStatic){
-								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), token.location)
 							}else{
-								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), token.location)
+								aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), token.location)
 							}
 						}else{
 							if(p.isStatic){
@@ -2307,7 +1995,7 @@ class Parser{
 			var a = Expression(previousExpression)
 			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Xor))
 			if(a.getType().toString() != b.getType().toString()){
-				aspl.parser.utils.type_error("Cannot use the '^' (xpr) operator on values of the types " + a.getType().toString() + " and " + b.getType().toString(), token.location)
+				aspl.parser.utils.type_error("Cannot use the '^' (xor) operator on values of the types " + a.getType().toString() + " and " + b.getType().toString(), token.location)
 			}
 			if(Enum:enums.containsKey(a.getType().toString())){
 				if(!Enum:enums[a.getType().toString()].isFlags){
@@ -2648,46 +2336,21 @@ class Parser{
 			if(previousExpression == null){
 				aspl.parser.utils.syntax_error("Unexpected '" + token.value + "'", token.location)
 			}
-			var name = tokens.next()
-			if(name.type == TokenType.ParenthesisOpen || (tokens.length > 0 && name.type == TokenType.Plus && tokens.peek().type == TokenType.ParenthesisOpen)){
+			if(tokens.peek().type == TokenType.ParenthesisOpen || (tokens.length > 1 && tokens.peek().type == TokenType.Plus && tokens.peek(1).type == TokenType.ParenthesisOpen)){
 				if(!Type:matches(new Types([Type:fromString("callback")]), Expression(previousExpression).getType(), true)){
 					aspl.parser.utils.syntax_error("Only callbacks can be invoked using the .(...) syntax", token.location)
 				}
 				var newThread = false
-				if(name.type == TokenType.Plus){
+				if(tokens.peek().type == TokenType.Plus){
 					newThread = true
 					tokens.shift()
 				}
 				var m = Method:get(Expression(previousExpression).getType().toType(), "invoke")
-				var list<Expression> arguments = []
-				foreach(m.parameters as parameter){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						if(!parameter.optional){
-							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + ".invoke' (expected " + m.minimumParameterCount + ")", tokens.peek().location)
-						}
-						break
-					}
-					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-					if(!Type:matches(parameter.types, value.getType())){
-						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-					}
-					arguments.add(value)
-					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}
-				}
+				var arguments = parseArguments("method", m.identifier, m.parameters, tokens)
 				var node = new NonStaticMethodCallExpression(m, Expression(previousExpression), null, arguments, newThread, token.location)
-				if(tokens.peek().type != TokenType.ParenthesisClose){
-					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
-						aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + ".invoke' (expected " + m.parameters.length + ")", tokens.peek().location)
-						}else{
-						aspl.parser.utils.syntax_error("Expected ')' after arguments in callback invocation", tokens.peek().location)
-					}
-				}else{
-					tokens.shift()
-				}
 				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}
+			var name = tokens.next()
 			if(name.type != TokenType.Identifier){
 				aspl.parser.utils.syntax_error("Expected identifier after '.'", name.location)
 			}
@@ -2704,28 +2367,10 @@ class Parser{
 				if(m.isStatic){
 					aspl.parser.utils.type_error("Cannot call the static method " + Expression(previousExpression).getType().toType().toString() + ":" + name.value + " non-statically", name.location)
 				}
-				tokens.shift()
-				var list<Expression> arguments = []
-				foreach(m.parameters as parameter){
-					if(tokens.peek().type == TokenType.ParenthesisClose){
-						if(!parameter.optional){
-							aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
-						}
-						break
-					}
-					var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-					if(!Type:matches(parameter.types, value.getType())){
-						aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-					}
-					arguments.add(value)
-					if(arguments.length < m.parameters.length && tokens.peek().type == TokenType.Comma){
-						tokens.shift()
-					}
-				}
 				foreach(m.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-							aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+							aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 						}else{
 							aspl.parser.utils.warning("Method " + m.type.toString() + "." + m.name + " is deprecated", name.location)
 						}
@@ -2738,16 +2383,8 @@ class Parser{
 				if(previousExpression oftype ParentExpression){
 					exactClass = ParentExpression(previousExpression).c
 				}
+				var arguments = parseArguments("method", m.identifier, m.parameters, tokens)
 				var node = new NonStaticMethodCallExpression(m, Expression(previousExpression), exactClass, arguments, newThread, token.location)
-				if(tokens.peek().type != TokenType.ParenthesisClose){
-					if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
-						aspl.parser.utils.fatal_error("Too many arguments (" + arguments.length + ") given for method '" + m.type.toString() + "." + m.name + "' (expected " + m.parameters.length + ")", tokens.peek().location)
-					}else{
-						aspl.parser.utils.syntax_error("Expected ')' after arguments in method call", tokens.peek().location)
-					}
-				}else{
-					tokens.shift()
-				}
 				return applyOperators(node, tokens, standalone, precedenceLevel)
 			}else{
 				if(!Property:exists(Expression(previousExpression).getType().toType(), name.value)){
@@ -2769,8 +2406,8 @@ class Parser{
 						}
 						foreach(p.attributes as attribute){
 							if(attribute.attribute.identifier == "deprecated"){
-								if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-									aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+								if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+									aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 								}else{
 									aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", name.location)
 								}
@@ -2788,8 +2425,8 @@ class Parser{
 				}
 				foreach(p.attributes as attribute){
 					if(attribute.attribute.identifier == "deprecated"){
-						if(attribute.arguments.length > 0 && attribute.arguments[0].getConstantValue() != null){
-							aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments[0].getConstantValue(), name.location)
+						if(attribute.arguments.length > 0 && attribute.arguments["message"].getConstantValue() != null){
+							aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated: " + attribute.arguments["message"].getConstantValue(), name.location)
 						}else{
 							aspl.parser.utils.warning("Property " + p.type.toString() + "." + p.name + " is deprecated", name.location)
 						}
@@ -3425,6 +3062,124 @@ class Parser{
 			preProcessToken(tokens.next(), tokens)
 		}
 		aspl.parser.utils.syntax_error("Expected closing brace", token.location)
+	}
+
+	method parseParameters(TokenList tokens, bool isPreProcessing) returns list<Parameter>{
+		tokens.shift()
+		var list<Parameter> parameters = []
+		var encounteredOptionalParameter = false
+		while(true){
+			if(tokens.peek().type == TokenType.ParenthesisClose){
+				tokens.shift()
+				break
+			}
+			if(tokens.peek().type != TokenType.Identifier){
+				aspl.parser.utils.syntax_error("Expected identifier after '('", tokens.peek().location)
+			}
+			var types = parseTypesIfAny(tokens)
+			if(types.types.length == 0){
+				if(tokens.peek(1).type == TokenType.Identifier){
+					aspl.parser.utils.fatal_error("Invalid parameter type '" + peekTypeIdentifier(tokens).identifier + "'", tokens.peek().location) // TODO: Use type_error when parseTypesIfAny for unknown types exists
+				}else{
+					aspl.parser.utils.syntax_error("Parameters must specify a type", tokens.peek().location)
+				}
+			}
+			var nameToken = tokens.next()
+			var Expression? defaultValue = null
+			if(tokens.peek().type == TokenType.Equals){
+				tokens.shift()
+				if(isPreProcessing){
+					defaultValue = new NullLiteral(tokens.peek().location)
+					TokenUtils:skipTokensTillSeparator(tokens)
+				}else{
+					defaultValue = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, types))
+					if(!Expression(defaultValue).isConstant()){
+						aspl.parser.utils.generic_error("Default parameter value must be constant", tokens.peek().location)
+					}
+					if(!Type:matches(types, Expression(defaultValue).getType())){
+						aspl.parser.utils.type_error("Default parameter value must be compatible with the type of the parameter", tokens.peek().location)
+					}
+				}
+				encounteredOptionalParameter = true
+			}else{
+				if(!isPreProcessing && encounteredOptionalParameter){
+					aspl.parser.utils.generic_error("Cannot declare a mandatory (non-optional) parameter after one or more optional parameters", tokens.peek().location)
+				}
+			}
+			parameters.add(new Parameter(nameToken.value, types, defaultValue, nameToken.location))
+			if(tokens.peek().type == TokenType.Comma){
+				tokens.shift()
+			}else{
+				if(tokens.peek().type == TokenType.ParenthesisClose){
+					tokens.shift()
+					break
+				}
+				aspl.parser.utils.syntax_error("Expected ',' or ')'", tokens.peek().location)
+			}
+		}
+		return parameters
+	}
+
+	[public]
+	method parseArguments(string kind, string identifier, list<Parameter> parameters, TokenList tokens) returns map<string, Expression>{
+		tokens.shift()
+		var map<string, Expression> arguments = {}
+		var i = 0
+		var encounteredNamedArgument = false
+		while(arguments.length < parameters.length){
+			if(tokens.peek().type == TokenType.ParenthesisClose){
+				var minimum = 0
+				foreach(parameters as p){
+					if(p.optional){
+						break
+					}
+					minimum++
+				}
+				if(arguments.length < minimum){
+					aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for " + kind + " '" + identifier + "' (expected at least " + minimum + ")", tokens.peek().location)
+				}
+				break
+			}
+			var parameter = parameters[i]
+			if(tokens.peek().type == TokenType.Identifier && tokens.peek(1).type == TokenType.Equals){
+				foreach(parameters as p){
+					if(p.name == tokens.peek().value){
+						// TODO: This can theoretically be confused with inline assignments; however, these have been deprecated, so it's fine to just interpret this as a named argument here.
+						tokens.shift(2)
+						parameter = p
+						encounteredNamedArgument = true
+						break
+					}
+				}
+			}else{
+				if(encounteredNamedArgument){
+					aspl.parser.utils.generic_error("Cannot use a positional argument after one or more named arguments", tokens.peek().location)
+				}
+			}
+			var value = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
+			if(!Type:matches(parameter.types, value.getType())){
+				aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
+			}
+			arguments[parameter.name] = value
+			if(arguments.length < parameters.length && tokens.peek().type == TokenType.Comma){
+				tokens.shift()
+			}
+			i++
+		}
+		if(tokens.peek().type != TokenType.ParenthesisClose){
+			if(arguments.length == 0 || tokens.peek().type == TokenType.Comma){
+				aspl.parser.utils.fatal_error("Too many arguments given for " + kind + " '" + identifier + "' (expected no more than " + parameters.length + ")", tokens.peek().location)
+			}else{
+				if(kind == "attribute"){
+					aspl.parser.utils.syntax_error("Expected ')' after arguments in attribute", tokens.peek().location)
+				}else{
+					aspl.parser.utils.syntax_error("Expected ')' after arguments in " + kind + " call", tokens.peek().location)
+				}
+			}
+		}else{
+			tokens.shift()
+		}
+		return arguments
 	}
 
 }

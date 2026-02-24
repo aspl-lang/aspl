@@ -10,11 +10,11 @@ class StaticMethodCallExpression extends Expression{
 	[readpublic]
 	property Type base
 	[readpublic]
-	property list<Expression> arguments
+	property map<string, Expression> arguments
 	[readpublic]
 	property bool newThread
 	
-	method construct(Method m, Type base, list<Expression> arguments, bool newThread, Location? location){
+	method construct(Method m, Type base, map<string, Expression> arguments, bool newThread, Location? location){
         parent(Node).construct(location)
 		this.m = m
 		this.base = base

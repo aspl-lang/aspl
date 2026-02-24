@@ -8,10 +8,10 @@ class ClassInstantiateExpression extends Expression {
     [readpublic]
     property Class c
     [readpublic]
-    property list<Expression> arguments
+    property map<string, Expression> arguments
 
     [public]
-    method construct(Class c, list<Expression> arguments, Location? location){
+    method construct(Class c, map<string, Expression> arguments, Location? location){
         parent(Node).construct(location)
         this.c = c
         this.arguments = arguments

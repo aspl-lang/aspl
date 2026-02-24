@@ -846,27 +846,17 @@ class CBackend extends StringcodeBackend {
             s.append("aspl_function_").append(expression.func.identifier.replace(".", "$")).append("(")
         }
         var i = 0
-        foreach(expression.arguments as argument){
-            s.append("C_REFERENCE(").append(this.encode(argument)).append(")")
-            if(i < expression.arguments.length - 1){
+        foreach(expression.func.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                s.append("C_REFERENCE(").append(this.encode(expression.arguments[parameter.name])).append(")")
+            }else{
+                assert parameter.defaultValue != null
+                s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
+            }
+            if(i < expression.func.parameters.length - 1){
                 s.append(", ")
             }
             i++
-        }
-        if(expression.arguments.length < expression.func.parameters.length){
-            if(expression.arguments.length > 0){
-                s.append(", ")
-            }
-            while(i < expression.func.parameters.length){
-                var parameter = expression.func.parameters[i]
-                if(parameter.defaultValue != null){
-                    s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
-                    if(i < expression.func.parameters.length - 1){
-                        s.append(", ")
-                    }
-                }
-                i++
-            }
         }
         if(expression.newThread){
             s.append("}")
@@ -1381,27 +1371,17 @@ class CBackend extends StringcodeBackend {
             s.append("\", (ASPL_OBJECT_TYPE*[]){")
         }
         var i = 0
-        foreach(expression.arguments as argument){
-            s.append("C_REFERENCE(" + this.encode(argument) + ")")
-            if(i < expression.arguments.length - 1){
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                s.append("C_REFERENCE(").append(this.encode(expression.arguments[parameter.name])).append(")")
+            }else{
+                assert parameter.defaultValue != null
+                s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
+            }
+            if(i < expression.m.parameters.length - 1){
                 s.append(", ")
             }
             i++
-        }
-        if(expression.arguments.length < expression.m.parameters.length){
-            if(expression.arguments.length > 0){
-                s.append(", ")
-            }
-            while(i < expression.m.parameters.length){
-                var parameter = expression.m.parameters[i]
-                if(parameter.defaultValue != null){
-                    s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
-                    if(i < expression.m.parameters.length - 1){
-                        s.append(", ")
-                    }
-                }
-                i++
-            }
         }
         if(!(expression.exactClass != null || ((strippedTypeIdentifier.startsWith("callback<") || strippedTypeIdentifier == "callback") && expression.m.name == "invoke")) || expression.newThread){
             s.append("}")
@@ -1423,27 +1403,17 @@ class CBackend extends StringcodeBackend {
     method encodeStaticMethodCall(StaticMethodCallExpression expression) returns string{
         var s = new StringBuilder("aspl_method_").append(TypeUtils:typeToCIdentifier(expression.m.type.identifier)).append("_").append(expression.m.name).append("(")
         var i = 0
-        foreach(expression.arguments as argument){
-            s.append("C_REFERENCE(" + this.encode(argument) + ")")
-            if(i < expression.arguments.length - 1){
+        foreach(expression.m.parameters as parameter){
+            if(expression.arguments.containsKey(parameter.name)){
+                s.append("C_REFERENCE(").append(this.encode(expression.arguments[parameter.name])).append(")")
+            }else{
+                assert parameter.defaultValue != null
+                s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
+            }
+            if(i < expression.m.parameters.length - 1){
                 s.append(", ")
             }
             i++
-        }
-        if(expression.arguments.length < expression.m.parameters.length){
-            if(expression.arguments.length > 0){
-                s.append(", ")
-            }
-            while(i < expression.m.parameters.length){
-                var parameter = expression.m.parameters[i]
-                if(parameter.defaultValue != null){
-                    s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
-                    if(i < expression.m.parameters.length - 1){
-                        s.append(", ")
-                    }
-                }
-                i++
-            }
         }
         s.append(")")
         return s.toString()
@@ -1529,30 +1499,20 @@ class CBackend extends StringcodeBackend {
     method encodeClassInstantiation(ClassInstantiateExpression expression) returns string{
         var s = new StringBuilder("aspl_new_")
         s.append(TypeUtils:typeToCIdentifier(expression.c.type.identifier)).append("(")
-        var i = 0
-        foreach(expression.arguments as argument){
-            s.append("C_REFERENCE(").append(this.encode(argument)).append(")")
-            if(i < expression.arguments.length - 1){
-                s.append(", ")
-            }
-            i++
-        }
 		if(Method:exists(expression.c.type, "construct")){
             var m = Method:get(expression.c.type, "construct")
-            if(expression.arguments.length < m.parameters.length){
-                if(expression.arguments.length > 0){
+            var i = 0
+            foreach(m.parameters as parameter){
+                if(expression.arguments.containsKey(parameter.name)){
+                    s.append("C_REFERENCE(").append(this.encode(expression.arguments[parameter.name])).append(")")
+                }else{
+                    assert parameter.defaultValue != null
+                    s.append("C_REFERENCE(").append(this.encode(parameter.defaultValue)).append(")")
+                }
+                if(i < m.parameters.length - 1){
                     s.append(", ")
                 }
-                while(i < m.parameters.length){
-                    var parameter = m.parameters[i]
-                    if(parameter.defaultValue != null){
-                        s.append("C_REFERENCE(" + this.encode(parameter.defaultValue) + ")")
-                        if(i < m.parameters.length - 1){
-                            s.append(", ")
-                        }
-                    }
-                    i++
-                }
+                i++
             }
         }
         s.append(")")

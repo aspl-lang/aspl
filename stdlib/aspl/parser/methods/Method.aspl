@@ -18,20 +18,17 @@ class Method {
     [readpublic]
     property string name
     [public]
-    property list<Parameter> parameters
-    [public]
-    property int minimumParameterCount{
+    property string identifier{
         get{
-            var count = 0
-            foreach(parameters as parameter){
-                if(parameter.optional){
-                    return count
-                }
-                count++
+            if(isStatic){
+                return type.toString() + ":" + name
+            }else{
+                return type.toString() + "." + name
             }
-            return count
         }
     }
+    [public]
+    property list<Parameter> parameters
     [public]
     property Types returnTypes
     [readpublic]

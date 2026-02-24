@@ -44,11 +44,11 @@ class Property {
     [public]
     [static]
     method init(){
-        new InternalProperty(Type:fromString("string"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+        new InternalProperty(Type:fromString("string"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), {}, null, [])]).register(null)
 
-        new InternalProperty(Type:fromString("list"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+        new InternalProperty(Type:fromString("list"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), {}, null, [])]).register(null)
 
-        new InternalProperty(Type:fromString("map"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), [], null, [])]).register(null)
+        new InternalProperty(Type:fromString("map"), "length", new Types([Type:fromString("integer")]), [new AttributeInstance(Attribute:get("readpublic"), {}, null, [])]).register(null)
     }
 
     [public]

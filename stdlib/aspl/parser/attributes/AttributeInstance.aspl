@@ -8,14 +8,14 @@ class AttributeInstance {
     [readpublic]
     property Attribute attribute
     [readpublic]
-    property list<Expression> arguments
+    property map<string, Expression> arguments
     [readpublic]
     property Location? location
     [readpublic]
     property list<Token> comments
 
     [public]
-    method construct(Attribute attribute, list<Expression> arguments, Location? location, list<Token> comments){
+    method construct(Attribute attribute, map<string, Expression> arguments, Location? location, list<Token> comments){
         this.attribute = attribute
         this.arguments = arguments
         this.location = location
