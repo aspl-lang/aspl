@@ -26,7 +26,10 @@ class Window{
 			return int(implement("graphics.window.get_fps", handle))
 		}
 	}
-	
+
+	[readpublic]
+	property list<TouchPointer> activeTouchPointers
+
 	[public]
 	property callback onLoad = callback(){}
 	[public]
@@ -50,12 +53,14 @@ class Window{
 	[public]
 	property callback<Point, float, float> onMouseWheel = callback(Point position, float deltaX, float deltaY){}
 	[public]
-	property callback<list<TouchPoint>> onTouchDown = callback(list<TouchPoint> points){}
+	property callback<TouchPointer> onTouchDown = callback(TouchPointer pointer){}
 	[public]
-	property callback<list<TouchPoint>> onTouchMove = callback(list<TouchPoint> points){}
+	property callback<TouchPointer, float, float> onTouchMove = callback(TouchPointer pointer, float deltaX, float deltaY){}
 	[public]
-	property callback<list<TouchPoint>> onTouchUp = callback(list<TouchPoint> points){}
-	
+	property callback<TouchPointer> onTouchUp = callback(TouchPointer pointer){}
+	[public]
+	property callback<TouchPointer> onTouchCancel = callback(TouchPointer pointer){}
+
 	[public]
 	method construct(string|int title, int width, int? height = null){
 		if(height == null){
@@ -107,29 +112,76 @@ class Window{
 		implement("graphics.window.set_on_mouse_wheel", handle, callback(float x, float y, float deltaX, float deltaY){
 			onMouseWheel.(new Point(x, y), deltaX, deltaY)
 		})
-		implement("graphics.window.set_on_touch_down", handle, callback(list<list<long|float|int|bool>> touches){
-			var touchPoints = list<TouchPoint>[]
-			foreach(touches as touchPoint){
-				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+		implement("graphics.window.set_on_touch_down", handle, callback(list<long|float|int> pointerData){
+			var pointer = new TouchPointer(long(pointerData[0]), new Point(float(pointerData[1]), float(pointerData[2])), TouchToolType(int(pointerData[3])), float(pointerData[4]))
+			var index = -1
+			var i = 0
+			foreach(activeTouchPointers as activePointer){
+				if(activePointer.identifier == pointer.identifier){
+					index = i
+					break
+				}
+				i++
 			}
-			onTouchDown.(touchPoints)
+			if(index > -1){
+				activeTouchPointers[index] = pointer // (erroneously) missed a touch up previously
+			}else{
+				activeTouchPointers.add(pointer)
+			}
+			onTouchDown.(pointer)
 		})
-		implement("graphics.window.set_on_touch_move", handle, callback(list<list<long|float|int|bool>> touches){
-			var touchPoints = list<TouchPoint>[]
-			foreach(touches as touchPoint){
-				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+		implement("graphics.window.set_on_touch_move", handle, callback(list<long|float|int> pointerData){
+			var pointer = new TouchPointer(long(pointerData[0]), new Point(float(pointerData[1]), float(pointerData[2])), TouchToolType(int(pointerData[3])), float(pointerData[4]))
+			var index = -1
+			var i = 0
+			foreach(activeTouchPointers as activePointer){
+				if(activePointer.identifier == pointer.identifier){
+					index = i
+					break
+				}
+				i++
 			}
-			onTouchMove.(touchPoints)
+			if(index > -1){ // ignore (erroneously) untracked pointers
+				var deltaX = pointer.position.x - activeTouchPointers[index].position.x
+				var deltaY = pointer.position.y - activeTouchPointers[index].position.y
+				activeTouchPointers[index] = pointer
+				onTouchMove.(pointer, deltaX, deltaY)
+			}
 		})
-		implement("graphics.window.set_on_touch_up", handle, callback(list<list<long|float|int|bool>> touches){
-			var touchPoints = list<TouchPoint>[]
-			foreach(touches as touchPoint){
-				touchPoints.add(new TouchPoint(long(touchPoint[0]), new Point(float(touchPoint[1]), float(touchPoint[2])), TouchToolType(int(touchPoint[3])), bool(touchPoint[4])))
+		implement("graphics.window.set_on_touch_up", handle, callback(list<long|float|int> pointerData){
+			var pointer = new TouchPointer(long(pointerData[0]), new Point(float(pointerData[1]), float(pointerData[2])), TouchToolType(int(pointerData[3])), float(pointerData[4]))
+			var index = -1
+			var i = 0
+			foreach(activeTouchPointers as activePointer){
+				if(activePointer.identifier == pointer.identifier){
+					index = i
+					break
+				}
+				i++
 			}
-			onTouchUp.(touchPoints)
+			if(index > -1){
+				activeTouchPointers.removeAt(0)
+			}
+			onTouchUp.(pointer)
+		})
+		implement("graphics.window.set_on_touch_cancel", handle, callback(list<long|float|int> pointerData){
+			var pointer = new TouchPointer(long(pointerData[0]), new Point(float(pointerData[1]), float(pointerData[2])), TouchToolType(int(pointerData[3])), float(pointerData[4]))
+			var index = -1
+			var i = 0
+			foreach(activeTouchPointers as activePointer){
+				if(activePointer.identifier == pointer.identifier){
+					index = i
+					break
+				}
+				i++
+			}
+			if(index > -1){
+				activeTouchPointers.removeAt(0)
+			}
+			onTouchCancel.(pointer)
 		})
 	}
-	
+
 	[public]
 	method show(){
 		implement("graphics.window.show", handle)
@@ -151,7 +203,7 @@ class Window{
 	method isFullscreen() returns bool{
 		return bool(implement("graphics.window.is_fullscreen"))
 	}
-	
+
 	[public]
 	method toggleFullscreen(){
 		implement("graphics.window.toggle_fullscreen", handle)

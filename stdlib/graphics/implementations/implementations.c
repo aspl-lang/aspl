@@ -480,6 +480,11 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$measure_text_size(ASPL_OBJECT_TY
     return ASPL_LIST_LITERAL("list<float>", 11, array, 2);
 }
 
+#ifdef _WIN32
+#include <windows.h>
+#include <winuser.h>
+#endif
+
 #ifndef ASPL_USE_SSL
 #define SOKOL_IMPL
 #ifndef __ANDROID__
@@ -533,6 +538,7 @@ typedef struct ASPL_handle_graphics$Window {
     ASPL_OBJECT_TYPE touch_down_callback;
     ASPL_OBJECT_TYPE touch_move_callback;
     ASPL_OBJECT_TYPE touch_up_callback;
+    ASPL_OBJECT_TYPE touch_cancel_callback;
 } ASPL_handle_graphics$Window;
 
 #ifndef ASPL_INTERPRETER_MODE
@@ -542,17 +548,74 @@ void aspl_callback_integer_integer__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT
 void aspl_callback_integer__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* key);
 void aspl_callback_float_float_integer__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* button);
 void aspl_callback_float_float_float_float__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* fromX, ASPL_OBJECT_TYPE* fromY, ASPL_OBJECT_TYPE* deltaX, ASPL_OBJECT_TYPE* deltaY);
-void aspl_callback_list_list_long_OR_float_OR_integer_OR_boolean____invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* touches);
+void aspl_callback_list_long_OR_float_OR_integer___invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* pointer);
+#endif
+
+#ifdef _WIN32
+void aspl_util_graphics$Window_forward_windows_pointer_event(ASPL_OBJECT_TYPE callback, UINT32 pointerId, HWND hwnd) {
+    POINTER_INFO pointerInfo;
+    if (!GetPointerInfo(pointerId, &pointerInfo)) {
+        ASPL_PANIC("Failed to fetch pointer info");
+    }
+    POINT location = pointerInfo.ptPixelLocation;
+    ScreenToClient(hwnd, &location);
+    POINTER_PEN_INFO penInfo;
+    int pressure = 1;
+    if (GetPointerPenInfo(pointerId, &penInfo)) {
+        pressure = penInfo.pressure / 1024.0;
+    }
+    ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
+    array[0] = ASPL_LONG_LITERAL(pointerId);
+    array[1] = ASPL_FLOAT_LITERAL(location.x);
+    array[2] = ASPL_FLOAT_LITERAL(location.y);
+    array[3] = ASPL_INT_LITERAL(pointerInfo.pointerType - 1); // - 1 to match the IDs in TouchToolType.aspl
+    array[4] = ASPL_FLOAT_LITERAL(pressure);
+#ifdef ASPL_INTERPRETER_MODE
+    ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { ASPL_LIST_LITERAL("list<long|float|int>", 21, array, 5) } };
+    aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(callback).value.callback, arguments);
+#else
+    aspl_callback_list_long_OR_float_OR_integer___invoke(callback, C_REFERENCE(ASPL_LIST_LITERAL("list<long|float|int>", 21, array, 5)));
+#endif
+}
+
+LRESULT CALLBACK aspl_util_graphics$Window_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    ASPL_handle_graphics$Window* handle = (ASPL_handle_graphics$Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    switch (uMsg) {
+    case WM_POINTERDOWN: {
+        UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+        aspl_util_graphics$Window_forward_windows_pointer_event(handle->touch_down_callback, pointerId, hwnd);
+        break;
+    }
+    case WM_POINTERUPDATE: {
+        UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+        aspl_util_graphics$Window_forward_windows_pointer_event(handle->touch_move_callback, pointerId, hwnd);
+        break;
+    }
+    case WM_POINTERUP: {
+        UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+        aspl_util_graphics$Window_forward_windows_pointer_event(handle->touch_up_callback, pointerId, hwnd);
+        break;
+    }
+    case WM_POINTERCAPTURECHANGED: { // TODO: Is this the correct message corresponding to a touch cancel?
+        UINT32 pointerId = GET_POINTERID_WPARAM(wParam);
+        aspl_util_graphics$Window_forward_windows_pointer_event(handle->touch_cancel_callback, pointerId, hwnd);
+        break;
+    }
+    default:
+        return _sapp_win32_wndproc(hwnd, uMsg, wParam, lParam);
+    }
+    return 0;
+}
 #endif
 
 void aspl_util_graphics$sokol_logger(const char* tag, uint32_t log_level, uint32_t log_item, const char* message, uint32_t line_nr, const char* filename, void* user_data) {
     // TODO: Find a cleaner way to do this
-    #ifdef SOKOL_D3D11
+#ifdef SOKOL_D3D11
     const char* filter = "WIN32_D3D11_CREATE_DEVICE_AND_SWAPCHAIN_WITH_DEBUG_FAILED";
     if (strncmp(message, filter, strlen(filter)) == 0) {
         return;
     }
-    #endif
+#endif
     return slog_func(tag, log_level, log_item, message, line_nr, filename, user_data);
 }
 
@@ -569,6 +632,13 @@ void aspl_util_graphics$Window_load_callback(void* userdata) {
     sgl_setup(&(sgl_desc_t) {
         .logger.func = aspl_util_graphics$sokol_logger
     });
+
+#ifdef _WIN32
+    HWND hwnd = (HWND)sapp_win32_get_hwnd();
+    RegisterPointerInputTarget(hwnd, PT_PEN | PT_TOUCH); // PT_MOUSE does not need to be declared explicitly
+    SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)aspl_util_graphics$Window_WindowProc);
+    SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)userdata);
+#endif
 
     ASPL_handle_graphics$Window* handle = (ASPL_handle_graphics$Window*)userdata;
 #ifdef ASPL_INTERPRETER_MODE
@@ -651,6 +721,21 @@ void aspl_util_graphics$Window_paint_callback(void* userdata) {
     sgl_draw();
     sg_end_pass();
     sg_commit();
+}
+
+void aspl_util_graphics$Window_forward_sokol_touch_event(ASPL_OBJECT_TYPE callback, sapp_touchpoint touchpoint) {
+    ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
+    array[0] = ASPL_LONG_LITERAL(touchpoint.identifier);
+    array[1] = ASPL_FLOAT_LITERAL(touchpoint.pos_x);
+    array[2] = ASPL_FLOAT_LITERAL(touchpoint.pos_y);
+    array[3] = ASPL_INT_LITERAL(touchpoint.android_tooltype);
+    array[4] = ASPL_FLOAT_LITERAL(1); // TODO: Pointer pressure support on Android (AMotionEvent_getPressure)
+#ifdef ASPL_INTERPRETER_MODE
+    ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { ASPL_LIST_LITERAL("list<long|float|int>", 21, array, 5) } };
+    aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(callback).value.callback, arguments);
+#else
+    aspl_callback_list_long_OR_float_OR_integer___invoke(callback, C_REFERENCE(ASPL_LIST_LITERAL("list<long|float|int>", 21, array, 5)));
+#endif
 }
 
 void aspl_util_graphics$Window_event_callback(const sapp_event* event, void* userdata) {
@@ -742,63 +827,27 @@ void aspl_util_graphics$Window_event_callback(const sapp_event* event, void* use
         break;
     }
     case SAPP_EVENTTYPE_TOUCHES_BEGAN: {
-        ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * event->num_touches);
         for (int i = 0; i < event->num_touches; i++) {
-            sapp_touchpoint touchpoint = event->touches[i];
-            ASPL_OBJECT_TYPE* array2 = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
-            array2[0] = ASPL_LONG_LITERAL(touchpoint.identifier);
-            array2[1] = ASPL_FLOAT_LITERAL(touchpoint.pos_x);
-            array2[2] = ASPL_FLOAT_LITERAL(touchpoint.pos_y);
-            array2[3] = ASPL_INT_LITERAL(touchpoint.android_tooltype);
-            array2[4] = ASPL_BOOL_LITERAL(touchpoint.changed);
-            array[i] = ASPL_LIST_LITERAL("list<long|float|int|bool>", 25, array2, 5);
+            if (event->touches[i].changed) aspl_util_graphics$Window_forward_sokol_touch_event(handle->touch_down_callback, event->touches[i]);
         }
-#ifdef ASPL_INTERPRETER_MODE
-        ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches) } };
-        aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(handle->touch_down_callback).value.callback, arguments);
-#else
-        aspl_callback_list_list_long_OR_float_OR_integer_OR_boolean____invoke(handle->touch_down_callback, C_REFERENCE(ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches)));
-#endif
         break;
     }
     case SAPP_EVENTTYPE_TOUCHES_MOVED: {
-        ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * event->num_touches);
         for (int i = 0; i < event->num_touches; i++) {
-            sapp_touchpoint touchpoint = event->touches[i];
-            ASPL_OBJECT_TYPE* array2 = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
-            array2[0] = ASPL_LONG_LITERAL(touchpoint.identifier);
-            array2[1] = ASPL_FLOAT_LITERAL(touchpoint.pos_x);
-            array2[2] = ASPL_FLOAT_LITERAL(touchpoint.pos_y);
-            array2[3] = ASPL_INT_LITERAL(touchpoint.android_tooltype);
-            array2[4] = ASPL_BOOL_LITERAL(touchpoint.changed);
-            array[i] = ASPL_LIST_LITERAL("list<long|float|int|bool>", 25, array2, 5);
+            if (event->touches[i].changed) aspl_util_graphics$Window_forward_sokol_touch_event(handle->touch_move_callback, event->touches[i]);
         }
-#ifdef ASPL_INTERPRETER_MODE
-        ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches) } };
-        aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(handle->touch_move_callback).value.callback, arguments);
-#else
-        aspl_callback_list_list_long_OR_float_OR_integer_OR_boolean____invoke(handle->touch_move_callback, C_REFERENCE(ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches)));
-#endif
         break;
     }
     case SAPP_EVENTTYPE_TOUCHES_ENDED: {
-        ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * event->num_touches);
         for (int i = 0; i < event->num_touches; i++) {
-            sapp_touchpoint touchpoint = event->touches[i];
-            ASPL_OBJECT_TYPE* array2 = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 5);
-            array2[0] = ASPL_LONG_LITERAL(touchpoint.identifier);
-            array2[1] = ASPL_FLOAT_LITERAL(touchpoint.pos_x);
-            array2[2] = ASPL_FLOAT_LITERAL(touchpoint.pos_y);
-            array2[3] = ASPL_INT_LITERAL(touchpoint.android_tooltype);
-            array2[4] = ASPL_BOOL_LITERAL(touchpoint.changed);
-            array[i] = ASPL_LIST_LITERAL("list<long|float|int|bool>", 25, array2, 5);
+            if (event->touches[i].changed) aspl_util_graphics$Window_forward_sokol_touch_event(handle->touch_up_callback, event->touches[i]);
         }
-#ifdef ASPL_INTERPRETER_MODE
-        ASPL_AILI_ArgumentList arguments = (ASPL_AILI_ArgumentList){ .size = 1, .arguments = (ASPL_OBJECT_TYPE[]) { ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches) } };
-        aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_ACCESS(handle->touch_up_callback).value.callback, arguments);
-#else
-        aspl_callback_list_list_long_OR_float_OR_integer_OR_boolean____invoke(handle->touch_up_callback, C_REFERENCE(ASPL_LIST_LITERAL("list<list<long|float|int|bool>>", 31, array, event->num_touches)));
-#endif
+        break;
+    }
+    case SAPP_EVENTTYPE_TOUCHES_CANCELLED: {
+        for (int i = 0; i < event->num_touches; i++) {
+            if (event->touches[i].changed) aspl_util_graphics$Window_forward_sokol_touch_event(handle->touch_cancel_callback, event->touches[i]);
+        }
         break;
     }
     default:
@@ -933,6 +982,12 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$set_on_touch_move(ASPL_OBJECT_TY
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$set_on_touch_up(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* callback) {
     ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
     handle->touch_up_callback = *callback;
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$set_on_touch_cancel(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* callback) {
+    ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
+    handle->touch_cancel_callback = *callback;
     return ASPL_UNINITIALIZED;
 }
 

@@ -1,8 +1,8 @@
 import math.geometry
 
 [public]
-class TouchPoint {
-    
+class TouchPointer {
+
     [readpublic]
     property long identifier
     [readpublic]
@@ -10,14 +10,14 @@ class TouchPoint {
     [readpublic]
     property TouchToolType toolType
     [readpublic]
-    property bool changed
+    property float pressure
 
     [public]
-    method construct(long identifier, Point position, TouchToolType toolType, bool changed){
+    method construct(long identifier, Point position, TouchToolType toolType, float pressure){
         this.identifier = identifier
         this.position = position
         this.toolType = toolType
-        this.changed = changed
+        this.pressure = pressure
     }
 
 }
