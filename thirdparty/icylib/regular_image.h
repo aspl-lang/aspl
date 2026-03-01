@@ -1,16 +1,8 @@
 #ifndef ICYLIB_REGULAR_IMAGE_H
 #define ICYLIB_REGULAR_IMAGE_H
 
-#include <math.h>
-
-#include "thirdparty/stb_image_write.h"
-
-#include "icylib.h"
 #include "color.h"
-#include "bresenham.h"
-#include "thick_xiaolin_wu.h"
 #include "text.h"
-#include "math_utils.h"
 
 typedef struct icylib_RegularImage {
     int width;
@@ -57,17 +49,25 @@ void icylib_regular_draw_rectangle(icylib_RegularImage* image, int x1, int y1, i
 
 void icylib_regular_fill_rectangle(icylib_RegularImage* image, int x1, int y1, int x2, int y2, icylib_Color color, unsigned char blend);
 
+void icylib_regular_draw_rounded_rectangle(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend);
+
+void icylib_regular_fill_rounded_rectangle(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend);
+
 void icylib_regular_draw_image(icylib_RegularImage* image, int x, int y, icylib_RegularImage* other, unsigned char blend);
 
 void icylib_regular_draw_circle(icylib_RegularImage* image, int x, int y, int radius, icylib_Color color, unsigned char blend);
 
 void icylib_regular_fill_circle(icylib_RegularImage* image, int x, int y, int radius, icylib_Color color, unsigned char blend);
 
+void icylib_regular_draw_circular_arc(icylib_RegularImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend);
+
+void icylib_regular_fill_circular_arc(icylib_RegularImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend);
+
 void icylib_regular_draw_line_with_thickness(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int thickness, icylib_Color color, unsigned char blend, unsigned char antialias);
 
 void icylib_regular_draw_line(icylib_RegularImage* image, int x1, int y1, int x2, int y2, icylib_Color color, unsigned char blend, unsigned char antialias);
 
-void icylib_regular_draw_text(icylib_RegularImage* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, unsigned char blend);
+void icylib_regular_draw_text(icylib_RegularImage* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, unsigned char blend);
 
 void icylib_regular_replace_color(icylib_RegularImage* image, icylib_Color old, icylib_Color new, unsigned char blend);
 
@@ -86,6 +86,15 @@ void icylib_regular_resize(icylib_RegularImage* image, int width, int height);
 void icylib_regular_resize_scale(icylib_RegularImage* image, float scale);
 
 #ifdef ICYLIB_IMPLEMENTATION
+
+#include <math.h>
+
+#include "thirdparty/stb_image_write.h"
+
+#include "icylib.h"
+#include "bresenham.h"
+#include "thick_xiaolin_wu.h"
+#include "math_utils.h"
 
 int icylib_regular_get_width_from_file(const char* filename) {
     int width, height, channels;
@@ -165,7 +174,8 @@ unsigned char* icylib_regular_save_to_file_data(icylib_RegularImage* image, icyl
     case ICYLIB_REGULAR_IMAGE_FORMAT_TGA:
     case ICYLIB_REGULAR_IMAGE_FORMAT_JPG:
     case ICYLIB_REGULAR_IMAGE_FORMAT_HDR:
-        // TODO: Implement
+        ICYLIB_ERROR("Unsupported image format"); // TODO: Implement
+        return NULL;
     default:
         ICYLIB_ERROR("Unsupported image format");
         return NULL;
@@ -253,6 +263,29 @@ void icylib_regular_fill_rectangle(icylib_RegularImage* image, int x1, int y1, i
     }
 }
 
+void icylib_regular_draw_rounded_rectangle(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend) {
+    icylib_regular_draw_line(image, x1 + radius, y1, x2 - radius, y1, color, blend, 0);
+    icylib_regular_draw_line(image, x1 + radius, y2, x2 - radius, y2, color, blend, 0);
+    icylib_regular_draw_line(image, x1, y1 + radius, x1, y2 - radius, color, blend, 0);
+    icylib_regular_draw_line(image, x2, y1 + radius, x2, y2 - radius, color, blend, 0);
+    icylib_regular_draw_circular_arc(image, x1 + radius, y1 + radius, radius, 1.0 * ICYLIB_PI, 1.5 * ICYLIB_PI, color, blend);
+    icylib_regular_draw_circular_arc(image, x1 + radius, y2 - radius, radius, 0.5 * ICYLIB_PI, 1.0 * ICYLIB_PI, color, blend);
+    icylib_regular_draw_circular_arc(image, x2 - radius, y1 + radius, radius, 1.5 * ICYLIB_PI, 2.0 * ICYLIB_PI, color, blend);
+    icylib_regular_draw_circular_arc(image, x2 - radius, y2 - radius, radius, 0.0 * ICYLIB_PI, 0.5 * ICYLIB_PI, color, blend);
+}
+
+void icylib_regular_fill_rounded_rectangle(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend) {
+    icylib_regular_fill_rectangle(image, x1 + radius, y1 + radius, x2 - radius, y2 - radius, color, blend);
+    icylib_regular_fill_rectangle(image, x1 + radius, y1, x2 - radius, y1 + radius, color, blend);
+    icylib_regular_fill_rectangle(image, x1 + radius, y2 - radius, x2 - radius, y2, color, blend);
+    icylib_regular_fill_rectangle(image, x1, y1 + radius, x1 + radius, y2 - radius, color, blend);
+    icylib_regular_fill_rectangle(image, x2 - radius, y1 + radius, x2, y2 - radius, color, blend);
+    icylib_regular_fill_circular_arc(image, x1 + radius, y1 + radius, radius, 1.0 * ICYLIB_PI, 1.5 * ICYLIB_PI, color, blend);
+    icylib_regular_fill_circular_arc(image, x1 + radius, y2 - radius, radius, 0.5 * ICYLIB_PI, 1.0 * ICYLIB_PI, color, blend);
+    icylib_regular_fill_circular_arc(image, x2 - radius, y1 + radius, radius, 1.5 * ICYLIB_PI, 2.0 * ICYLIB_PI, color, blend);
+    icylib_regular_fill_circular_arc(image, x2 - radius, y2 - radius, radius, 0.0 * ICYLIB_PI, 0.5 * ICYLIB_PI, color, blend);
+}
+
 #ifndef ICYLIB_NO_SIMD
 #include <immintrin.h>
 #endif
@@ -322,6 +355,30 @@ void icylib_regular_fill_circle(icylib_RegularImage* image, int x, int y, int ra
     }
 }
 
+void icylib_regular_draw_circular_arc(icylib_RegularImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend) {
+    phi1 = icylib_wrap_angle(phi1);
+    phi2 = icylib_wrap_angle(phi2);
+    icylib_draw_bresenham_circular_arc((unsigned char*)image, x, y, radius, phi1, phi2, color, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_regular_set_pixel_blend : icylib_regular_set_pixel));
+}
+
+void icylib_regular_fill_circular_arc(icylib_RegularImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend) {
+    phi1 = icylib_wrap_angle(phi1);
+    phi2 = icylib_wrap_angle(phi2);
+    int rsquared = radius * radius;
+    for (int j = -radius; j < radius; j++) {
+        for (int i = -radius; i < radius; i++) {
+            if ((i * i + j * j) < rsquared && icylib_is_point_inside_circular_arc(i, j, phi1, phi2)) {
+                if (blend) {
+                    icylib_regular_set_pixel_blend(image, x + i, y + j, color);
+                }
+                else {
+                    icylib_regular_set_pixel(image, x + i, y + j, color);
+                }
+            }
+        }
+    }
+}
+
 void icylib_regular_draw_line_with_thickness(icylib_RegularImage* image, int x1, int y1, int x2, int y2, int thickness, icylib_Color color, unsigned char blend, unsigned char antialias) {
     if (antialias) {
         icylib_draw_thick_xiaolin_wu_aa_line((unsigned char*)image, x1, y1, x2, y2, thickness, color, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_regular_set_pixel_blend : icylib_regular_set_pixel));
@@ -335,8 +392,8 @@ void icylib_regular_draw_line(icylib_RegularImage* image, int x1, int y1, int x2
     icylib_regular_draw_line_with_thickness(image, x1, y1, x2, y2, 1, color, blend, antialias);
 }
 
-void icylib_regular_draw_text(icylib_RegularImage* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, unsigned char blend) {
-    icylib_draw_text((unsigned char*)image, text, x, y, color, fontPath, pixelSize, horizontalAlignment, verticalAlignment, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_regular_set_pixel_blend : icylib_regular_set_pixel));
+void icylib_regular_draw_text(icylib_RegularImage* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, unsigned char blend) {
+    icylib_draw_text((unsigned char*)image, text, x, y, color, font, pixel_size, horizontal_alignment, vertical_alignment, horizontal_fitting, vertical_fitting, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_regular_set_pixel_blend : icylib_regular_set_pixel));
 }
 
 void icylib_regular_replace_color(icylib_RegularImage* image, icylib_Color old, icylib_Color new, unsigned char blend) {

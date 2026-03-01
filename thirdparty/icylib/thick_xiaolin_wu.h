@@ -9,8 +9,6 @@ void icylib_draw_thick_xiaolin_wu_aa_line(unsigned char* image, int x0, int y0, 
 
 #include <math.h>
 
-#include "icylib.h"
-
 // The following function was originally written by John Bolton in CoffeScript and translated to C for this project.
 /*
 MIT License Copyright (c) 2022 John Bolton

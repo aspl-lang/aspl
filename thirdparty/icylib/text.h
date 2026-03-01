@@ -1,23 +1,15 @@
 #ifndef ICYLIB_TEXT_H
 #define ICYLIB_TEXT_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdint.h>
 
 #include "thirdparty/stb_truetype.h"
 
-#include "icylib.h"
+#include "color.h"
 
-typedef struct icylib_FontCacheEntry {
-    const char* name;
-    stbtt_fontinfo* font;
-} icylib_FontCacheEntry;
-
-typedef struct icylib_FontCache {
-    icylib_FontCacheEntry* data;
-    int length;
-} icylib_FontCache;
+typedef struct icylib_Font {
+    stbtt_fontinfo* handle;
+} icylib_Font;
 
 typedef enum icylib_HorizontalAlignment {
     ICYLIB_HORIZONTAL_ALIGNMENT_LEFT,
@@ -31,324 +23,341 @@ typedef enum icylib_VerticalAlignment {
     ICYLIB_VERTICAL_ALIGNMENT_BOTTOM
 } icylib_VerticalAlignment;
 
-icylib_FontCache* icylib_get_font_cache();
+typedef enum icylib_HorizontalTextFitting {
+    ICYLIB_HORIZONTAL_TEXT_FITTING_FULL,
+    ICYLIB_HORIZONTAL_TEXT_FITTING_TIGHT
+} icylib_HorizontalTextFitting;
 
-void icylib_set_font_cache(icylib_FontCache* fonts);
+typedef enum icylib_VerticalTextFitting {
+    ICYLIB_VERTICAL_TEXT_FITTING_FULL,
+    ICYLIB_VERTICAL_TEXT_FITTING_TIGHT
+} icylib_VerticalTextFitting;
 
-char* icylib_get_default_font_path();
+uint32_t* icylib_utf8_decode(const char* utf8_str, size_t* out_len);
 
-char* icylib_get_font_variant_path(const char* font_path, const char* variant);
+const char* icylib_get_default_font_path();
 
-void icylib_read_bytes(const char* path, unsigned char** font_file);
+char* icylib_find_font_variant_path(const char* font_path, const char* variant);
 
-void icylib_measure_text_size(const char* text, const char* font_path, int pixel_size, double* result_x, double* result_y);
+icylib_Font icylib_create_font_from_memory(unsigned char* data);
+
+icylib_Font icylib_load_font_from_file(const char* path);
+
+void icylib_destroy_font(icylib_Font font);
+
+void icylib_measure_text_size(const char* text, icylib_Font font, int pixel_size, double* result_x, double* result_y, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, double* offset_x, double* offset_y);
+
+void icylib_draw_text(unsigned char* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, void (*set_pixel)(unsigned char* image, int, int, icylib_Color));
 
 #ifdef ICYLIB_IMPLEMENTATION
 
-icylib_FontCache* icylib_get_font_cache() {
-    static icylib_FontCache* fonts = NULL;
-    if (!fonts) {
-        fonts = ICYLIB_MALLOC(sizeof(icylib_FontCache));
-        fonts->data = ICYLIB_MALLOC(1);
-        fonts->length = 0;
+#include <string.h>
+#include <ctype.h>
+
+#include "icylib.h"
+#include "file_utils.h"
+#include "math_utils.h"
+
+uint32_t* icylib_utf8_decode(const char* utf8_str, size_t* out_length) {
+    size_t length = 0;
+    size_t capacity = 8; // estimated average number of codepoints per string
+    uint32_t* codepoints = ICYLIB_MALLOC(capacity * sizeof(uint32_t));
+
+    for (size_t i = 0; utf8_str[i] != '\0';) {
+        uint32_t codepoint;
+        if ((utf8_str[i] & 0x80) == 0) {
+            codepoint = utf8_str[i];
+            i += 1;
+        }
+        else if ((utf8_str[i] & 0xE0) == 0xC0) {
+            codepoint = ((utf8_str[i] & 0x1F) << 6) | (utf8_str[i + 1] & 0x3F);
+            i += 2;
+        }
+        else if ((utf8_str[i] & 0xF0) == 0xE0) {
+            codepoint = ((utf8_str[i] & 0x0F) << 12) | ((utf8_str[i + 1] & 0x3F) << 6) | (utf8_str[i + 2] & 0x3F);
+            i += 3;
+        }
+        else if ((utf8_str[i] & 0xF8) == 0xF0) {
+            codepoint = ((utf8_str[i] & 0x07) << 18) | ((utf8_str[i + 1] & 0x3F) << 12) | ((utf8_str[i + 2] & 0x3F) << 6) | (utf8_str[i + 3] & 0x3F);
+            i += 4;
+        }
+        else {
+            // invalid UTF-8, just ignore
+            i++;
+            continue;
+        }
+        if (i >= capacity) {
+            capacity *= 2;
+            codepoints = ICYLIB_REALLOC(codepoints, capacity * sizeof(uint32_t));
+        }
+        codepoints[length++] = codepoint;
     }
-    return fonts;
+
+    *out_length = length;
+    return codepoints;
 }
 
-void icylib_set_font_cache(icylib_FontCache* fonts) {
-    icylib_FontCache* old_fonts = icylib_get_font_cache();
-    if (old_fonts->data) {
-        ICYLIB_FREE(old_fonts->data);
-    }
-    old_fonts->data = fonts->data;
-}
-
-char* icylib_get_default_font_path() {
-    // TODO: Improve this
+const char* icylib_get_default_font_path() {
 #ifdef _WIN32
     return "C:/Windows/Fonts/arial.ttf";
 #elif __APPLE__
-    return "/Library/Fonts/Arial.ttf";
+    return "/System/Library/Fonts/SFNS.ttf";
 #elif __ANDROID__
-    // taken from the V standard library
-    char* xml_files[] = { "/system/etc/system_fonts.xml", "/system/etc/fonts.xml", "/etc/system_fonts.xml", "/etc/fonts.xml", "/data/fonts/fonts.xml", "/etc/fallback_fonts.xml" };
-    char* font_locations[] = { "/system/fonts", "/data/fonts" };
-    for (int i = 0; i < 6; ++i) {
-        FILE* file = fopen(xml_files[i], "r");
-        if (file) {
-            char* xml = NULL;
-            size_t n = 0;
-            ssize_t read;
-            while ((read = getline(&xml, &n, file)) != -1) {
-                char* candidate_font = NULL;
-                if (strstr(xml, "<font")) {
-                    candidate_font = strstr(xml, ">") + 1;
-                    candidate_font = strtok(candidate_font, "<");
-                    while (*candidate_font == ' ' || *candidate_font == '\t' || *candidate_font == '\n' || *candidate_font == '\r') {
-                        candidate_font++;
-                    }
-                    char* end = candidate_font + strlen(candidate_font) - 1;
-                    while (end > candidate_font && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
-                        *end = '\0';
-                        end--;
-                    }
-                    if (strstr(candidate_font, ".ttf")) {
-                        for (int j = 0; j < 2; ++j) {
-                            char* candidate_path = ICYLIB_MALLOC_ATOMIC(strlen(font_locations[j]) + strlen(candidate_font) + 2);
-                            strcpy(candidate_path, font_locations[j]);
-                            strcat(candidate_path, "/");
-                            strcat(candidate_path, candidate_font);
-                            if (access(candidate_path, F_OK) == 0) {
-                                return candidate_path;
-                            }
-                            ICYLIB_FREE(candidate_path);
-                        }
-                    }
-                }
-            }
-            fclose(file);
-        }
-    }
-    ICYLIB_ERROR("No default font found");
+    return "/system/fonts/Roboto-Regular.ttf";
 #else
     return "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 #endif
 }
 
-// This is a modified version of os.font.get_path_variant() of the V standard library
-char* icylib_get_font_variant_path(const char* font_path, const char* variant) {
-    // Find some way to make this shorter and more eye-pleasant
-    // NotoSans, LiberationSans, DejaVuSans, Arial, and SFNS should work
-    char* file = strrchr(font_path, '/');
-    char* fpath = ICYLIB_MALLOC_ATOMIC(file - font_path + 2);
-    strncpy(fpath, font_path, file - font_path + 1);
-    fpath[file - font_path + 1] = '\0';
-    file++;
-    file = strrchr(font_path, '/');
-    file = file ? file + 1 : (char*)font_path;
+char* icylib_build_font_variant_path(const char* font_path, const char* variant) {
+    if (!font_path || !variant) return NULL;
 
-    char* file_copy = ICYLIB_MALLOC_ATOMIC(strlen(file) + 1);
-    strcpy(file_copy, file);
-    char* dot_position = strrchr(file_copy, '.');
-    if (dot_position != NULL) {
-        *dot_position = '\0';
+    const char* dash = strrchr(font_path, '-');
+    if (!dash) dash = strrchr(font_path, '.');
+    if (!dash) return NULL;
+
+    size_t base_len = dash - font_path;
+    size_t variant_len = strlen(variant);
+    size_t total_len = base_len + variant_len + strlen(".ttf");
+
+    char* variant_path = ICYLIB_MALLOC_ATOMIC(total_len + 1);
+    if (!variant_path) return NULL;
+
+    memcpy(variant_path, font_path, base_len);
+    strcpy(variant_path + base_len, variant);
+    strcpy(variant_path + base_len + variant_len, ".ttf");
+
+    return variant_path;
+}
+
+char* icylib_try_font_variant_path(const char* font_path, const char* variant) {
+    char* path = icylib_build_font_variant_path(font_path, variant);
+    if (path) {
+        if (icylib_file_exists(path)) {
+            return path;
+        }
+        else {
+            ICYLIB_FREE(path);
+            return NULL;
+        }
     }
+    else {
+        return NULL;
+    }
+}
 
-    if (strcmp(variant, "normal") == 0) {
-        // No changes for normal variant
+char* icylib_find_font_variant_path(const char* font_path, const char* variant) {
+    char* path = NULL;
+    if (strcmp(variant, "regular") == 0) {
+        if ((path = icylib_try_font_variant_path(font_path, "-Regular")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "Regular")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "")) != NULL) return path;
     }
     else if (strcmp(variant, "bold") == 0) {
-        if (strstr(fpath, "-Regular") != NULL || strstr(file_copy, "-Regular") != NULL) {
-            strcpy(file_copy, strstr(file_copy, "-Regular") ? strstr(file_copy, "-Regular") + 1 : strstr(fpath, "-Regular") + 1);
-            strcat(file_copy, "-Bold");
-        }
-        else if (strncmp(file_copy, "DejaVuSans", 10) == 0 || strncmp(file_copy, "DroidSans", 9) == 0) {
-            strcat(file_copy, "-Bold");
-        }
-        else if (strncasecmp(file_copy, "arial", 5) == 0) {
-            strcat(file_copy, "bd");
-        }
-        else {
-            strcat(file_copy, "-bold");
-        }
-#ifdef __APPLE__
-        if (access("SFNS-bold", F_OK) == 0) {
-            strcpy(file_copy, "SFNS-bold");
-        }
-#endif
+        if ((path = icylib_try_font_variant_path(font_path, "-Bold")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "Bold")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "bd")) != NULL) return path;
     }
     else if (strcmp(variant, "italic") == 0) {
-        if (strstr(file_copy, "-Regular") != NULL) {
-            strcpy(file_copy, strstr(file_copy, "-Regular") + 1);
-            strcat(file_copy, "-Italic");
-        }
-        else if (strncmp(file_copy, "DejaVuSans", 10) == 0) {
-            strcat(file_copy, "-Oblique");
-        }
-        else if (strncasecmp(file_copy, "arial", 5) == 0) {
-            strcat(file_copy, "i");
-        }
-        else {
-            strcat(file_copy, "Italic");
-        }
+        if ((path = icylib_try_font_variant_path(font_path, "-Italic")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "Italic")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "i")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "-Oblique")) != NULL) return path;
     }
     else if (strcmp(variant, "mono") == 0) {
-        if (strcmp(file_copy, "Mono-Regular") != 0 && strstr(file_copy, "-Regular") != NULL) {
-            strcpy(file_copy, strstr(file_copy, "-Regular") + 1);
-            strcat(file_copy, "Mono-Regular");
-        }
-        else if (strncasecmp(file_copy, "arial", 5) != 0) {
-            strcat(file_copy, "Mono");
-        }
+        if ((path = icylib_try_font_variant_path(font_path, "-Mono")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "Mono")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "-MonoRegular")) != NULL) return path;
+        if ((path = icylib_try_font_variant_path(font_path, "MonoRegular")) != NULL) return path;
     }
-
-    char* result = ICYLIB_MALLOC_ATOMIC(strlen(fpath) + strlen(file_copy) + 5);  // 5 for ".ttf" and null terminator
-    strcpy(result, fpath);
-    strcat(result, file_copy);
-    strcat(result, ".ttf");
-
-    ICYLIB_FREE(fpath);
-    ICYLIB_FREE(file_copy);
-
-    return result;
+    else {
+        if ((path = icylib_try_font_variant_path(font_path, variant)) != NULL) return path;
+        char* variant_with_dash = ICYLIB_MALLOC(1 + strlen(variant) + 1);
+        if (!variant_with_dash) return NULL;
+        strcpy(variant_with_dash, "-");
+        strcat(variant_with_dash, variant);
+        if ((path = icylib_try_font_variant_path(font_path, variant_with_dash)) != NULL) {
+            ICYLIB_FREE(variant_with_dash);
+            return path;
+        }
+        if (variant[0] != '\0') {
+            variant_with_dash[1] = toupper(variant_with_dash[1]);
+            if ((path = icylib_try_font_variant_path(font_path, variant_with_dash)) != NULL) {
+                ICYLIB_FREE(variant_with_dash);
+                return path;
+            }
+        }
+        ICYLIB_FREE(variant_with_dash);
+        return NULL;
+    }
 }
 
-void icylib_read_bytes(const char* path, unsigned char** font_file) {
-    FILE* file = fopen(path, "rb");
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    *font_file = ICYLIB_MALLOC_ATOMIC(length);
-    fread(*font_file, 1, length, file);
-    fclose(file);
+icylib_Font icylib_create_font_from_memory(unsigned char* data) {
+    stbtt_fontinfo* handle = ICYLIB_MALLOC(sizeof(stbtt_fontinfo));
+    int offset = stbtt_GetFontOffsetForIndex(data, 0);
+    stbtt_InitFont(handle, data, offset);
+    return (icylib_Font) { .handle = handle };
 }
 
-void icylib_measure_text_size(const char* text, const char* font_path, int pixel_size, double* result_x, double* result_y) {
-    stbtt_fontinfo* font = NULL;
-    icylib_FontCache* fonts = icylib_get_font_cache();
+icylib_Font icylib_load_font_from_file(const char* path) {
+    unsigned char* data;
+    icylib_file_read_bytes(path, &data);
+    return icylib_create_font_from_memory(data);
+}
 
-    for (int i = 0; i < fonts->length; ++i) {
-        if (strcmp(fonts->data[i].name, font_path) == 0) {
-            font = fonts->data[i].font;
-            break;
-        }
-    }
-    if (font == NULL) {
-        unsigned char* font_file;
-        icylib_read_bytes(font_path, &font_file);
+void icylib_destroy_font(icylib_Font font) {
+    ICYLIB_FREE(font.handle);
+}
 
-        font = ICYLIB_MALLOC(sizeof(stbtt_fontinfo));
-
-        int offset = stbtt_GetFontOffsetForIndex(font_file, 0);
-        stbtt_InitFont(font, font_file, offset);
-
-        fonts->data = ICYLIB_REALLOC(fonts->data, sizeof(icylib_FontCacheEntry) * (fonts->length + 1));
-        fonts->data[fonts->length].name = font_path;
-        fonts->data[fonts->length].font = font;
-        fonts->length++;
-    }
-
-    float scale = stbtt_ScaleForPixelHeight(font, pixel_size);
+void icylib_measure_text_size(const char* text, icylib_Font font, int pixel_size, double* result_x, double* result_y, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, double* offset_x, double* offset_y) {
+    float scale = stbtt_ScaleForPixelHeight(font.handle, pixel_size);
 
     int ascent, descent, lineGap;
-    stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
+    stbtt_GetFontVMetrics(font.handle, &ascent, &descent, &lineGap);
 
     int advance, lsb, x0, y0, x1, y1;
     double x_cursor = 0.0;
-    double max_x = 0.0;
+    double min_x = 1 << 16; // ~ infinity
+    double max_x_full = -(1 << 16);
+    double max_x_tight = -(1 << 16);
     double y_cursor = ascent * scale;
+    double min_y = 1 << 16;
+    double max_y = -(1 << 16);
 
-    size_t text_len = strlen(text);
-    for (size_t i = 0; i < text_len; ++i) {
-        if (text[i] == '\n') {
-            if (x_cursor > max_x) {
-                max_x = x_cursor;
+    size_t codepoints_length;
+    uint32_t* codepoints = icylib_utf8_decode(text, &codepoints_length);
+
+    for (size_t i = 0; i < codepoints_length; ++i) {
+        if (codepoints[i] == '\n') {
+            if (x_cursor > max_x_full) {
+                max_x_full = x_cursor;
             }
             y_cursor += (ascent - descent + lineGap) * scale;
             x_cursor = 0;
             continue;
         }
 
-        int c = (int)text[i];
+        uint32_t codepoint = codepoints[i];
 
-        stbtt_GetCodepointHMetrics(font, c, &advance, &lsb);
-        stbtt_GetCodepointBitmapBox(font, c, scale, scale, &x0, &y0, &x1, &y1);
+        stbtt_GetCodepointHMetrics(font.handle, codepoint, &advance, &lsb);
+        stbtt_GetCodepointBitmapBox(font.handle, codepoint, scale, scale, &x0, &y0, &x1, &y1);
 
-        if (i < text_len - 1) {
+        if (x_cursor + x0 < min_x) {
+            min_x = x_cursor + x0;
+        }
+        if (x_cursor + x1 > max_x_tight) {
+            max_x_tight = x_cursor + x1;
+        }
+        if (y_cursor - ascent * scale + y0 < min_y) {
+            min_y = y_cursor - ascent * scale + y0;
+        }
+        if (y_cursor - ascent * scale + y1 > max_y) {
+            max_y = y_cursor - ascent * scale + y1;
+        }
+
+        if (i < codepoints_length - 1) {
             x_cursor += advance * scale;
-            x_cursor += stbtt_GetCodepointKernAdvance(font, c, (int)text[i + 1]) * scale;
-        }else{
+            x_cursor += stbtt_GetCodepointKernAdvance(font.handle, codepoint, codepoints[i + 1]) * scale;
+        }
+        else {
             x_cursor += x1;
         }
     }
 
-    if (x_cursor > max_x) {
-        max_x = x_cursor;
+    ICYLIB_FREE(codepoints);
+
+    if (x_cursor > max_x_full) {
+        max_x_full = x_cursor;
     }
 
-    *result_x = max_x;
-    *result_y = y_cursor;
+    if (horizontal_fitting == ICYLIB_HORIZONTAL_TEXT_FITTING_TIGHT) {
+        *result_x = max_x_tight - min_x;
+    }
+    else {
+        *result_x = max_x_full;
+    }
+    if (vertical_fitting == ICYLIB_VERTICAL_TEXT_FITTING_TIGHT) {
+        *result_y = max_y - min_y;
+    }
+    else {
+        *result_y = y_cursor - descent * scale;
+    }
+    if (offset_x != 0) {
+        *offset_x = min_x;
+    }
+    if (offset_y != 0) {
+        *offset_y = min_y + ascent * scale;
+    }
 }
 
-void icylib_draw_text(unsigned char* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, void (*set_pixel)(unsigned char* image, int, int, icylib_Color)) {
+void icylib_draw_text(unsigned char* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, void (*set_pixel)(unsigned char* image, int, int, icylib_Color)) {
     double width, height;
-    icylib_measure_text_size(text, fontPath, pixelSize, &width, &height);
-
-    stbtt_fontinfo* font = NULL;
-    icylib_FontCache* fonts = icylib_get_font_cache();
-
-    for (int i = 0; i < fonts->length; ++i) {
-        if (strcmp(fonts->data[i].name, fontPath) == 0) {
-            font = fonts->data[i].font;
-            break;
-        }
+    double offset_x, offset_y;
+    icylib_measure_text_size(text, font, pixel_size, &width, &height, horizontal_fitting, vertical_fitting, &offset_x, &offset_y);
+    if (horizontal_fitting == ICYLIB_HORIZONTAL_TEXT_FITTING_FULL) {
+        offset_x = 0;
     }
-    if (font == NULL) {
-        unsigned char* font_file;
-        icylib_read_bytes(fontPath, &font_file);
-
-        font = ICYLIB_MALLOC(sizeof(stbtt_fontinfo));
-
-        int offset = stbtt_GetFontOffsetForIndex(font_file, 0);
-        stbtt_InitFont(font, font_file, offset);
-
-        fonts->data = ICYLIB_REALLOC(fonts->data, sizeof(icylib_FontCacheEntry) * (fonts->length + 1));
-        fonts->data[fonts->length].name = fontPath;
-        fonts->data[fonts->length].font = font;
-        fonts->length++;
+    if (vertical_fitting == ICYLIB_VERTICAL_TEXT_FITTING_FULL) {
+        offset_y = 0;
     }
 
-    float scale = stbtt_ScaleForPixelHeight(font, pixelSize);
+    float scale = stbtt_ScaleForPixelHeight(font.handle, pixel_size);
 
     int ascent, descent, lineGap;
-    stbtt_GetFontVMetrics(font, &ascent, &descent, &lineGap);
+    stbtt_GetFontVMetrics(font.handle, &ascent, &descent, &lineGap);
 
     int advance, lsb, x0, y0, x1, y1;
 
-    float x_cursor = x;
-    if (horizontalAlignment == ICYLIB_HORIZONTAL_ALIGNMENT_CENTER) {
+    float x_cursor = x - offset_x;
+    if (horizontal_alignment == ICYLIB_HORIZONTAL_ALIGNMENT_CENTER) {
         x_cursor -= width / 2;
     }
-    else if (horizontalAlignment == ICYLIB_HORIZONTAL_ALIGNMENT_RIGHT) {
+    else if (horizontal_alignment == ICYLIB_HORIZONTAL_ALIGNMENT_RIGHT) {
         x_cursor -= width;
     }
-    float y_cursor = y + ascent * scale;
-    if (verticalAlignment == ICYLIB_VERTICAL_ALIGNMENT_CENTER) {
+    float y_cursor = y + ascent * scale - offset_y;
+    if (vertical_alignment == ICYLIB_VERTICAL_ALIGNMENT_CENTER) {
         y_cursor -= height / 2;
     }
-    else if (verticalAlignment == ICYLIB_VERTICAL_ALIGNMENT_BOTTOM) {
+    else if (vertical_alignment == ICYLIB_VERTICAL_ALIGNMENT_BOTTOM) {
         y_cursor -= height;
     }
-    for (size_t i = 0; i < strlen(text); ++i) {
-        if (text[i] == '\n') {
+
+    size_t codepoints_length;
+    uint32_t* codepoints = icylib_utf8_decode(text, &codepoints_length);
+
+    for (size_t i = 0; i < codepoints_length; ++i) {
+        if (codepoints[i] == '\n') {
             y_cursor += (ascent - descent + lineGap) * scale;
             x_cursor = x;
             continue;
         }
 
-        int c = (int)text[i];
+        uint32_t codepoint = codepoints[i];
 
-        stbtt_GetCodepointHMetrics(font, c, &advance, &lsb);
-        stbtt_GetCodepointBitmapBox(font, c, scale, scale, &x0, &y0, &x1, &y1);
+        stbtt_GetCodepointHMetrics(font.handle, codepoint, &advance, &lsb);
+        stbtt_GetCodepointBitmapBox(font.handle, codepoint, scale, scale, &x0, &y0, &x1, &y1);
 
         int w = 0;
         int h = 0;
-        unsigned char* bitmap = stbtt_GetCodepointBitmap(font, 0, scale, c, &w, &h, 0, 0);
+        unsigned char* bitmap = stbtt_GetCodepointBitmap(font.handle, 0, scale, codepoint, &w, &h, 0, 0);
         for (int b = 0; b < h; ++b) {
             for (int a = 0; a < w; ++a) {
                 if (bitmap[b * w + a] != 0) {
-                    int pixel_x = (int)x_cursor + x0 + a;
-                    int pixel_y = (int)y_cursor + y0 + b;
+                    int pixel_x = icylib_round(x_cursor) + x0 + a;
+                    int pixel_y = icylib_round(y_cursor) + y0 + b;
                     set_pixel(image, pixel_x, pixel_y, icylib_color_from_rgba(color.r, color.g, color.b, (unsigned char)(bitmap[b * w + a])));
                 }
             }
         }
 
-        if (i < strlen(text) - 1) {
+        if (i < codepoints_length - 1) {
             x_cursor += advance * scale;
-            x_cursor += stbtt_GetCodepointKernAdvance(font, c, (int)text[i + 1]) * scale;
+            x_cursor += stbtt_GetCodepointKernAdvance(font.handle, codepoint, codepoints[i + 1]) * scale;
         }
     }
+
+    ICYLIB_FREE(codepoints);
 }
 
 #endif

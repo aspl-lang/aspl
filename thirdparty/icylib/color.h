@@ -1,8 +1,6 @@
 #ifndef ICYLIB_COLOR_H
 #define ICYLIB_COLOR_H
 
-#include "icylib.h"
-
 typedef struct icylib_Color {
     unsigned char r;
     unsigned char g;

@@ -5,13 +5,15 @@
 
 void icylib_draw_bresenham_circle(unsigned char* image, int xm, int ym, int r, icylib_Color color, void (*set_pixel)(unsigned char* image, int, int, icylib_Color));
 
+void icylib_draw_bresenham_circular_arc(unsigned char* image, int xm, int ym, int r, float phi1, float phi2, icylib_Color color, void (*set_pixel)(unsigned char* image, int, int, icylib_Color));
+
 void icylib_draw_bresenham_thick_line(unsigned char* image, int x0, int y0, int x1, int y1, int thickness, icylib_Color color, void (*set_pixel)(unsigned char* image, int, int, icylib_Color));
 
 #ifdef ICYLIB_IMPLEMENTATION
 
 #include <math.h>
 
-#include "icylib.h"
+#include "math_utils.h"
 
 // The following functions were originally written by Alois Zingl and slightly modified to fit this project.
 /*
@@ -46,6 +48,25 @@ void icylib_draw_bresenham_circle(unsigned char* image, int xm, int ym, int r, i
       set_pixel(image, xm - y, ym - x, color);                            /*  II. Quadrant -x +y */
       set_pixel(image, xm + x, ym - y, color);                            /* III. Quadrant -x -y */
       set_pixel(image, xm + y, ym + x, color);                            /*  IV. Quadrant +x -y */
+      r = err;
+      if (r <= y) err += ++y * 2 + 1;                             /* e_xy+e_y < 0 */
+      if (r > x || err > y)                  /* e_xy+e_x > 0 or no 2nd y-step */
+         err += ++x * 2 + 1;                                     /* -> x-step now */
+   } while (x < 0);
+}
+
+void icylib_draw_bresenham_circular_arc(unsigned char* image, int xm, int ym, int r, float phi1, float phi2, icylib_Color color, void (*set_pixel)(unsigned char* image, int, int, icylib_Color))
+{
+   int x = -r, y = 0, err = 2 - 2 * r;                /* bottom left to top right */
+   do {
+      if (icylib_is_point_inside_circular_arc(-x, y, phi1, phi2))
+         set_pixel(image, xm - x, ym + y, color);                          /*   I. Quadrant +x +y */
+      if (icylib_is_point_inside_circular_arc(-y, -x, phi1, phi2))
+         set_pixel(image, xm - y, ym - x, color);                          /*  II. Quadrant -x +y */
+      if (icylib_is_point_inside_circular_arc(x, -y, phi1, phi2))
+         set_pixel(image, xm + x, ym - y, color);                          /* III. Quadrant -x -y */
+      if (icylib_is_point_inside_circular_arc(y, x, phi1, phi2))
+         set_pixel(image, xm + y, ym + x, color);                          /*  IV. Quadrant +x -y */
       r = err;
       if (r <= y) err += ++y * 2 + 1;                             /* e_xy+e_y < 0 */
       if (r > x || err > y)                  /* e_xy+e_x > 0 or no 2nd y-step */

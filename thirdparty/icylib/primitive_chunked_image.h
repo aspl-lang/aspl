@@ -1,16 +1,9 @@
 #ifndef ICYLIB_PRIMITIVE_CHUNKED_IMAGE_H
 #define ICYLIB_PRIMITIVE_CHUNKED_IMAGE_H
 
-#include <math.h>
-
-#include "thirdparty/stb_image_write.h"
-
-#include "icylib.h"
 #include "regular_image.h"
 #include "color.h"
-#include "thick_xiaolin_wu.h"
 #include "text.h"
-#include "math_utils.h"
 
 const unsigned int ICYLIB_PRIMITIVE_CHUNK_WIDTH = 256;
 const unsigned int ICYLIB_PRIMITIVE_CHUNK_HEIGHT = 256;
@@ -54,17 +47,25 @@ void icylib_primitive_chunked_draw_rectangle(icylib_PrimitiveChunkedImage* image
 
 void icylib_primitive_chunked_fill_rectangle(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, icylib_Color color, unsigned char blend);
 
+void icylib_primitive_chunked_draw_rounded_rectangle(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend);
+
+void icylib_primitive_chunked_fill_rounded_rectangle(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend);
+
 void icylib_primitive_chunked_draw_image(icylib_PrimitiveChunkedImage* image, int x, int y, icylib_RegularImage* other, unsigned char blend);
 
 void icylib_primitive_chunked_draw_circle(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, icylib_Color color, unsigned char blend);
 
 void icylib_primitive_chunked_fill_circle(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, icylib_Color color, unsigned char blend);
 
+void icylib_primitive_chunked_draw_circular_arc(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend);
+
+void icylib_primitive_chunked_fill_circular_arc(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend);
+
 void icylib_primitive_chunked_draw_line_with_thickness(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int thickness, icylib_Color color, unsigned char blend, unsigned char antialias);
 
 void icylib_primitive_chunked_draw_line(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, icylib_Color color, unsigned char blend, unsigned char antialias);
 
-void icylib_primitive_chunked_draw_text(icylib_PrimitiveChunkedImage* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, unsigned char blend);
+void icylib_primitive_chunked_draw_text(icylib_PrimitiveChunkedImage* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, unsigned char blend);
 
 void icylib_primitive_chunked_replace_color(icylib_PrimitiveChunkedImage* image, icylib_Color old_color, icylib_Color new_color, unsigned char blend);
 
@@ -83,6 +84,13 @@ void icylib_primitive_chunked_resize(icylib_PrimitiveChunkedImage* image, int wi
 void icylib_primitive_chunked_resize_scale(icylib_PrimitiveChunkedImage* image, float scale);
 
 #ifdef ICYLIB_IMPLEMENTATION
+
+#include <math.h>
+
+#include "icylib.h"
+#include "bresenham.h"
+#include "thick_xiaolin_wu.h"
+#include "math_utils.h"
 
 icylib_PrimitiveChunkedImage* icylib_primitive_chunked_create_from_size(int width, int height, int channels) {
     icylib_PrimitiveChunkRow* chunk_rows = ICYLIB_MALLOC(sizeof(icylib_PrimitiveChunkRow) * icylib_ceil((float)height / ICYLIB_PRIMITIVE_CHUNK_HEIGHT));
@@ -297,6 +305,29 @@ void icylib_primitive_chunked_fill_rectangle(icylib_PrimitiveChunkedImage* image
     }
 }
 
+void icylib_primitive_chunked_draw_rounded_rectangle(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend) {
+    icylib_primitive_chunked_draw_line(image, x1 + radius, y1, x2 - radius, y1, color, blend, 0);
+    icylib_primitive_chunked_draw_line(image, x1 + radius, y2, x2 - radius, y2, color, blend, 0);
+    icylib_primitive_chunked_draw_line(image, x1, y1 + radius, x1, y2 - radius, color, blend, 0);
+    icylib_primitive_chunked_draw_line(image, x2, y1 + radius, x2, y2 - radius, color, blend, 0);
+    icylib_primitive_chunked_draw_circular_arc(image, x1 + radius, y1 + radius, radius, 1.0 * ICYLIB_PI, 1.5 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_draw_circular_arc(image, x1 + radius, y2 - radius, radius, 0.5 * ICYLIB_PI, 1.0 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_draw_circular_arc(image, x2 - radius, y1 + radius, radius, 1.5 * ICYLIB_PI, 2.0 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_draw_circular_arc(image, x2 - radius, y2 - radius, radius, 0.0 * ICYLIB_PI, 0.5 * ICYLIB_PI, color, blend);
+}
+
+void icylib_primitive_chunked_fill_rounded_rectangle(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int radius, icylib_Color color, unsigned char blend) {
+    icylib_primitive_chunked_fill_rectangle(image, x1 + radius, y1 + radius, x2 - radius, y2 - radius, color, blend);
+    icylib_primitive_chunked_fill_rectangle(image, x1 + radius, y1, x2 - radius, y1 + radius, color, blend);
+    icylib_primitive_chunked_fill_rectangle(image, x1 + radius, y2 - radius, x2 - radius, y2, color, blend);
+    icylib_primitive_chunked_fill_rectangle(image, x1, y1 + radius, x1 + radius, y2 - radius, color, blend);
+    icylib_primitive_chunked_fill_rectangle(image, x2 - radius, y1 + radius, x2, y2 - radius, color, blend);
+    icylib_primitive_chunked_fill_circular_arc(image, x1 + radius, y1 + radius, radius, 1.0 * ICYLIB_PI, 1.5 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_fill_circular_arc(image, x1 + radius, y2 - radius, radius, 0.5 * ICYLIB_PI, 1.0 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_fill_circular_arc(image, x2 - radius, y1 + radius, radius, 1.5 * ICYLIB_PI, 2.0 * ICYLIB_PI, color, blend);
+    icylib_primitive_chunked_fill_circular_arc(image, x2 - radius, y2 - radius, radius, 0.0 * ICYLIB_PI, 0.5 * ICYLIB_PI, color, blend);
+}
+
 void icylib_primitive_chunked_draw_image(icylib_PrimitiveChunkedImage* image, int x, int y, icylib_RegularImage* other, unsigned char blend) {
     if (blend) {
         for (int j = 0; j < other->height; j++) {
@@ -334,6 +365,30 @@ void icylib_primitive_chunked_fill_circle(icylib_PrimitiveChunkedImage* image, i
     }
 }
 
+void icylib_primitive_chunked_draw_circular_arc(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend) {
+    phi1 = icylib_wrap_angle(phi1);
+    phi2 = icylib_wrap_angle(phi2);
+    icylib_draw_bresenham_circular_arc((unsigned char*)image, x, y, radius, phi1, phi2, color, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_primitive_chunked_set_pixel_blend : icylib_primitive_chunked_set_pixel));
+}
+
+void icylib_primitive_chunked_fill_circular_arc(icylib_PrimitiveChunkedImage* image, int x, int y, int radius, float phi1, float phi2, icylib_Color color, unsigned char blend) {
+    phi1 = icylib_wrap_angle(phi1);
+    phi2 = icylib_wrap_angle(phi2);
+    int rsquared = radius * radius;
+    for (int j = -radius; j < radius; j++) {
+        for (int i = -radius; i < radius; i++) {
+            if ((i * i + j * j) < rsquared && icylib_is_point_inside_circular_arc(i, j, phi1, phi2)) {
+                if (blend) {
+                    icylib_primitive_chunked_set_pixel_blend(image, x + i, y + j, color);
+                }
+                else {
+                    icylib_primitive_chunked_set_pixel(image, x + i, y + j, color);
+                }
+            }
+        }
+    }
+}
+
 void icylib_primitive_chunked_draw_line_with_thickness(icylib_PrimitiveChunkedImage* image, int x1, int y1, int x2, int y2, int thickness, icylib_Color color, unsigned char blend, unsigned char antialias) {
     if (antialias) {
         icylib_draw_thick_xiaolin_wu_aa_line((unsigned char*)image, x1, y1, x2, y2, thickness, color, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_primitive_chunked_set_pixel_blend : icylib_primitive_chunked_set_pixel));
@@ -347,8 +402,8 @@ void icylib_primitive_chunked_draw_line(icylib_PrimitiveChunkedImage* image, int
     icylib_primitive_chunked_draw_line_with_thickness(image, x1, y1, x2, y2, 1, color, blend, antialias);
 }
 
-void icylib_primitive_chunked_draw_text(icylib_PrimitiveChunkedImage* image, char* text, int x, int y, icylib_Color color, char* fontPath, int pixelSize, icylib_HorizontalAlignment horizontalAlignment, icylib_VerticalAlignment verticalAlignment, unsigned char blend) {
-    icylib_draw_text((unsigned char*)image, text, x, y, color, fontPath, pixelSize, horizontalAlignment, verticalAlignment, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_primitive_chunked_set_pixel_blend : icylib_primitive_chunked_set_pixel));
+void icylib_primitive_chunked_draw_text(icylib_PrimitiveChunkedImage* image, char* text, int x, int y, icylib_Color color, icylib_Font font, int pixel_size, icylib_HorizontalAlignment horizontal_alignment, icylib_VerticalAlignment vertical_alignment, icylib_HorizontalTextFitting horizontal_fitting, icylib_VerticalTextFitting vertical_fitting, unsigned char blend) {
+    icylib_draw_text((unsigned char*)image, text, x, y, color, font, pixel_size, horizontal_alignment, vertical_alignment, horizontal_fitting, vertical_fitting, (void (*)(unsigned char*, int, int, icylib_Color))(blend ? icylib_primitive_chunked_set_pixel_blend : icylib_primitive_chunked_set_pixel));
 }
 
 void icylib_primitive_chunked_replace_color(icylib_PrimitiveChunkedImage* image, icylib_Color old_color, icylib_Color new_color, unsigned char blend) {

@@ -3,12 +3,12 @@
 
 It abstracts away the complexity of working with images by providing a simple interface for drawing shapes, rendering text, chunking images, and much more.
 
-Please note that `icylib` does **not** utilize any hardware acceleration (except SIMD instructions) and is thus not really suitable for real-time rendering. Nonetheless, it does use some fairly optimized algorithms and is still quite fast for a lot of use cases.
+Please note that `icylib` does **not** utilize any hardware acceleration (except SIMD instructions) and is therefore not particularly suitable for real-time rendering. Nonetheless, it does use some fairly optimized algorithms and is indeed quite fast for a lot of use cases. Consider `icylib` an experimental/educational project with fairly significant practical applicability.
 
 ## How to use?
 icylib is **not** a single-header library for the sake of readability and because of its dependencies. Yet, it is still very easy to use, as it only uses header files for both its interface and its implementation.
 
-If you want to use icylib in your project, you can simply include the header files you need in your source files, and some fancy include guards will take care of the rest.
+If you want to use icylib in your project, you can simply include the header files you need in your source files, and some fancy include guards will take care of the rest. Please note, however, that as is usual with header-only libraries, you must define the `ICYLIB_IMPLEMENTATION` macro in exactly one of your compilation units before including the icylib headers there (see the example below).
 
 ### Example: [Julia Set](examples/julia)
 ```c
