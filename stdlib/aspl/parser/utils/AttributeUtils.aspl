@@ -51,32 +51,9 @@ class AttributeUtils {
                     return parsedAny
                 }
                 var attribute = Attribute:get(IdentifierUtils:handleTypeIdentifier(parser.parseTypeIdentifier(tokens).identifier))
-                var list<Expression> arguments = []
+				var map<string, Expression> arguments = {}
                 if(tokens.peek().type == TokenType.ParenthesisOpen){
-                    tokens.shift()
-                    foreach(attribute.parameters as parameter){
-                        if(tokens.peek().type == TokenType.ParenthesisClose){
-                            if(!parameter.optional){
-                                aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.parameters.length + ")", tokens.peek().location)
-                            }
-                            break
-                        }
-                        var value = aspl.parser.utils.verify_expression(parser.parseToken(tokens.next(), tokens, false, PrecedenceLevel.None, null, parameter.types))
-                        if(!Type:matches(parameter.types, value.getType())){
-                            aspl.parser.utils.type_error("Cannot pass a value of the type '" + value.getType().toString() + "' to a parameter of the type '" + parameter.types.toString() + "'", value.location)
-                        }
-                        arguments.add(value)
-                        if(tokens.peek().type == TokenType.Comma){
-                            tokens.shift()
-                        }
-                    }
-                    if(tokens.peek().type == TokenType.ParenthesisClose){
-                        tokens.shift()
-                    }else{
-                        aspl.parser.utils.syntax_error("Expected ')' after attribute arguments", tokens.peek().location)
-                    }
-                }elseif(attribute.parameters.length > 0 && !attribute.parameters[0].optional){
-                    aspl.parser.utils.generic_error("Too few arguments (" + arguments.length + ") given for attribute '" + attribute.identifier + "' (expected " + attribute.parameters.length + ")", tokens.peek().location)
+                    arguments = parser.parseArguments("attribute", attribute.identifier, attribute.parameters, tokens)
                 }
                 if(tokens.peek().type == TokenType.BracketClose){
                     tokens.shift()

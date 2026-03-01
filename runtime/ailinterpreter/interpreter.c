@@ -220,6 +220,8 @@ ASPL_AILI_ParameterList aspl_ailinterpreter_parse_parameters(ASPL_AILI_ThreadCon
         ASPL_AILI_TypeList expected_types = aspl_ailinterpreter_parse_types(bytes);
         int optional = aspl_ailinterpreter_read_bool(bytes);
         if (optional) {
+            // BC: Declaring optional parameters in AIL code has been deprecated with the introduction of named arguments to ASPL.
+            // Newer versions of AIL will not know the concept of optional parameters and default values anymore and instead always pass all arguments (and potentially all default values for parameters without matching arguments) when invoking a callable.
             ASPL_OBJECT_TYPE default_value = aspl_ailinterpreter_stack_pop(context->stack);
             while (default_values_top >= default_values_size) {
                 default_values_size *= 2;

@@ -10,11 +10,11 @@ class FunctionCallExpression extends Expression{
 	[readpublic]
 	property Function func
 	[readpublic]
-	property list<Expression> arguments
+	property map<string, Expression> arguments
 	[readpublic]
 	property bool newThread
 	
-	method construct(string identifier, Function func, list<Expression> arguments, bool newThread, Location? location){
+	method construct(string identifier, Function func, map<string, Expression> arguments, bool newThread, Location? location){
         parent(Node).construct(location)
 		this.identifier = identifier
 		this.func = func
