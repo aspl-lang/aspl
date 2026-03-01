@@ -5,7 +5,7 @@ class Font{
 
     [static]
     property Font _default
-    
+
     [public]
     [static]
     property Font default{
@@ -13,20 +13,20 @@ class Font{
             if(_default == null){
                 var path = string(implement("graphics.font.get_default_font_path"))
                 var name = io.file_name(path)
-                _default = new Font(name, path, path, 12)
+                _default = self:fromFile(path, path)
             }
             return Font(_default)
         }
     }
 
     [readpublic]
-    property string name
+    property any handle
     [readpublic]
-    property string path
+    property string? path
     [readpublic]
-    property string regularPath
+    property string? regularPath
     [readpublic]
-    property int size
+    property FontSize size
     [readpublic]
     property bool bold
     [readpublic]
@@ -36,9 +36,8 @@ class Font{
     [readpublic]
     property bool strikeout
 
-    [public]
-	method construct(string name, string path, string regularPath, int size, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) {
-        this.name = name
+	method construct(any handle, string? path, string? regularPath, FontSize size, bool bold, bool italic, bool underline, bool strikeout) {
+        this.handle = handle
         this.path = path
         this.regularPath = regularPath
         this.size = size
@@ -49,28 +48,60 @@ class Font{
     }
 
     [public]
-	method withSize(int size) returns Font {
-        return new Font(this.name, this.path, this.regularPath, size, this.bold, this.italic, this.underline, this.strikeout)
+    [static]
+    method fromFile(string path, string? regularPath = null, FontSize? size = null, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) returns Font{
+        if(regularPath == null){
+            regularPath = path
+        }
+        if(size == null){
+            size = FontSize:pt(12)
+        }
+        return new Font(implement("graphics.font.load_from_file", path), path, regularPath, size?!, bold, italic, underline, strikeout)
     }
 
     [public]
-	method asBold(bool value = true) returns Font{
-        return new Font(this.name, string(implement("graphics.font.get_font_variant_path", this.path, value, this.italic, this.underline, this.strikeout)), regularPath, this.size, value, this.italic, this.underline, this.strikeout)
+    [static]
+    method fromMemory(list<byte> data, FontSize? size = null, bool bold = false, bool italic = false, bool underline = false, bool strikeout = false) returns Font{
+        if(size == null){
+            size = FontSize:pt(12)
+        }
+        return new Font(implement("graphics.font.load_from_memory", data), null, null, size, bold, italic, underline, strikeout)
     }
 
     [public]
-	method asItalic(bool value = true) returns Font{
-        return new Font(this.name, string(implement("graphics.font.get_font_variant_path", this.path, this.bold, true, this.underline, this.strikeout)), regularPath, this.size, this.bold, value, this.underline, this.strikeout)
+	method withSize(FontSize size) returns Font {
+        return new Font(this.handle, this.path, this.regularPath, size, this.bold, this.italic, this.underline, this.strikeout)
+    }
+
+    method withVariants(bool bold, bool italic, bool underline, bool strikeout) returns Font?{
+        if(this.path == null){
+            return null
+        }
+        var variantPath = implement("graphics.font.get_font_variant_path", this.path, bold, italic, underline, strikeout)
+        if(variantPath == null){
+            return null
+        }
+        return self:fromFile(string(variantPath), this.regularPath, this.size, bold, italic, underline, strikeout)
     }
 
     [public]
-	method asUnderlined(bool value = true) returns Font{
-        return new Font(this.name, string(implement("graphics.font.get_font_variant_path", this.path, this.bold, this.italic, true, this.strikeout)), regularPath, this.size, this.bold, this.italic, value, this.strikeout)
+	method asBold(bool value = true) returns Font?{
+        return this.withVariants(value, this.italic, this.underline, this.strikeout)
     }
 
     [public]
-	method asStrikedout(bool value = true) returns Font{
-        return new Font(this.name, string(implement("graphics.font.get_font_variant_path", this.path, this.bold, this.italic, this.underline, value)), regularPath, this.size, this.bold, this.italic, this.underline, value)
+	method asItalic(bool value = true) returns Font?{
+        return this.withVariants(this.bold, value, this.underline, this.strikeout)
+    }
+
+    [public]
+	method asUnderlined(bool value = true) returns Font?{
+        return this.withVariants(this.bold, this.italic, value, this.strikeout)
+    }
+
+    [public]
+	method asStrikedout(bool value = true) returns Font?{
+        return this.withVariants(this.bold, this.italic, this.underline, value)
     }
 
 }

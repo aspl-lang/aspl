@@ -1,0 +1,23 @@
+[public]
+class FontSize {
+
+    [readpublic]
+    property int pixels
+
+    method construct(int pixels){
+        this.pixels = pixels
+    }
+
+    [public]
+    [static]
+    method px(int px) returns FontSize{
+        return new FontSize(px)
+    }
+
+    [public]
+    [static]
+    method pt(int pt, int dpi = 96) returns FontSize{
+        return FontSize:px(pt * dpi / 72)
+    }
+
+}

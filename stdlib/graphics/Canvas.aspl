@@ -47,7 +47,7 @@ class Canvas {
 
     [public]
 	[abstract]
-	method drawText(string text, int x, int y, Font font, Color color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left, VerticalAlignment verticalAlignment = VerticalAlignment.Bottom, bool blend = true)
+	method drawText(string text, int x, int y, Font font, Color color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left, VerticalAlignment verticalAlignment = VerticalAlignment.Bottom, HorizontalTextFitting horizontalFitting = HorizontalTextFitting.Full, VerticalTextFitting verticalFitting = VerticalTextFitting.Full, bool blend = true)
 
     [public]
 	[abstract]

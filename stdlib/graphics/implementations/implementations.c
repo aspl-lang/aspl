@@ -11,6 +11,12 @@
 #include "thirdparty/icylib/regular_image.h"
 #include "thirdparty/icylib/primitive_chunked_image.h"
 #include "thirdparty/icylib/lazy_chunked_image.h"
+#include "thirdparty/icylib/color.h"
+#include "thirdparty/icylib/text.h"
+
+typedef struct {
+    icylib_Font font;
+} ASPL_handle_graphics$Font;
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$new_from_size(ASPL_OBJECT_TYPE* width, ASPL_OBJECT_TYPE* height) {
     return ASPL_HANDLE_LITERAL(icylib_regular_create_from_size(ASPL_ACCESS(*width).value.integer32, ASPL_ACCESS(*height).value.integer32, 4));
@@ -79,8 +85,8 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_circle(ASPL_OBJECT_
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* blend) {
-    icylib_regular_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*font_path).value.string->str, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*blend).value.boolean);
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_handle, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* horizontal_fitting, ASPL_OBJECT_TYPE* vertical_fitting, ASPL_OBJECT_TYPE* blend) {
+    icylib_regular_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ((ASPL_handle_graphics$Font*)ASPL_ACCESS(*font_handle).value.handle)->font, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*horizontal_fitting).value.integer32, ASPL_ACCESS(*vertical_fitting).value.integer32, ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
@@ -230,8 +236,8 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$fill_circle(AS
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* blend) {
-    icylib_primitive_chunked_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*font_path).value.string->str, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*blend).value.boolean);
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_handle, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* horizontal_fitting, ASPL_OBJECT_TYPE* vertical_fitting, ASPL_OBJECT_TYPE* blend) {
+    icylib_primitive_chunked_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ((ASPL_handle_graphics$Font*)ASPL_ACCESS(*font_handle).value.handle)->font, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*horizontal_fitting).value.integer32, ASPL_ACCESS(*vertical_fitting).value.integer32, ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
@@ -369,8 +375,8 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$fill_circle(ASPL_OB
     return ASPL_UNINITIALIZED;
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* blend) {
-    icylib_lazy_chunked_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*font_path).value.string->str, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*blend).value.boolean);
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$draw_text(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* x, ASPL_OBJECT_TYPE* y, ASPL_OBJECT_TYPE* font_handle, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* horizontal_alignment, ASPL_OBJECT_TYPE* vertical_alignment, ASPL_OBJECT_TYPE* horizontal_fitting, ASPL_OBJECT_TYPE* vertical_fitting, ASPL_OBJECT_TYPE* blend) {
+    icylib_lazy_chunked_draw_text(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*x).value.integer32, ASPL_ACCESS(*y).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ((ASPL_handle_graphics$Font*)ASPL_ACCESS(*font_handle).value.handle)->font, ASPL_ACCESS(*font_size).value.integer32, ASPL_ACCESS(*horizontal_alignment).value.integer32, ASPL_ACCESS(*vertical_alignment).value.integer32, ASPL_ACCESS(*horizontal_fitting).value.integer32, ASPL_ACCESS(*vertical_fitting).value.integer32, ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
@@ -449,8 +455,24 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$unload_chunk(ASPL_O
     return ASPL_UNINITIALIZED;
 }
 
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$font$load_from_file(ASPL_OBJECT_TYPE* path) {
+    ASPL_handle_graphics$Font* handle = ASPL_MALLOC(sizeof(ASPL_handle_graphics$Font));
+    handle->font = icylib_load_font_from_file(ASPL_ACCESS(*path).value.string->str);
+    return ASPL_HANDLE_LITERAL(handle);
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$font$load_from_memory(ASPL_OBJECT_TYPE* bytes) {
+    unsigned char* array = ASPL_MALLOC(ASPL_ACCESS(*bytes).value.list->length);
+    for (int i = 0; i < ASPL_ACCESS(*bytes).value.list->length; i++) {
+        array[i] = ASPL_ACCESS(ASPL_ACCESS(*bytes).value.list->value[i]).value.integer8;
+    }
+    ASPL_handle_graphics$Font* handle = ASPL_MALLOC(sizeof(ASPL_handle_graphics$Font));
+    handle->font = icylib_create_font_from_memory(array);
+    return ASPL_HANDLE_LITERAL(handle);
+}
+
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$font$get_default_font_path() {
-    return ASPL_STRING_LITERAL_NO_COPY(icylib_get_default_font_path());
+    return ASPL_STRING_LITERAL_NO_COPY((char*)icylib_get_default_font_path());
 }
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$font$get_font_variant_path(ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* bold, ASPL_OBJECT_TYPE* italic, ASPL_OBJECT_TYPE* underline, ASPL_OBJECT_TYPE* strikeout) {
@@ -468,12 +490,16 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$font$get_font_variant_path(ASPL_OBJECT_
         variant = "strikeout";
     }
     // TODO: Allow combining variants
-    return ASPL_STRING_LITERAL_NO_COPY(icylib_get_font_variant_path(ASPL_ACCESS(*font_path).value.string->str, variant));
+    char* variant_path = icylib_find_font_variant_path(ASPL_ACCESS(*font_path).value.string->str, variant);
+    if (variant_path == NULL) {
+        return ASPL_NULL();
+    }
+    return ASPL_STRING_LITERAL_NO_COPY(variant_path);
 }
 
-ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$measure_text_size(ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* font_path, ASPL_OBJECT_TYPE* font_size) {
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$measure_text_size(ASPL_OBJECT_TYPE* text, ASPL_OBJECT_TYPE* font_handle, ASPL_OBJECT_TYPE* font_size, ASPL_OBJECT_TYPE* horizontal_fitting, ASPL_OBJECT_TYPE* vertical_fitting) {
     double width, height;
-    icylib_measure_text_size(ASPL_ACCESS(*text).value.string->str, ASPL_ACCESS(*font_path).value.string->str, ASPL_ACCESS(*font_size).value.integer32, &width, &height);
+    icylib_measure_text_size(ASPL_ACCESS(*text).value.string->str, ((ASPL_handle_graphics$Font*)ASPL_ACCESS(*font_handle).value.handle)->font, ASPL_ACCESS(*font_size).value.integer32, &width, &height, ASPL_ACCESS(*horizontal_fitting).value.integer32, ASPL_ACCESS(*vertical_fitting).value.integer32, 0, 0);
     ASPL_OBJECT_TYPE* array = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 2);
     array[0] = ASPL_FLOAT_LITERAL((float)width);
     array[1] = ASPL_FLOAT_LITERAL((float)height);

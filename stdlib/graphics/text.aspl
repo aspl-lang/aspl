@@ -1,7 +1,7 @@
 import math.geometry
 
 [public]
-function measure_text_size(string text, Font font) returns Size{
-    var size = list<double>(implement("graphics.canvas.measure_text_size", text, font.path, font.size))
+function measure_text_size(string text, Font font, HorizontalTextFitting horizontalFitting = HorizontalTextFitting.Full, VerticalTextFitting verticalFitting = VerticalTextFitting.Full) returns Size{
+    var size = list<double>(implement("graphics.canvas.measure_text_size", text, font.handle, font.size.pixels, int(horizontalFitting), int(verticalFitting)))
     return new Size(float(size[0]), float(size[1]))
 }

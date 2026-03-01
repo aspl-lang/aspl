@@ -78,8 +78,8 @@ class LazyChunkedCanvas extends Canvas{
 	}
 
 	[public]
-	method drawText(string text, int x, int y, Font font, Color color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left, VerticalAlignment verticalAlignment = VerticalAlignment.Bottom, bool blend = true){
-		implement("graphics.canvas.lazy_chunked.draw_text", handle, text, x, y, font.path, font.size, color.a, color.r, color.g, color.b, int(horizontalAlignment), int(verticalAlignment), blend)
+	method drawText(string text, int x, int y, Font font, Color color, HorizontalAlignment horizontalAlignment = HorizontalAlignment.Left, VerticalAlignment verticalAlignment = VerticalAlignment.Bottom, HorizontalTextFitting horizontalFitting = HorizontalTextFitting.Full, VerticalTextFitting verticalFitting = VerticalTextFitting.Full, bool blend = true){
+		implement("graphics.canvas.lazy_chunked.draw_text", handle, text, x, y, font.handle, font.size.pixels, color.a, color.r, color.g, color.b, int(horizontalAlignment), int(verticalAlignment), int(horizontalFitting), int(verticalFitting), blend)
 	}
 
 	[public]
