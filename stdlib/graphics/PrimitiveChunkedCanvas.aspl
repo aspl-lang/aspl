@@ -56,12 +56,22 @@ class PrimitiveChunkedCanvas extends Canvas{
 
 	[public]
 	method drawRectangle(Rectangle rectangle, Color color, bool blend = true){
-		implement("graphics.canvas.primitive_chunked.draw_rectangle", this.handle, int(Point(rectangle.position).x), int(Point(rectangle.position).y), int(Point(rectangle.position).x) + int(Size(rectangle.size).width), int(Point(rectangle.position).y) + int(Size(rectangle.size).height), color.a, color.r, color.g, color.b, blend)
+		implement("graphics.canvas.primitive_chunked.draw_rectangle", this.handle, int(rectangle.position.x), int(rectangle.position.y), int(rectangle.position.x) + int(rectangle.size.width), int(rectangle.position.y) + int(rectangle.size.height), color.a, color.r, color.g, color.b, blend)
+	}
+
+	[public]
+	method drawRoundedRectangle(Rectangle rectangle, int cornerRadius, Color color, bool blend = true){
+		implement("graphics.canvas.primitive_chunked.draw_rounded_rectangle", this.handle, int(rectangle.position.x), int(rectangle.position.y), int(rectangle.position.x) + int(rectangle.size.width), int(rectangle.position.y) + int(rectangle.size.height), cornerRadius, color.a, color.r, color.g, color.b, blend)
 	}
 
 	[public]
 	method fillRectangle(Rectangle rectangle, Color color, bool blend = true){
-		implement("graphics.canvas.primitive_chunked.fill_rectangle", this.handle, int(Point(rectangle.position).x), int(Point(rectangle.position).y), int(Point(rectangle.position).x) + int(Size(rectangle.size).width), int(Point(rectangle.position).y) + int(Size(rectangle.size).height), color.a, color.r, color.g, color.b, blend)
+		implement("graphics.canvas.primitive_chunked.fill_rectangle", this.handle, int(rectangle.position.x), int(rectangle.position.y), int(rectangle.position.x) + int(rectangle.size.width), int(rectangle.position.y) + int(rectangle.size.height), color.a, color.r, color.g, color.b, blend)
+	}
+
+	[public]
+	method fillRoundedRectangle(Rectangle rectangle, int cornerRadius, Color color, bool blend = true){
+		implement("graphics.canvas.primitive_chunked.fill_rounded_rectangle", this.handle, int(rectangle.position.x), int(rectangle.position.y), int(rectangle.position.x) + int(rectangle.size.width), int(rectangle.position.y) + int(rectangle.size.height), cornerRadius, color.a, color.r, color.g, color.b, blend)
 	}
 
 	[public]

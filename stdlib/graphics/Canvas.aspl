@@ -33,9 +33,17 @@ class Canvas {
 	[abstract]
 	method drawRectangle(Rectangle rectangle, Color color, bool blend = true)
 
+	[public]
+	[abstract]
+	method drawRoundedRectangle(Rectangle rectangle, int cornerRadius, Color color, bool blend = true)
+
     [public]
 	[abstract]
 	method fillRectangle(Rectangle rectangle, Color color, bool blend = true)
+
+	[public]
+	[abstract]
+	method fillRoundedRectangle(Rectangle rectangle, int cornerRadius, Color color, bool blend = true)
 
     [public]
 	[abstract]

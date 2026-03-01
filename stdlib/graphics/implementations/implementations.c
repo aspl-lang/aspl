@@ -67,6 +67,16 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_rectangle(ASPL_OBJE
     return ASPL_UNINITIALIZED;
 }
 
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_regular_draw_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$fill_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_regular_fill_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$regular$draw_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     ASPL_PANIC("Unimplemented");
 }
@@ -218,6 +228,16 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$fill_rectangle
     return ASPL_UNINITIALIZED;
 }
 
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$draw_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_primitive_chunked_draw_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$fill_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_primitive_chunked_fill_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$primitive_chunked$draw_triangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* x3, ASPL_OBJECT_TYPE* y3, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     ASPL_PANIC("Unimplemented");
 }
@@ -354,6 +374,16 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$draw_rectangle(ASPL
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$fill_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
     icylib_lazy_chunked_fill_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$draw_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_lazy_chunked_draw_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
+    return ASPL_UNINITIALIZED;
+}
+
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$canvas$lazy_chunked$fill_rounded_rectangle(ASPL_OBJECT_TYPE* handle, ASPL_OBJECT_TYPE* x1, ASPL_OBJECT_TYPE* y1, ASPL_OBJECT_TYPE* x2, ASPL_OBJECT_TYPE* y2, ASPL_OBJECT_TYPE* radius, ASPL_OBJECT_TYPE* a, ASPL_OBJECT_TYPE* r, ASPL_OBJECT_TYPE* g, ASPL_OBJECT_TYPE* b, ASPL_OBJECT_TYPE* blend) {
+    icylib_lazy_chunked_fill_rounded_rectangle(ASPL_ACCESS(*handle).value.handle, ASPL_ACCESS(*x1).value.integer32, ASPL_ACCESS(*y1).value.integer32, ASPL_ACCESS(*x2).value.integer32, ASPL_ACCESS(*y2).value.integer32, ASPL_ACCESS(*radius).value.integer32, icylib_color_from_rgba(ASPL_ACCESS(*r).value.integer8, ASPL_ACCESS(*g).value.integer8, ASPL_ACCESS(*b).value.integer8, ASPL_ACCESS(*a).value.integer8), ASPL_ACCESS(*blend).value.boolean);
     return ASPL_UNINITIALIZED;
 }
 
