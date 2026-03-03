@@ -27,6 +27,13 @@ class Window{
 		}
 	}
 
+	[public]
+	property float scale{
+		get{
+			return float(implement("graphics.window.get_scaling_factor", handle))
+		}
+	}
+
 	[readpublic]
 	property list<TouchPointer> activeTouchPointers
 

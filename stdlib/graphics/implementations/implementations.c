@@ -1075,6 +1075,10 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$toggle_fullscreen(ASPL_OBJECT_TY
     return ASPL_UNINITIALIZED;
 }
 
+ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$get_scaling_factor(ASPL_OBJECT_TYPE* window) {
+    return ASPL_FLOAT_LITERAL(sapp_dpi_scale());
+}
+
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_graphics$window$is_mouse_button_down(ASPL_OBJECT_TYPE* window, ASPL_OBJECT_TYPE* button) {
     ASPL_handle_graphics$Window* handle = ASPL_ACCESS(*window).value.handle;
     return ASPL_BOOL_LITERAL(handle->mouse_buttons_down[ASPL_ACCESS(*button).value.integer32]);
