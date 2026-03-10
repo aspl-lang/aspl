@@ -1345,6 +1345,7 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
         }
         case ASPL_AILI_INSTRUCTION_ACCESS_PROPERTY: {
             char is_static = aspl_ailinterpreter_read_bool(bytes);
+            // TODO: Also add an `is_reactive` flag to this instruction to avoid expensive runtime checks
             if (is_static) {
                 char* type = aspl_ailinterpreter_read_short_string(bytes);
                 char* name = aspl_ailinterpreter_read_short_string(bytes);
@@ -1375,8 +1376,14 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
                 char* name = aspl_ailinterpreter_read_short_string(bytes);
                 ASPL_OBJECT_TYPE object = aspl_ailinterpreter_stack_pop(context->stack);
                 if (ASPL_ACCESS(object).kind == ASPL_OBJECT_KIND_CLASS_INSTANCE) {
-                    if (hashmap_str_to_voidptr_hashmap_contains_key(aspl_ailinterpreter_access_class(context->environment_context, aspl_object_get_short_type_pointer(object))->reactive_properties, name)) { // TODO: Support reactive properties in parents
-                        ASPL_AILI_ReactiveProperty* reactive_property = hashmap_str_to_voidptr_hashmap_get_value(aspl_ailinterpreter_access_class(context->environment_context, aspl_object_get_short_type_pointer(object))->reactive_properties, name);
+                    if (hashmap_str_to_voidptr_hashmap_contains_key(ASPL_ACCESS(object).value.classInstance->properties, name)) {
+                        aspl_ailinterpreter_stack_push(context->stack, ASPL_CLASS_INSTANCE_GET_PROPERTY(ASPL_ACCESS(object).value.classInstance, name));
+                    }
+                    else {
+                        ASPL_AILI_ReactiveProperty* reactive_property = aspl_ailinterpreter_util_find_reactive_property(context, aspl_object_get_short_type_pointer(object), name);
+                        if (reactive_property == NULL) {
+                            ASPL_PANIC("Property '%s' not found in class '%s'", name, aspl_object_get_short_type_pointer(object));
+                        }
                         char* identifier = ASPL_MALLOC(sizeof(char) * (strlen(aspl_object_get_short_type_pointer(object)) + strlen(name) + 2));
                         strcpy(identifier, aspl_object_get_short_type_pointer(object));
                         strcat(identifier, ".");
@@ -1390,9 +1397,6 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
                         aspl_ailinterpreter_push_scope(context);
                         context->current_instance = object;
                         bytes->position = reactive_property->get_address;
-                    }
-                    else {
-                        aspl_ailinterpreter_stack_push(context->stack, ASPL_CLASS_INSTANCE_GET_PROPERTY(ASPL_ACCESS(object).value.classInstance, name));
                     }
                 }
                 else {
