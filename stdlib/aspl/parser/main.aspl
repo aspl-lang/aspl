@@ -63,11 +63,20 @@ function parse() returns ParserResult
     foreach(Class:classes as c){
         var properties = Property:getAllFor(c.type)
         if(properties.length > 0){
+            // TODO: Rework this
             if(!Method:methods.containsKey(c.type.toString())){
                 Method:methods[c.type.toString()] = {}
             }
             if(!Method:methods[c.type.toString()].containsKey("construct")){
-                Method:methods[c.type.toString()]["construct"] = new CustomMethod(c.type, "construct", [], new Types([]), [], null, null, null)
+                var constructor = new CustomMethod(c.type, "construct", [], new Types([]), [], null, null, null)
+                foreach(Class:classes[c.type.toString()].parents as parent){
+                    if(Method:exists(parent, "construct")){
+                        var parentConstructor = CustomMethod(Method:get(parent, "construct"))
+                        constructor = new CustomMethod(c.type, "construct", parentConstructor.parameters, parentConstructor.returnTypes, parentConstructor.attributes, parentConstructor.code?!.cloneShallow(), parentConstructor.location, parentConstructor.headerEndLocation)
+                        break
+                    }
+                }
+                Method:methods[c.type.toString()]["construct"] = constructor
                 var code = list<Node>(c.code)
                 code.add(new MethodDeclareStatement(Method:methods[c.type.toString()]["construct"], [], null))
                 c.code = code
