@@ -624,7 +624,7 @@ class Parser{
 		}elseif(token.type == TokenType.Identifier){
 			if(token.value == "import"){
 				parseTypeIdentifier(tokens) // ignore the import statement as it has already been processed
-				return new NopStatement()
+				return new NopStatement(token.location)
 			}
 			elseif(token.value == "null"){
 				return applyOperators(new NullLiteral(token.location), tokens, standalone, precedenceLevel)
@@ -2439,7 +2439,7 @@ class Parser{
 			}
 		}elseif(token.type == TokenType.BracketOpen){
 			if(AttributeUtils:parseAttributesIfAny(this, token, tokens)){
-				return new NopStatement()
+				return new NopStatement(token.location)
 			}
 			if(previousExpression != null){
 				if(Type:matches(new Types([Type:fromString("list")]), Expression(previousExpression).getType(), true)){
@@ -2678,7 +2678,7 @@ class Parser{
 					if(elseBlock != null){
 						return new BlockStatement(list<Node>(elseBlock), true, brace.location)
 					}else{
-						return new NopStatement()
+						return new NopStatement(token.location)
 					}
 				}elseif(tokens.peek().value == "embed"){
 					tokens.shift()
