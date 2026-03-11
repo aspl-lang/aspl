@@ -538,17 +538,17 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
         ASPL_AILI_Instruction instruction = aspl_ailinterpreter_fetch_instruction(bytes);
         switch (instruction) {
         case ASPL_AILI_INSTRUCTION_MANIFEST: {
-            if(aspl_ailinterpreter_peek_byte(bytes) != 0){ // BC: Previous AIL versions (before 1.1) without actual manifest contents did not include a magic byte sequence and instead directly put the manifest length (0) here.
-                if(aspl_ailinterpreter_read_byte(bytes) != 'A' || aspl_ailinterpreter_read_byte(bytes) != 'I' || aspl_ailinterpreter_read_byte(bytes) != 'L'){
+            if (aspl_ailinterpreter_peek_byte(bytes) != 0) { // BC: Previous AIL versions (before 1.1) without actual manifest contents did not include a magic byte sequence and instead directly put the manifest length (0) here.
+                if (aspl_ailinterpreter_read_byte(bytes) != 'A' || aspl_ailinterpreter_read_byte(bytes) != 'I' || aspl_ailinterpreter_read_byte(bytes) != 'L') {
                     ASPL_PANIC("This does not appear to be an AIL file (invalid magic byte sequence)");
                 }
             }
             long long start = bytes->position;
             int length = aspl_ailinterpreter_read_int(bytes);
-            if(length > 0){ // BC: Previous AIL versions (before 1.1) did not include a version identifier in the manifest.
+            if (length > 0) { // BC: Previous AIL versions (before 1.1) did not include a version identifier in the manifest.
                 int version_major = aspl_ailinterpreter_read_int(bytes);
                 int version_minor = aspl_ailinterpreter_read_int(bytes);
-                if(version_major != ASPL_AILI_AIL_VERSION_MAJOR || version_minor > ASPL_AILI_AIL_VERSION_MINOR){
+                if (version_major != ASPL_AILI_AIL_VERSION_MAJOR || version_minor > ASPL_AILI_AIL_VERSION_MINOR) {
                     ASPL_PANIC("AIL version mismatch: You are trying to run code compiled to AIL version %d.%d, but this interpreter is only compatible with versions %d.0 - %d.%d", version_major, version_minor, ASPL_AILI_AIL_VERSION_MAJOR, ASPL_AILI_AIL_VERSION_MAJOR, ASPL_AILI_AIL_VERSION_MINOR);
                 }
             }
