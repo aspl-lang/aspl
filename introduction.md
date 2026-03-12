@@ -539,6 +539,8 @@ As you can probably tell, named arguments allow you to explicitly specify which 
 
 You can also mix positional and named arguments, but note that all positional arguments must come before _any_ named arguments.
 
+In any case, leaving out an optional argument will automatically assign the default value to the corresponding parameter. Note, however, that named arguments allow you to explicitly choose which parameters you want to specify and which to leave out, while positional arguments require you to manually specify values for all (non-optional and optional) parameters that come before the last parameter you want to explicitly assign a value to.
+
 ## Error handling
 > [!IMPORTANT]
 > The error handling mechanisms described here are still experimental. They may contain bugs and are not fully implemented yet, which is why this feature set is currently hidden behind the `-enableErrorHandling` flag.
