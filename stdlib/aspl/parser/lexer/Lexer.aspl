@@ -119,7 +119,7 @@ class Lexer{
 					pos += 2
 					position += 2
 					if(depth == 0){
-						var t = new Token(TokenType.CommentMultiline, contents.before(pos + 1), new Location(this.file, beginLine, line, beginColumn, column))
+						var t = new Token(TokenType.CommentMultiline, contents.before(pos), new Location(this.file, beginLine, line, beginColumn, column))
 						contents = contents.after(pos - 1)
 						return t
 					}
