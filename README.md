@@ -2,48 +2,47 @@
 <img src="https://github.com/aspl-lang/logo/blob/main/logo.svg" width=192 alt="The ASPL logo">
 <h1>The ASPL Programming Language</h1>
 </div>
+
 <div align="center">
 
-[![CI/CD Test Suite](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml)
-![Commit activity](https://img.shields.io/github/commit-activity/m/aspl-lang/aspl)
+[![CI/CD Suite](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml/badge.svg)](https://github.com/aspl-lang/aspl/actions/workflows/ci_cd.yml)
+![Commit Activity](https://img.shields.io/github/commit-activity/m/aspl-lang/aspl)
 [![Discord](https://img.shields.io/discord/1053681798430859264?label=Discord&logo=discord&logoColor=white)](https://discord.gg/UUNzAFrKU2)
 [![X](https://img.shields.io/badge/follow-%40aspl__lang-1DA1F2?logo=x&style=flat&logoColor=white)](https://x.com/aspl_lang)
 
+ASPL is a high-level, general-purpose programming language for building modern, safe, and portable software.
+
 </div>
-ASPL is a modern programming language featuring beautiful simplicity, seamless cross-platform support, practical OOP and so much more.
 
 ## Why ASPL?
-* <b>Simple 😀</b>
-<br>The syntax is clean and readable, error messages provide useful information, and installing ASPL is as easy as a few clicks.
+* **Simple** 💡
+<br>The syntax is clean and readable, the compiler is easy to use and provides meaningful insights, and installing the whole ASPL toolchain is as straightforward as a few clicks.
 
-* <b>Safe 🔒</b>
-<br>High-level abstractions, automatic memory management, out-of-the-box TLS support, and a strong type system make ASPL one of the safest languages out there.
+* **Safe** 🔒
+<br>High-level abstractions, automatic memory management, a strong type system, and out-of-the-box TLS support make ASPL safe by design.
 
-* <b>Cross platform 💻</b>
-<br>Newcomers as well as experienced programmers can easily create powerful cross-platform applications with ASPL; seamless cross-compilation is one of ASPL's core design principles.
+* **Cross-platform** 🌐
+<br>Newcomers and experienced programmers alike can easily create powerful cross-platform applications with ASPL; seamless cross-compilation is one of ASPL's core design principles.
 
-* <b>Huge standard library 🔥</b>
+* **Powerful standard library** 🔥
 <br>Built-in JSON, graphics, and advanced networking support are just a few of the things that will drastically speed up your coding process.
 
-* <b>Modular architecture 📚</b>
+* **Modular architecture** 📚
 <br>ASPL has a great and simple modular library system that helps you reuse any kind of third-party code in your projects, including even the ASPL compiler itself.
 
-> [!IMPORTANT]  
-> ASPL is still in early development and some features are missing or incomplete. Even though the language is already quite stable and very practical, it is not yet recommended for production use. Contributions are always welcome!
+> [!IMPORTANT]
+> ASPL is still in early development. Even though the language is already quite stable and very practical, it is not yet recommended for production use. Contributions are always welcome!
 
 # Installing
-Have a look at <a href="install.md">the installation guide</a>.
+Please have a look at <a href="install.md">the installation guide</a>.
 
 # Introduction
-An introduction into ASPL can be found <a href="introduction.md">here</a>.
-<br>It also documents most of the language and has a lot of examples.
+Make sure to check out <a href="introduction.md">the official introduction to ASPL</a>.
+<br>It also documents most of the language and contains a lot of examples.
 
 # Bugs and Suggestions
 ASPL is currently in early development and still has some bugs and missing features.
-<br>Please report bugs or suggest features by <a href="https://github.com/aspl-lang/aspl/issues/new">opening an issue</a> or posting them in <a href="https://discord.gg/UUNzAFrKU2">the ASPL discord server</a>.
-
-# Star History
-[![Star History Chart](https://api.star-history.com/svg?repos=aspl-lang/aspl&type=Date)](https://star-history.com/#aspl-lang/aspl)
+<br>Please report bugs or suggest features by <a href="https://github.com/aspl-lang/aspl/issues/new">opening an issue</a> or posting them in <a href="https://discord.gg/UUNzAFrKU2">the ASPL Discord server</a>.
 
 # Code Examples
 -> means the program prints text to the console
@@ -81,4 +80,7 @@ print(rand.irange(1, 100)) // prints a random number between 1 and 100 to the co
 > [!NOTE]  
 > **More examples can be found <a href="./examples/">here</a> or in the <a href="introduction.md">ASPL introduction</a>.**
 
-<h3>👋 Feel free to join <a href="https://discord.gg/UUNzAFrKU2">the official ASPL discord server</a>.</h3>
+# Star History
+[![Star History Chart](https://api.star-history.com/svg?repos=aspl-lang/aspl&type=Date)](https://star-history.com/#aspl-lang/aspl)
+
+<h3>👋 Feel free to join <a href="https://discord.gg/UUNzAFrKU2">the official ASPL Discord server</a>.</h3>
