@@ -1,31 +1,29 @@
 import console
 
-import aspl.parser.classes
-
 [public]
 function notice(string message, Location? location = null){
     if(location == null){
-        print(console.yellow("Notice: " + message))
+        print(console.yellow("Notice: ") + console.reset(message))
     }else{
-        print(console.yellow("Notice: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.yellow("Notice: ") + console.reset(message))
     }
 }
 
 [public]
 function warning(string message, Location? location = null){
     if(location == null){
-        print(console.yellow("Warning: " + message))
+        print(console.yellow("Warning: ") + console.reset(message))
     }else{
-        print(console.yellow("Warning: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.yellow("Warning") + console.reset(message))
     }
 }
 
 [public]
 function fatal_error(string message, Location? location = null){
     if(location == null){
-        print(console.red("Error: " + message))
+        print(console.red("Error: ") + console.reset(message))
     }else{
-        print(console.red("Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.red("Error: ") + console.reset(message))
     }
     ErrorUtils:hasCompilationErrors = true
     exit(1)
@@ -34,9 +32,9 @@ function fatal_error(string message, Location? location = null){
 [public]
 function syntax_error(string message, Location? location = null){
     if(location == null){
-        print(console.red("Syntax Error: " + message))
+        print(console.red("Syntax Error: ") + console.reset(message))
     }else{
-        print(console.red("Syntax Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.red("Syntax Error: ") + console.reset(message))
     }
     ErrorUtils:hasCompilationErrors = true
     exit(1)
@@ -45,9 +43,9 @@ function syntax_error(string message, Location? location = null){
 [public]
 function generic_error(string message, Location? location = null){
     if(location == null){
-        print(console.red("Error: " + message))
+        print(console.red("Error: ") + console.reset(message))
     }else{
-        print(console.red("Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.red("Error: ") + console.reset(message))
     }
     ErrorUtils:hasCompilationErrors = true
 }
@@ -55,9 +53,9 @@ function generic_error(string message, Location? location = null){
 [public]
 function type_error(string message, Location? location = null){
     if(location == null){
-        print(console.red("Type Error: " + message))
+        print(console.red("Type Error: ") + console.reset(message))
     }else{
-        print(console.red("Type Error: " + Location(location).file + ":" + Location(location).startLine + ":" + Location(location).startColumn + ": " + message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.red("Type Error: ") + console.reset(message))
     }
     ErrorUtils:hasCompilationErrors = true
 }
