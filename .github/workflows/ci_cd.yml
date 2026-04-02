@@ -343,7 +343,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
-          ./install.sh
+          .\install.sh
       - name: Run tests
         run: |
           cd $GITHUB_WORKSPACE
