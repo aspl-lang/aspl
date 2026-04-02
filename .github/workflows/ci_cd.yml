@@ -313,8 +313,46 @@ jobs:
             -H "Authorization: token ${{ secrets.CDKEY }}"\
             -d '{"message": "Update latest.txt", "content": "'$(echo ${{ github.sha }} | base64)'", "sha": "'$(curl -s -H "Authorization: token ${{ secrets.CDKEY }}" https://api.github.com/repos/aspl-lang/cd/contents/latest.txt | jq -r .sha)'", "committer": {"name": "github-actions[bot]", "email": "github-actions[bot]@users.noreply.github.com"}}'\
             https://api.github.com/repos/aspl-lang/cd/contents/latest.txt
-  ci:
+  ci-linux:
     runs-on: ubuntu-latest
+    needs: [publish]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install.sh
+      - name: Run tests
+        run: |
+          cd $GITHUB_WORKSPACE
+          echo "Testing the C backend..."
+          ./aspl -backend c -cc gcc -showcc test-all || exit $?
+          echo "Testing the AIL backend..."
+          ./aspl -backend ail -cc gcc -showcc test-all || exit $?
+  ci-windows:
+    runs-on: windows-latest
+    needs: [publish]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./install.sh
+      - name: Run tests
+        run: |
+          cd $GITHUB_WORKSPACE
+          echo "Testing the C backend..."
+          ./aspl -backend c -cc gcc -showcc test-all || exit $?
+          echo "Testing the AIL backend..."
+          ./aspl -backend ail -cc gcc -showcc test-all || exit $?
+  ci-macos:
+    runs-on: macos-15-intel
     needs: [publish]
     steps:
       - name: Checkout
