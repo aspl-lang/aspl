@@ -344,6 +344,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           .\install.bat
+        shell: cmd
       - name: Run tests
         run: |
           cd $GITHUB_WORKSPACE
