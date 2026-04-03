@@ -57,30 +57,8 @@ print("Hello World!") // print means "write into the console"
 ## Favorite food
 ```aspl
 var favoriteFood = input("What's your favorite food?") // prints "What's your favorite food" and waits until the user types something into the console
-if(favoriteFood == "Spaghetti"){ // checks whether the users input matches a certain string, here: "Spaghetti"; if it doesn't, the code between the braces will be skipped
-    print("Hm, yummy, that's my favorite food too!")
-}else{ // the following code is executed only if the condition in the if statement evaluated to false, here: the input was not "Spaghetti"
-    print("Sounds great!")
-}
+if(favoriteFood == "Spaghetti"){ // checks whether the use
 ```
-**Example Output:**
-<br>-> What's your favorite food?
-<br><- Spaghetti
-<br>-> Hm, yummy, that's my favorite food too!
 
-## Random number
-```aspl
-import rand
-
-print(rand.irange(1, 100)) // prints a random number between 1 and 100 to the console
-```
-**Example Output:**
-<br>-> 42
-
-> [!NOTE]  
-> **More examples can be found <a href="./examples/">here</a> or in the <a href="introduction.md">ASPL introduction</a>.**
-
-# Star History
-[![Star History Chart](https://api.star-history.com/svg?repos=aspl-lang/aspl&type=Date)](https://star-history.com/#aspl-lang/aspl)
-
-<h3>👋 Feel free to join <a href="https://discord.gg/UUNzAFrKU2">the official ASPL Discord server</a>.</h3>
+## Contributing
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
