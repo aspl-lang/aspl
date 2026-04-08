@@ -14,7 +14,7 @@ function warning(string message, Location? location = null){
     if(location == null){
         print(console.yellow("Warning: ") + console.reset(message))
     }else{
-        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.yellow("Warning") + console.reset(message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.yellow("Warning: ") + console.reset(message))
     }
 }
 
