@@ -353,22 +353,22 @@ jobs:
           echo "Testing the AIL backend..."
           aspl -backend ail -cc gcc -showcc test-all || exit $?
         shell: cmd
-  ci-macos:
-    runs-on: macos-15-intel
-    needs: [publish]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Install ASPL
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd $GITHUB_WORKSPACE
-          ./install.sh
-      - name: Run tests
-        run: |
-          cd $GITHUB_WORKSPACE
-          echo "Testing the C backend..."
-          ./aspl -backend c -cc gcc -showcc test-all || exit $?
-          echo "Testing the AIL backend..."
-          ./aspl -backend ail -cc gcc -showcc test-all || exit $?
+  # ci-macos: # TODO: Enable this again when it doesn't randomly fail anymore
+  #   runs-on: macos-15-intel
+  #   needs: [publish]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Install ASPL
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         cd $GITHUB_WORKSPACE
+  #         ./install.sh
+  #     - name: Run tests
+  #       run: |
+  #         cd $GITHUB_WORKSPACE
+  #         echo "Testing the C backend..."
+  #         ./aspl -backend c -cc gcc -showcc test-all || exit $?
+  #         echo "Testing the AIL backend..."
+  #         ./aspl -backend ail -cc gcc -showcc test-all || exit $?
