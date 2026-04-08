@@ -21,7 +21,8 @@ class ModuleUtils {
     [public]
     [static]
     method isFilePartOfStdlib(string file) returns boolean{
-        return file.startsWith(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib"])) // TODO: This might fail with some weird paths?
+        // TODO: This might fail with some weird paths?
+        return io.abs(file).startsWith(io.abs(io.join_path([io.full_directory_path(io.get_executable_path()), "stdlib"]))) // io.abs() is used to normalize all path separators, ensuring consistency that is crucial for string.startsWith()
     }
 
 }
