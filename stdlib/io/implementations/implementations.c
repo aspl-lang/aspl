@@ -122,7 +122,10 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$path$get_directory_path(ASPL_OBJECT_TYPE* pat
         struct stat path_stat;
         stat(resolved_path, &path_stat);
         if (S_ISDIR(path_stat.st_mode)) {
-            return ASPL_STRING_LITERAL(resolved_path);
+            char* resolved_path_copy = ASPL_MALLOC(strlen(resolved_path) + 1);
+            strcpy(resolved_path_copy, resolved_path);
+            free(resolved_path);
+            return ASPL_STRING_LITERAL_NO_COPY(resolved_path_copy);
         }
         else {
             // If it's a file, remove the file name from the path
@@ -130,7 +133,10 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$path$get_directory_path(ASPL_OBJECT_TYPE* pat
             if (lastSlash != NULL) {
                 *lastSlash = '\0';
             }
-            return ASPL_STRING_LITERAL(resolved_path);
+            char* resolved_path_copy = ASPL_MALLOC(strlen(resolved_path) + 1);
+            strcpy(resolved_path_copy, resolved_path);
+            free(resolved_path);
+            return ASPL_STRING_LITERAL_NO_COPY(resolved_path_copy);
         }
     }
     else {
