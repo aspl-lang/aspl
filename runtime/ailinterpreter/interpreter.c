@@ -80,6 +80,11 @@ void aspl_ailinterpreter_stack_push_frame(ASPL_AILI_Stack* stack) {
 }
 
 void aspl_ailinterpreter_stack_push(ASPL_AILI_Stack* stack, ASPL_OBJECT_TYPE object) {
+#ifdef ASPL_INTERPRETER_FIND_STACK_OVERFLOWS
+    if (stack->frames[stack->current_frame_index].top + 1 >= 64) {
+        ASPL_PANIC("Stack overflow detected!");
+    }
+#endif
     stack->frames[stack->current_frame_index].data[stack->frames[stack->current_frame_index].top++] = object;
 }
 
@@ -319,7 +324,7 @@ char* aspl_ailinterpreter_construct_map_from_type_lists(ASPL_AILI_TypeList key_t
 void aspl_ailinterpreter_return(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteList* bytes, ASPL_OBJECT_TYPE value) {
 #ifdef ASPL_INTERPRETER_FIND_STACK_LEAKS
     if (context->stack->frames[context->stack->current_frame_index].top != 0) {
-        ASPL_PANIC("Leaked stack object(s) found!\n");
+        ASPL_PANIC("Leaked stack object(s) found!");
     }
 #endif
     aspl_ailinterpreter_stack_pop_frame(context->stack);
@@ -327,7 +332,7 @@ void aspl_ailinterpreter_return(ASPL_AILI_ThreadContext* context, ASPL_AILI_Byte
     if (meta.is_reactive_property_setter) {
         aspl_ailinterpreter_stack_push(context->stack, aspl_ailinterpreter_access_variable(context, "value"));
     }
-    else if (!meta.is_constructor) {
+    else if (!meta.is_constructor && !meta.is_invoked_from_outside) {
         aspl_ailinterpreter_stack_push(context->stack, value);
     }
     if (meta.type == ASPL_AILINTERPRETER_CALLABLE_TYPE_CALLBACK) {
@@ -431,17 +436,14 @@ void aspl_ailinterpreter_invoke_callback_from_outside_of_loop_internal(ASPL_Call
     strcat(identifier, "invoke");
     aspl_ailinterpreter_stack_trace_push(context, identifier);
     aspl_ailinterpreter_stack_push_frame(context->stack);
+    aspl_ailinterpreter_cims_push(context->callable_invocation_meta_stack, (ASPL_AILI_CallableInvocationMeta) { .type = ASPL_AILINTERPRETER_CALLABLE_TYPE_CALLBACK, .previous_address = bytes->position, .previous_scopes = context->scopes, .previous_scopes_top = context->scopes_top, .previous_loop_meta_stack = context->loop_meta_stack, .is_invoked_from_outside = 1 });
+    context->loop_meta_stack = ASPL_MALLOC(sizeof(ASPL_AILI_LoopMetaStack));
+    context->loop_meta_stack->data = ASPL_MALLOC(sizeof(ASPL_AILI_LoopMeta) * 1024);
+    context->loop_meta_stack->top = 0;
     ASPL_AILI_CallbackData* callback_data = (ASPL_AILI_CallbackData*)callback->function;
-    ASPL_AILI_CallableInvocationMetaStack* original_callable_invocation_meta_stack = context->callable_invocation_meta_stack;
-    ASPL_AILI_CallableInvocationMetaStack* callable_invocation_meta_stack = ASPL_MALLOC(sizeof(ASPL_AILI_CallableInvocationMetaStack));
-    callable_invocation_meta_stack->data = ASPL_MALLOC(sizeof(ASPL_AILI_CallableInvocationMeta) * 1024);
-    callable_invocation_meta_stack->top = 0;
-    context->callable_invocation_meta_stack = callable_invocation_meta_stack;
-    hashmap_str_to_voidptr_HashMap** original_scopes = context->scopes;
-    int original_scopes_top = context->scopes_top;
     context->scopes = callback_data->creation_scopes;
     context->scopes_top = callback_data->creation_scopes_top;
-    int original_position = bytes->position;
+    context->current_instance = callback_data->creation_instance;
     bytes->position = callback_data->address;
     for (int i = 0; i < callback_data->parameters.size; i++) {
         if (i < arguments.size) {
@@ -455,12 +457,6 @@ void aspl_ailinterpreter_invoke_callback_from_outside_of_loop_internal(ASPL_Call
         }
     }
     aspl_ailinterpreter_loop(context, bytes);
-    bytes->position = original_position;
-    context->scopes = original_scopes;
-    context->scopes_top = original_scopes_top;
-    context->callable_invocation_meta_stack = original_callable_invocation_meta_stack;
-    aspl_ailinterpreter_stack_trace_pop(context);
-    aspl_ailinterpreter_stack_pop_frame(context->stack);
 }
 
 void aspl_ailinterpreter_invoke_callback_from_outside_of_loop(ASPL_Callback* callback, ASPL_AILI_ArgumentList arguments) {
@@ -479,6 +475,7 @@ int aspl_ailinterpreter_new_thread_function_invocation_callback(void* arguments)
 
     aspl_ailinterpreter_stack_trace_push(data->context, data->identifier);
     aspl_ailinterpreter_stack_push_frame(data->context->stack);
+    aspl_ailinterpreter_cims_push(data->context->callable_invocation_meta_stack, (ASPL_AILI_CallableInvocationMeta) { .type = ASPL_AILINTERPRETER_CALLABLE_TYPE_FUNCTION, .previous_address = data->bytes->position, .previous_loop_meta_stack = data->context->loop_meta_stack, .is_invoked_from_outside = 1 });
     data->function(data->context, data->bytes, data->identifier, data->arguments);
     aspl_ailinterpreter_loop(data->context, data->bytes);
 
@@ -498,6 +495,7 @@ int aspl_ailinterpreter_new_thread_method_invocation_callback(void* arguments) {
 
     aspl_ailinterpreter_stack_trace_push(data->context, data->identifier);
     aspl_ailinterpreter_stack_push_frame(data->context->stack);
+    aspl_ailinterpreter_cims_push(data->context->callable_invocation_meta_stack, (ASPL_AILI_CallableInvocationMeta) { .type = ASPL_AILINTERPRETER_CALLABLE_TYPE_METHOD, .previous_address = data->bytes->position, .previous_loop_meta_stack = data->context->loop_meta_stack, .is_invoked_from_outside = 1 });
     ASPL_AILI_CustomMethod* custom_method = data->method;
     data->bytes->position = custom_method->address;
     for (int i = 0; i < custom_method->parameters.size; i++) {
@@ -935,13 +933,14 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
                     else {
                         aspl_ailinterpreter_stack_trace_push(context, identifier);
                         aspl_ailinterpreter_stack_push_frame(context->stack);
+                        aspl_ailinterpreter_cims_push(context->callable_invocation_meta_stack, (ASPL_AILI_CallableInvocationMeta) { .type = ASPL_AILINTERPRETER_CALLABLE_TYPE_CALLBACK, .previous_address = bytes->position, .previous_scopes = context->scopes, .previous_scopes_top = context->scopes_top, .previous_instance = C_REFERENCE(context->current_instance), .previous_loop_meta_stack = context->loop_meta_stack });
                         ASPL_AILI_CallbackData* callback_data = (ASPL_AILI_CallbackData*)callback->function;
-                        aspl_ailinterpreter_cims_push(context->callable_invocation_meta_stack, (ASPL_AILI_CallableInvocationMeta) { .type = ASPL_AILINTERPRETER_CALLABLE_TYPE_CALLBACK, .previous_address = bytes->position, .previous_scopes = context->scopes, .previous_scopes_top = context->scopes_top, .previous_loop_meta_stack = context->loop_meta_stack });
                         context->loop_meta_stack = ASPL_MALLOC(sizeof(ASPL_AILI_LoopMetaStack));
                         context->loop_meta_stack->data = ASPL_MALLOC(sizeof(ASPL_AILI_LoopMeta) * 1024);
                         context->loop_meta_stack->top = 0;
                         context->scopes = callback_data->creation_scopes;
                         context->scopes_top = callback_data->creation_scopes_top;
+                        context->current_instance = callback_data->creation_instance;
                         bytes->position = callback_data->address;
                         for (int i = 0; i < callback_data->parameters.size; i++) {
                             if (i < arguments.size) {
@@ -1035,7 +1034,11 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
             break;
         }
         case ASPL_AILI_INSTRUCTION_RETURN: {
+            char is_invoked_from_outside = aspl_ailinterpreter_cims_peek(context->callable_invocation_meta_stack).is_invoked_from_outside;
             aspl_ailinterpreter_return(context, bytes, aspl_ailinterpreter_stack_pop(context->stack));
+            if (is_invoked_from_outside) {
+                return;
+            }
             break;
         }
         case ASPL_AILI_INSTRUCTION_FALLBACK: {
@@ -1103,11 +1106,11 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
             ASPL_Callback* callback = ASPL_MALLOC(sizeof(ASPL_Callback));
             callback->typeLen = strlen(type);
             callback->typePtr = type;
-            callback->function = 0;
             callback->function = ASPL_MALLOC(sizeof(ASPL_AILI_CallbackData)); // TODO: This is a nasty hack to avoid having to add a new field to the ASPL_Callback struct
             ((ASPL_AILI_CallbackData*)callback->function)->address = bytes->position;
             ((ASPL_AILI_CallbackData*)callback->function)->creation_scopes = memcpy(ASPL_MALLOC(context->scopes_size * sizeof(hashmap_str_to_voidptr_HashMap*)), context->scopes, context->scopes_size * sizeof(hashmap_str_to_voidptr_HashMap*));
             ((ASPL_AILI_CallbackData*)callback->function)->creation_scopes_top = context->scopes_top;
+            ((ASPL_AILI_CallbackData*)callback->function)->creation_instance = context->current_instance;
             ((ASPL_AILI_CallbackData*)callback->function)->parameters = parameters;
             bytes->position += code_length;
             ASPL_OBJECT_TYPE callback_object = ASPL_ALLOC_OBJECT();
@@ -1782,7 +1785,11 @@ void aspl_ailinterpreter_loop(ASPL_AILI_ThreadContext* context, ASPL_AILI_ByteLi
         }
         case ASPL_AILI_INSTRUCTION_END:
             if (context->callable_invocation_meta_stack->top > 0) {
+                char is_invoked_from_outside = aspl_ailinterpreter_cims_peek(context->callable_invocation_meta_stack).is_invoked_from_outside;
                 aspl_ailinterpreter_return(context, bytes, ASPL_NULL());
+                if (is_invoked_from_outside) {
+                    return;
+                }
                 break;
             }
             else if (context->class_stack->top > 0) {

@@ -67,6 +67,7 @@ typedef struct ASPL_AILI_CallableInvocationMeta {
     ASPL_AILI_LoopMetaStack* previous_loop_meta_stack;
     char is_constructor;
     char is_reactive_property_setter;
+    char is_invoked_from_outside;
 } ASPL_AILI_CallableInvocationMeta;
 
 typedef struct ASPL_AILI_CallableInvocationMetaStack {
@@ -186,6 +187,7 @@ typedef struct ASPL_AILI_CallbackData {
     long long address;
     hashmap_str_to_voidptr_HashMap** creation_scopes;
     int creation_scopes_top;
+    ASPL_OBJECT_TYPE creation_instance;
     ASPL_AILI_ParameterList parameters;
 } ASPL_AILI_CallbackData;
 
