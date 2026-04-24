@@ -74,7 +74,7 @@ ASPL_AILI_ThreadContext* aspl_ailinterpreter_new_thread_context(ASPL_AILI_Enviro
 void aspl_ailinterpreter_stack_push_frame(ASPL_AILI_Stack* stack) {
     if (stack->current_frame_index >= (stack->frames_size - 1)) {
         stack->frames_size *= 2;
-        stack->frames = ASPL_REALLOC(stack->frames, sizeof(ASPL_AILI_StackFrame*) * stack->frames_size);
+        stack->frames = ASPL_REALLOC(stack->frames, sizeof(ASPL_AILI_StackFrame) * stack->frames_size);
     }
     stack->frames[++stack->current_frame_index] = (ASPL_AILI_StackFrame){ .data = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 64), .top = 0 };
 }
