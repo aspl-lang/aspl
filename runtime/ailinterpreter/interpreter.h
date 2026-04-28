@@ -24,8 +24,9 @@ typedef struct {
     hashmap_str_to_voidptr_HashMap* enums;
 } ASPL_AILI_EnvironmentContext;
 
-typedef struct ASPL_AILI_StackFrame{
+typedef struct ASPL_AILI_StackFrame {
     ASPL_OBJECT_TYPE* data;
+    int size;
     int top;
 } ASPL_AILI_StackFrame;
 

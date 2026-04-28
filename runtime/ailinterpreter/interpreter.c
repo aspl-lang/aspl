@@ -76,15 +76,15 @@ void aspl_ailinterpreter_stack_push_frame(ASPL_AILI_Stack* stack) {
         stack->frames_size *= 2;
         stack->frames = ASPL_REALLOC(stack->frames, sizeof(ASPL_AILI_StackFrame) * stack->frames_size);
     }
-    stack->frames[++stack->current_frame_index] = (ASPL_AILI_StackFrame){ .data = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * 64), .top = 0 };
+    const int initial_frame_size = 8;
+    stack->frames[++stack->current_frame_index] = (ASPL_AILI_StackFrame){ .data = ASPL_MALLOC(sizeof(ASPL_OBJECT_TYPE) * initial_frame_size), .size = initial_frame_size, .top = 0 };
 }
 
 void aspl_ailinterpreter_stack_push(ASPL_AILI_Stack* stack, ASPL_OBJECT_TYPE object) {
-#ifdef ASPL_INTERPRETER_FIND_STACK_OVERFLOWS
-    if (stack->frames[stack->current_frame_index].top + 1 >= 64) {
-        ASPL_PANIC("Stack overflow detected!");
+    if (stack->frames[stack->current_frame_index].top >= (stack->frames[stack->current_frame_index].size - 1)) {
+        stack->frames[stack->current_frame_index].size *= 2;
+        stack->frames[stack->current_frame_index].data = ASPL_REALLOC(stack->frames[stack->current_frame_index].data, sizeof(ASPL_OBJECT_TYPE) * stack->frames[stack->current_frame_index].size);
     }
-#endif
     stack->frames[stack->current_frame_index].data[stack->frames[stack->current_frame_index].top++] = object;
 }
 
