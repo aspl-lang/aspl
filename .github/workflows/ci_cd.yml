@@ -21,7 +21,7 @@ jobs:
           apt-get update
           apt-get install --quiet -y git
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
@@ -65,7 +65,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL
         run: |
           cd $GITHUB_WORKSPACE
@@ -93,7 +93,7 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -137,7 +137,7 @@ jobs:
           apt-get update
           apt-get install --quiet -y git
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL installer dependencies
         run: |
           apt-get update
@@ -318,7 +318,7 @@ jobs:
     needs: [publish]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -337,7 +337,7 @@ jobs:
     needs: [publish]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -358,7 +358,7 @@ jobs:
     needs: [publish]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install ASPL
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
