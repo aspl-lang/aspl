@@ -327,7 +327,7 @@ var s = "👋"
 print(s) // prints 👋
 assert s.length == 1
 ```
-> [!WARNING]  
+> [!WARNING]
 > Native Unicode strings are NOT fully implemented in ASPL yet. For example, the `length` property currently returns the number of bytes, not the number of characters. This is most likely to change in the future.
 
 ## Lists
