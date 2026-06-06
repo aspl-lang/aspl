@@ -1950,9 +1950,19 @@ class Parser{
 				aspl.parser.utils.syntax_error("Expected closing parenthesis", tokens.peek().location)
 			}
 		}elseif(token.type == TokenType.CheckEquals){
-			return applyOperators(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckEquals)), token.location), tokens, standalone, precedenceLevel)
+			var a = previousExpression?!
+			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckEquals))
+			if(!Type:mightOverlap(a.getType(), b.getType())){
+				aspl.parser.utils.notice("Equality check will always evaluate to false due to full type mismatch", token.location)
+			}
+			return applyOperators(new CheckEqualsExpression(a, b, token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.CheckNotEquals){
-			return applyOperators(new NegateExpression(new CheckEqualsExpression(Expression(previousExpression), aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckNotEquals)), token.location), token.location), tokens, standalone, precedenceLevel)
+			var a = previousExpression?!
+			var b = aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.CheckNotEquals))
+			if(!Type:mightOverlap(a.getType(), b.getType())){
+				aspl.parser.utils.notice("Inequality check will always evaluate to true due to full type mismatch", token.location)
+			}
+			return applyOperators(new NegateExpression(new CheckEqualsExpression(a, b, token.location), token.location), tokens, standalone, precedenceLevel)
 		}elseif(token.type == TokenType.Negate){
 			if(previousExpression == null){
 				return applyOperators(new NegateExpression(aspl.parser.utils.verify_expression(parseToken(tokens.next(), tokens, false, PrecedenceLevel.Negate, null, new Types([Type:fromString("bool")]))), token.location), tokens, standalone, precedenceLevel)

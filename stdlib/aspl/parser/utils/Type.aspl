@@ -220,6 +220,68 @@ class Type{
 
     [public]
     [static]
+    method computeOverlap(Types a, Types b) returns Types{
+        var list<string> overlap = []
+        foreach(a.types as t){
+            if(matches(b, new Types([t]))){
+                if(!overlap.contains(t.identifier)){
+                    overlap.add(t.identifier)
+                }
+            }
+        }
+        foreach(b.types as t){
+            if(matches(a, new Types([t]))){
+                if(!overlap.contains(t.identifier)){
+                    overlap.add(t.identifier)
+                }
+            }
+        }
+        var list<Type> types = []
+        foreach(overlap as o){
+            types.add(new Type(o))
+        }
+        return new Types(types)
+    }
+
+    [public]
+    [static]
+    method mightOverlap(Types a, Types b) returns bool{
+        if(computeOverlap(a, b).types.length == 0){
+            // Uninitialized properties that are supposed to hold class instances can be null even if not explicitly typed so
+            var aMightBeClass = false
+            var aMightBeNull = false
+            foreach(a.types as t){
+                if(t.identifier == "null"){
+                    aMightBeNull = true
+                }
+                if(Class:classes.containsKey(getGenericTypeIdentifier(t.identifier))){
+                    aMightBeClass = true
+                }
+                if(aMightBeClass && aMightBeNull){
+                    break
+                }
+            }
+            var bMightBeClass = false
+            var bMightBeNull = false
+            foreach(b.types as t){
+                if(t.identifier == "null"){
+                    bMightBeNull = true
+                }
+                if(Class:classes.containsKey(getGenericTypeIdentifier(t.identifier))){
+                    bMightBeClass = true
+                }
+                if(bMightBeClass && bMightBeNull){
+                    break
+                }
+            }
+            return (aMightBeClass && bMightBeNull) || (aMightBeNull && bMightBeClass)
+        }else{
+            return true
+        }
+    }
+
+    [public]
+    [static]
     method getGenericTypeIdentifier(string identifier) returns string{
         return identifier.split("<")[0]
     }
