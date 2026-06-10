@@ -209,7 +209,7 @@ function build_ccmd(string sourceFile, string outputFile) returns string{
     }
     if(!Options:getConditionCompilationSymbols().contains("singlethreaded")){
         if(Options:targetOs == "windows"){
-            ccmd += " -lkernel32 -lwinmm"
+            ccmd += " -lkernel32 -luser32 -lwinmm"
         }else{
             // TODO: The following code looks shady; check it
 
