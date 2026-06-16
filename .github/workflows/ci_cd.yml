@@ -67,16 +67,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Install ASPL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $GITHUB_WORKSPACE
           .\install.bat
         shell: cmd
-      - name: Build ASPL runtime templates
+      - name: Build ASPL runtime templates # use Clang instead of GCC here in order to avoid depending on `libwinpthread-1.dll` (see issue #5)
         run: |
           cd $GITHUB_WORKSPACE
-          aspl -os windows -cc gcc build-minimal-template
+          aspl -os windows -cc clang build-minimal-template
           mv -f Template.exe templates/windows/x86_64/minimal
-          aspl -os windows -cc gcc build-full-template
+          aspl -os windows -cc clang build-full-template
           mv -f Template.exe templates/windows/x86_64/full/cli
         shell: cmd
       - name: Upload template artifact (Windows x86_64 minimal)
