@@ -50,43 +50,30 @@ void echttp_release(echttp_Response response);
 
 #ifdef ECHTTP_IMPLEMENTATION
 
+#include <stdint.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef _WIN32
-#define _CRT_NONSTDC_NO_DEPRECATE
-#define _CRT_SECURE_NO_WARNINGS
-#pragma warning( push )
-#pragma warning( disable: 4127 ) // conditional expression is constant
-#pragma warning( disable: 4255 ) // 'function' : no function prototype given: converting '()' to '(void)'
-#pragma warning( disable: 4365 ) // 'action' : conversion from 'type_1' to 'type_2', signed/unsigned mismatch
-#pragma warning( disable: 4574 ) // 'Identifier' is defined to be '0': did you mean to use '#if identifier'?
-#pragma warning( disable: 4668 ) // 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directive'
-#pragma warning( disable: 4706 ) // assignment within conditional expression
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#pragma warning( pop )
-#pragma comment (lib, "Ws2_32.lib") 
-#include <string.h>
-#include <stdio.h>
-#include <io.h>
-#define HTTP_SOCKET SOCKET
-#define HTTP_INVALID_SOCKET INVALID_SOCKET
+#pragma comment (lib, "Ws2_32.lib")
+#define ECHTTP_SOCKT SOCKET
+#define ECHTTP_close closesocket
+#define ECHTTP_INVALID_SOCKET INVALID_SOCKET
 #else
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/time.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#define HTTP_SOCKET int
-#define HTTP_INVALID_SOCKET -1
+#define ECHTTP_SOCKT int
+#define ECHTTP_INVALID_SOCKET (-1)
 #endif
 
 #ifndef ECHTTP_MALLOC
-#define _CRT_NONSTDC_NO_DEPRECATE
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdlib.h>
 #define ECHTTP_MALLOC malloc
 #define ECHTTP_REALLOC realloc
 #define ECHTTP_FREE free
@@ -103,7 +90,7 @@ typedef enum echttp_internal_Status
 
 typedef struct echttp_internal_Request
 {
-    HTTP_SOCKET socket;
+    ECHTTP_SOCKT socket;
     struct TLSContext* tls_context;
     echttp_internal_Status status;
     int status_code;
@@ -216,8 +203,8 @@ echttp_internal_Request* echttp_build_request(char const* method, char const* ur
     if (echttp_internal_parse_url(url, address, sizeof(address), port, sizeof(port), &resource, &is_https) == 0)
         return NULL;
 
-    HTTP_SOCKET socket = echttp_tlse_wrapper_connect_socket(address, atoi(port));
-    if (socket == HTTP_INVALID_SOCKET) return NULL;
+    ECHTTP_SOCKT socket = echttp_tlse_wrapper_connect_socket(address, atoi(port));
+    if (socket == ECHTTP_INVALID_SOCKET) return NULL;
 
     struct TLSContext* tls_context = NULL;
     if (is_https) {
@@ -284,10 +271,7 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
     {
         fd_set sockets_to_check;
         FD_ZERO(&sockets_to_check);
-#pragma warning( push )
-#pragma warning( disable: 4548 ) // expression before comma has no effect; expected expression with side-effect
         FD_SET(request->socket, &sockets_to_check);
-#pragma warning( pop )
         struct timeval timeout; timeout.tv_sec = 0; timeout.tv_usec = 0;
         // check if socket is ready for send
         if (select((int)(request->socket + 1), NULL, &sockets_to_check, NULL, &timeout) == 1)
@@ -325,10 +309,7 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
     // check if socket is ready for recv
     fd_set sockets_to_check;
     FD_ZERO(&sockets_to_check);
-#pragma warning( push )
-#pragma warning( disable: 4548 ) // expression before comma has no effect; expected expression with side-effect
     FD_SET(request->socket, &sockets_to_check);
-#pragma warning( pop )
     struct timeval timeout; timeout.tv_sec = 0; timeout.tv_usec = 0;
     while (select((int)(request->socket + 1), &sockets_to_check, NULL, NULL, &timeout) == 1)
     {
@@ -413,7 +394,7 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
                 if (status_line[0] == '\n') status_line++;
 
                 // extract headers
-                while (status_line[0] != '\r' && status_line[1] != '\n')
+                while (status_line[0] != '\r' || status_line[1] != '\n')
                 {
                     char const* header_end = strstr(status_line, "\r\n");
                     if (!header_end)
@@ -594,12 +575,7 @@ void echttp_release(echttp_Response response)
     if (response.status_code != -1)
     {
         echttp_internal_Request* request = (echttp_internal_Request*)response._handle;
-#ifdef _WIN32
-        closesocket(request->socket);
-#else
-        close(request->socket);
-#endif
-
+        ECHTTP_close(request->socket);
         if (request->request_header_large) ECHTTP_FREE(request->request_header_large);
         ECHTTP_FREE(request->full_response_data);
         ECHTTP_FREE(request);

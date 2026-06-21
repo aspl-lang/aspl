@@ -1,7 +1,22 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#define ECHTTP_TLSE_SOCKT SOCKET
+#define ECHTTP_TLSE_close closesocket
+#define ECHTTP_TLSE_INVALID_SOCKET INVALID_SOCKET
 #else
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
+#include <signal.h>
+#include <unistd.h>
+#define ECHTTP_TLSE_SOCKT int
+#define ECHTTP_TLSE_close close
+#define ECHTTP_TLSE_INVALID_SOCKET (-1)
 #endif
 
 #ifdef ECHTTP_TLSE_IMPLEMENTATION
@@ -23,7 +38,7 @@ void echttp_tlse_wrapper_error(char* msg)
     exit(0);
 }
 
-int echttp_tlse_wrapper_send_pending(int client_sock, struct TLSContext* context)
+int echttp_tlse_wrapper_send_pending(ECHTTP_TLSE_SOCKT client_sock, struct TLSContext* context)
 {
     unsigned int out_buffer_len = 0;
     const unsigned char* out_buffer = tls_get_write_buffer(context, &out_buffer_len);
@@ -61,9 +76,9 @@ int echttp_tlse_wrapper_validate_certificate(struct TLSContext* context, struct 
     return no_error;
 }
 
-int echttp_tlse_wrapper_connect_socket(const char* host, int port)
+ECHTTP_TLSE_SOCKT echttp_tlse_wrapper_connect_socket(const char* host, int port)
 {
-    int sockfd;
+    ECHTTP_TLSE_SOCKT sockfd;
     struct addrinfo hints, * servinfo, * p;
     char port_str[6];
     int status;
@@ -90,13 +105,13 @@ int echttp_tlse_wrapper_connect_socket(const char* host, int port)
     for (p = servinfo; p != NULL; p = p->ai_next)
     {
         sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (sockfd == -1)
+        if (sockfd == ECHTTP_TLSE_INVALID_SOCKET)
             continue;
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == 0)
             break;
 
-        close(sockfd);
+        ECHTTP_TLSE_close(sockfd);
     }
 
     if (p == NULL)
@@ -110,7 +125,7 @@ int echttp_tlse_wrapper_connect_socket(const char* host, int port)
     return sockfd;
 }
 
-int echttp_tlse_wrapper_connect_tls(int sockfd, struct TLSContext* context)
+int echttp_tlse_wrapper_connect_tls(ECHTTP_TLSE_SOCKT sockfd, struct TLSContext* context)
 {
     int res = tls_client_connect(context);
     echttp_tlse_wrapper_send_pending(sockfd, context);
@@ -128,21 +143,21 @@ int echttp_tlse_wrapper_connect_tls(int sockfd, struct TLSContext* context)
     return res;
 }
 
-int echttp_tlse_wrapper_read_tls(int sockfd, struct TLSContext* context, void* buffer, int len)
+int echttp_tlse_wrapper_read_tls(ECHTTP_TLSE_SOCKT sockfd, struct TLSContext* context, void* buffer, int len)
 {
     unsigned char client_message[0xFFFF];
     int read_res;
     int read_size;
     int read = 0;
+    unsigned char* read_buffer = (unsigned char*)ECHTTP_MALLOC(sizeof(unsigned char) * len);
     for (;;)
     {
         if (tls_established(context))
         {
-            unsigned char read_buffer[len];
-            read_res = tls_read(context, read_buffer, sizeof(read_buffer) - read);
+            read_res = tls_read(context, read_buffer, len - read);
             if (read_res > 0)
             {
-                memcpy(buffer + read, read_buffer, read_res);
+                memcpy((unsigned char*)buffer + read, read_buffer, read_res);
                 read += read_res;
             }
         }
@@ -158,10 +173,11 @@ int echttp_tlse_wrapper_read_tls(int sockfd, struct TLSContext* context, void* b
         tls_consume_stream(context, (const unsigned char*)client_message, read_size, echttp_tlse_wrapper_validate_certificate);
         echttp_tlse_wrapper_send_pending(sockfd, context);
     }
+    ECHTTP_FREE(read_buffer);
     return read;
 }
 
-int echttp_tlse_wrapper_write_tls(int sockfd, struct TLSContext* context, const unsigned char* data, int len)
+int echttp_tlse_wrapper_write_tls(ECHTTP_TLSE_SOCKT sockfd, struct TLSContext* context, const unsigned char* data, int len)
 {
     int write_res = tls_write(context, data, len);
     if (write_res > 0)
