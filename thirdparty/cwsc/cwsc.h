@@ -1,7 +1,14 @@
 #ifndef CWSC_H
 #define CWSC_H
 
-#include <inttypes.h>
+#include <stdint.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#define CWSC_SOCKT SOCKET
+#else
+#define CWSC_SOCKT int
+#endif
 
 #include "thirdparty/tlse.h"
 
@@ -12,6 +19,7 @@ typedef struct cwsc_Url {
 } cwsc_Url;
 
 typedef enum cwsc_Opcode {
+    CWSC_OPCODE_INTERNAL_ERROR = -1,
     CWSC_OPCODE_CONTINUATION = 0x0,
     CWSC_OPCODE_TEXT = 0x1,
     CWSC_OPCODE_BINARY = 0x2,
@@ -28,7 +36,7 @@ typedef struct cwsc_Message {
 
 typedef struct cwsc_WebSocket {
     void* user_data;
-    int sockfd;
+    CWSC_SOCKT sockfd;
     struct TLSContext* tls_context;
     cwsc_Url url;
     void (*on_open)(struct cwsc_WebSocket*);
@@ -38,8 +46,8 @@ typedef struct cwsc_WebSocket {
 } cwsc_WebSocket;
 
 cwsc_Url cwsc_parse_url(const char* input);
-int cwsc_init_socket(const char* address, int port);
-int cwsc_init_tls(int sockfd, struct TLSContext* tls_context);
+CWSC_SOCKT cwsc_init_socket(const char* address, int port);
+int cwsc_init_tls(CWSC_SOCKT sockfd, struct TLSContext* tls_context);
 int cwsc_connect(cwsc_WebSocket* ws, const char* address, int port);
 cwsc_Message cwsc_internal_read_message(cwsc_WebSocket* ws);
 unsigned char* cwsc_internal_create_masking_key();
@@ -51,13 +59,22 @@ void cwsc_listen(cwsc_WebSocket* ws);
 
 #ifdef CWSC_IMPLEMENTATION
 
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
+
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#define CWSC_close closesocket
+#define CWSC_INVALID_SOCKET INVALID_SOCKET
+#else
+#include <unistd.h>
+#define CWSC_close close
+#define CWSC_INVALID_SOCKET (-1)
+#endif
 
 #ifndef CWSC_MALLOC
-#include <stdlib.h>
 #define CWSC_MALLOC malloc
 #define CWSC_REALLOC realloc
 #define CWSC_FREE free
@@ -86,19 +103,19 @@ cwsc_Url cwsc_parse_url(const char* input) {
     return toReturn;
 }
 
-int cwsc_init_socket(const char* address, int port) {
+CWSC_SOCKT cwsc_init_socket(const char* address, int port) {
     return cwsc_tlse_wrapper_connect_socket(address, port);
 }
 
-int cwsc_init_tls(int sockfd, struct TLSContext* tls_context) {
+int cwsc_init_tls(CWSC_SOCKT sockfd, struct TLSContext* tls_context) {
     cwsc_tlse_wrapper_connect_tls(sockfd, tls_context);
     return 0; // TODO: Don't return 0 if an error occurred
 }
 
 int cwsc_connect(cwsc_WebSocket* ws, const char* address, int port) {
     ws->url = cwsc_parse_url(address);
-    int sockfd;
-    if ((sockfd = cwsc_init_socket(ws->url.host, port)) == -1) {
+    CWSC_SOCKT sockfd;
+    if ((sockfd = cwsc_init_socket(ws->url.host, port)) == CWSC_INVALID_SOCKET) {
         return 1;
     }
     ws->sockfd = sockfd;
@@ -143,7 +160,7 @@ int cwsc_connect(cwsc_WebSocket* ws, const char* address, int port) {
 }
 
 cwsc_Message cwsc_internal_read_message(cwsc_WebSocket* ws) {
-    int sockfd = ws->sockfd;
+    CWSC_SOCKT sockfd = ws->sockfd;
     struct TLSContext* tls_context = ws->tls_context;
     char socketBuffer[2];
     int bytesReceived1 = cwsc_tlse_wrapper_read_tls(sockfd, tls_context, socketBuffer, sizeof(socketBuffer));
@@ -179,9 +196,11 @@ cwsc_Message cwsc_internal_read_message(cwsc_WebSocket* ws) {
     unsigned char* textBuffer = (unsigned char*)CWSC_MALLOC(payloadLength + 1);
     uint32_t bytesReceived = 0;
     while (bytesReceived < payloadLength) {
-        if (ws->sockfd == -1) {
+        if (ws->sockfd == CWSC_INVALID_SOCKET) {
             cwsc_Message message;
-            message.opcode = -1;
+            message.opcode = CWSC_OPCODE_INTERNAL_ERROR;
+            message.message = NULL;
+            message.length = 0;
             return message;
         }
         bytesReceived += cwsc_tlse_wrapper_read_tls(sockfd, tls_context, textBuffer + bytesReceived, payloadLength - bytesReceived);
@@ -235,7 +254,7 @@ void cwsc_send_control_frame(cwsc_WebSocket* ws, cwsc_Opcode opcode, const char*
 void cwsc_send_message(cwsc_WebSocket* ws, const char* message) {
     // Six bytes for framing data, four bytes for length data (if necessary), and one character for each byte
     size_t messageLen = strlen(message);
-    char toSend[10 + messageLen];
+    char* toSend = (char*)CWSC_MALLOC(10 + messageLen);
     // Set message to not fragmented, type as text, and no special flags
     toSend[0] = 0b10000001;
     uint8_t offset = 0;
@@ -278,12 +297,17 @@ void cwsc_send_message(cwsc_WebSocket* ws, const char* message) {
     }
 
     cwsc_tlse_wrapper_write_tls(ws->sockfd, ws->tls_context, (const unsigned char*)toSend, offset + 6 + messageLen);
+
+    CWSC_FREE(toSend);
 }
 
 void cwsc_listen(cwsc_WebSocket* ws) {
     while (1) {
         cwsc_Message message = cwsc_internal_read_message(ws);
         switch (message.opcode) {
+        case CWSC_OPCODE_INTERNAL_ERROR:
+            // TODO: Report an error
+            break;
         case CWSC_OPCODE_CONTINUATION:
             // TODO: Report an error
             break;
@@ -304,8 +328,8 @@ void cwsc_listen(cwsc_WebSocket* ws) {
                 }
             }
             cwsc_send_control_frame(ws, CWSC_OPCODE_CLOSE, (const char*)message.message, message.length);
-            close(ws->sockfd);
-            ws->sockfd = -1;
+            CWSC_close(ws->sockfd);
+            ws->sockfd = CWSC_INVALID_SOCKET;
             break;
         case CWSC_OPCODE_PING:
             cwsc_send_control_frame(ws, CWSC_OPCODE_PONG, (const char*)message.message, message.length);
@@ -315,7 +339,7 @@ void cwsc_listen(cwsc_WebSocket* ws) {
             break;
         }
         CWSC_FREE(message.message);
-        if (ws->sockfd == -1) {
+        if (ws->sockfd == CWSC_INVALID_SOCKET) {
             break;
         }
     }
@@ -323,7 +347,7 @@ void cwsc_listen(cwsc_WebSocket* ws) {
 }
 
 void cwsc_disconnect(cwsc_WebSocket* ws, const char* message, int code) {
-    if (ws->sockfd <= 0) {
+    if (ws->sockfd == CWSC_INVALID_SOCKET) {
         if (ws->on_error) {
             ws->on_error(ws, "Socket already closed", -1);
         }
@@ -345,8 +369,8 @@ void cwsc_disconnect(cwsc_WebSocket* ws, const char* message, int code) {
 
     CWSC_FREE(close_frame);
 
-    close(ws->sockfd);
-    ws->sockfd = -1;
+    CWSC_close(ws->sockfd);
+    ws->sockfd = CWSC_INVALID_SOCKET;
 
     if (ws->on_close) {
         ws->on_close(ws, code, message, message_len);

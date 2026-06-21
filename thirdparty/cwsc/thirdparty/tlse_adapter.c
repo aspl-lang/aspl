@@ -1,10 +1,22 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define CWSC_TLSE_SOCKT SOCKET
+#define CWSC_TLSE_close closesocket
+#define CWSC_TLSE_INVALID_SOCKET INVALID_SOCKET
 #else
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <signal.h>
+#include <unistd.h>
+#define CWSC_TLSE_SOCKT int
+#define CWSC_TLSE_close close
+#define CWSC_TLSE_INVALID_SOCKET (-1)
 #endif
 
 #ifdef CWSC_TLSE_IMPLEMENTATION
@@ -25,7 +37,7 @@ void cwsc_tlse_wrapper_error(char* msg)
     exit(0);
 }
 
-int cwsc_tlse_wrapper_send_pending(int client_sock, struct TLSContext* context)
+int cwsc_tlse_wrapper_send_pending(CWSC_TLSE_SOCKT client_sock, struct TLSContext* context)
 {
     unsigned int out_buffer_len = 0;
     const unsigned char* out_buffer = tls_get_write_buffer(context, &out_buffer_len);
@@ -63,9 +75,9 @@ int cwsc_tlse_wrapper_validate_certificate(struct TLSContext* context, struct TL
     return no_error;
 }
 
-int cwsc_tlse_wrapper_connect_socket(const char* host, int port)
+CWSC_TLSE_SOCKT cwsc_tlse_wrapper_connect_socket(const char* host, int port)
 {
-    int sockfd;
+    CWSC_TLSE_SOCKT sockfd;
     struct addrinfo hints, * servinfo, * p;
     char port_str[6];
     int status;
@@ -92,13 +104,13 @@ int cwsc_tlse_wrapper_connect_socket(const char* host, int port)
     for (p = servinfo; p != NULL; p = p->ai_next)
     {
         sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (sockfd == -1)
+        if (sockfd == CWSC_TLSE_INVALID_SOCKET)
             continue;
 
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) == 0)
             break;
 
-        close(sockfd);
+        CWSC_TLSE_close(sockfd);
     }
 
     if (p == NULL)
@@ -112,7 +124,7 @@ int cwsc_tlse_wrapper_connect_socket(const char* host, int port)
     return sockfd;
 }
 
-int cwsc_tlse_wrapper_connect_tls(int sockfd, struct TLSContext* context)
+int cwsc_tlse_wrapper_connect_tls(CWSC_TLSE_SOCKT sockfd, struct TLSContext* context)
 {
     int res = tls_client_connect(context);
     cwsc_tlse_wrapper_send_pending(sockfd, context);
@@ -130,21 +142,21 @@ int cwsc_tlse_wrapper_connect_tls(int sockfd, struct TLSContext* context)
     return res;
 }
 
-int cwsc_tlse_wrapper_read_tls(int sockfd, struct TLSContext* context, void* buffer, int len)
+int cwsc_tlse_wrapper_read_tls(CWSC_TLSE_SOCKT sockfd, struct TLSContext* context, void* buffer, int len)
 {
     unsigned char client_message[0xFFFF];
     int read_res;
     int read_size;
     int read = 0;
+    unsigned char* read_buffer = (unsigned char*)CWSC_MALLOC(sizeof(unsigned char) * len);
     for (;;)
     {
         if (tls_established(context))
         {
-            unsigned char read_buffer[len];
-            read_res = tls_read(context, read_buffer, sizeof(read_buffer) - read);
+            read_res = tls_read(context, read_buffer, len - read);
             if (read_res > 0)
             {
-                memcpy(buffer + read, read_buffer, read_res);
+                memcpy((unsigned char*)buffer + read, read_buffer, read_res);
                 read += read_res;
             }
         }
@@ -160,10 +172,11 @@ int cwsc_tlse_wrapper_read_tls(int sockfd, struct TLSContext* context, void* buf
         tls_consume_stream(context, (const unsigned char*)client_message, read_size, cwsc_tlse_wrapper_validate_certificate);
         cwsc_tlse_wrapper_send_pending(sockfd, context);
     }
+    CWSC_FREE(read_buffer);
     return read;
 }
 
-int cwsc_tlse_wrapper_write_tls(int sockfd, struct TLSContext* context, const unsigned char* data, int len)
+int cwsc_tlse_wrapper_write_tls(CWSC_TLSE_SOCKT sockfd, struct TLSContext* context, const unsigned char* data, int len)
 {
     int write_res = tls_write(context, data, len);
     if (write_res > 0)
