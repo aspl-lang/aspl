@@ -425,7 +425,7 @@ if(subcommand == "compile" || subcommand == "build"){
     if(io.exists_file(module) || io.exists_directory(module)){
         io.create_symlink(io.abs(module), ModuleUtils:getModulePath(moduleName))
     }else{
-        os.execute("git clone " + module + " " + ModuleUtils:getModulePath(moduleName))
+        os.execute("git clone \"" + module + "\" \"" + ModuleUtils:getModulePath(moduleName) + "\"")
     }
 }elseif(subcommand == "update"){
     i++
