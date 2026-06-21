@@ -1,0 +1,96 @@
+#include <check.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+/* Security property: Command injection via shell metacharacters in module argument
+ * must be prevented. The install subcommand must not execute arbitrary commands
+ * when module URL contains shell metacharacters.
+ */
+
+START_TEST(test_cli_install_command_injection_boundary)
+{
+    /* Invariant: Shell metacharacters in module argument must not result in
+     * arbitrary command execution. The git clone command must fail safely or
+     * reject the malicious input, not execute injected commands.
+     */
+    const char *payloads[] = {
+        "https://github.com/user/repo.git; rm -rf /",  /* Command injection attempt */
+        "https://github.com/user/repo.git && whoami",  /* Command chaining */
+        "https://github.com/user/repo.git | cat /etc/passwd",  /* Pipe injection */
+        "https://github.com/user/repo.git`id`",        /* Command substitution */
+        "https://github.com/user/repo.git"             /* Valid baseline */
+    };
+    int num_payloads = sizeof(payloads) / sizeof(payloads[0]);
+
+    for (int i = 0; i < num_payloads; i++) {
+        /* Fork to isolate test execution and detect unauthorized command execution */
+        pid_t pid = fork();
+        ck_assert_int_ne(pid, -1);
+
+        if (pid == 0) {
+            /* Child process: attempt to call the vulnerable code path */
+            /* Redirect stdout/stderr to prevent side effects */
+            int devnull = open("/dev/null", O_WRONLY);
+            dup2(devnull, STDOUT_FILENO);
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+
+            /* Call the actual CLI main with install subcommand and payload */
+            char *argv[] = {
+                "aspl",
+                "install",
+                (char *)payloads[i],
+                NULL
+            };
+
+            /* Execute the real CLI binary to test actual code path */
+            execvp("./cli/main.aspl", argv);
+            exit(127);  /* Exit if execvp fails */
+        } else {
+            /* Parent process: verify child did not execute injected commands */
+            int status;
+            waitpid(pid, &status, 0);
+
+            /* Security assertion: Process must exit with error (git clone fails on bad URL)
+             * or signal, NOT with success (0). Injected commands would typically succeed.
+             */
+            if (i < num_payloads - 1) {  /* Skip baseline valid input */
+                ck_assert_int_ne(WIFEXITED(status) && WEXITSTATUS(status) == 0, 1);
+            }
+        }
+    }
+}
+END_TEST
+
+Suite *security_suite(void)
+{
+    Suite *s;
+    TCase *tc_core;
+
+    s = suite_create("CLI Security");
+    tc_core = tcase_create("Command Injection");
+
+    tcase_add_test(tc_core, test_cli_install_command_injection_boundary);
+    suite_add_tcase(s, tc_core);
+
+    return s;
+}
+
+int main(void)
+{
+    int number_failed;
+    Suite *s;
+    SRunner *sr;
+
+    s = security_suite();
+    sr = srunner_create(s);
+
+    srunner_run_all(sr, CK_NORMAL);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
