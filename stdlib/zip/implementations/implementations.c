@@ -2,12 +2,21 @@
 #define MINIZ_FREE ASPL_FREE
 #include "thirdparty/miniz/miniz.c"
 
+#include <stdio.h>
+#include <string.h>
+
 #ifdef _WIN32
+#include <windows.h>
 #include <io.h>
+#ifndef F_OK
+#define F_OK 0
+#endif
 #else
 #include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <limits.h>
 #endif
-// TODO: Are these includes necessary/correct?
 
 // TODO: Support "/" instead of "\\" on Windows
 
