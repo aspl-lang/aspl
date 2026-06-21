@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <limits.h>
 #include <string.h>
 #ifdef _WIN32
 #include <io.h>
@@ -11,6 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <glob.h>
+#include <limits.h>
 #endif
 #ifdef __APPLE__
 #include <libproc.h>
@@ -69,7 +69,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$create(ASPL_OBJECT_TYPE* path)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
 #ifdef _WIN32
-    int result = mkdir(pathStr);
+    int result = CreateDirectory(pathStr, NULL) ? 0 : -1;
 #else
     int result = mkdir(pathStr, 0777);
 #endif
@@ -86,7 +86,11 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$create(ASPL_OBJECT_TYPE* path)
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$delete(ASPL_OBJECT_TYPE* path)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
+#ifdef _WIN32
+    int result = RemoveDirectory(pathStr) ? 0 : -1;
+#else
     int result = rmdir(pathStr);
+#endif
     if (result == 0)
     {
         return ASPL_TRUE();
@@ -101,8 +105,8 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$path$get_directory_path(ASPL_OBJECT_TYPE* pat
 {
     char* pathStr = aspl_util_io$osify_path(*path);
 #ifdef _WIN32
-    char fullpath[PATH_MAX];
-    DWORD len = GetFullPathNameA(pathStr, PATH_MAX, fullpath, NULL);
+    char fullpath[MAX_PATH];
+    DWORD len = GetFullPathNameA(pathStr, MAX_PATH, fullpath, NULL);
     if (len > 0) {
         if (GetFileAttributesA(fullpath) & FILE_ATTRIBUTE_DIRECTORY) {
             return ASPL_STRING_LITERAL(fullpath);
