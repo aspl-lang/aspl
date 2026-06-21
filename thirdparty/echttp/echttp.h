@@ -70,6 +70,7 @@ void echttp_release(echttp_Response response);
 #include <sys/time.h>
 #include <unistd.h>
 #define ECHTTP_SOCKT int
+#define ECHTTP_close close
 #define ECHTTP_INVALID_SOCKET (-1)
 #endif
 
