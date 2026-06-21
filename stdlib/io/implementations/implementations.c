@@ -1,12 +1,15 @@
-#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <limits.h>
 #include <string.h>
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
 #else
+#include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <limits.h>
 #include <glob.h>
 #endif
 #ifdef __APPLE__
@@ -172,6 +175,35 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$path$get_directory_name(ASPL_OBJECT_TYPE* pat
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$list(ASPL_OBJECT_TYPE* path)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
+#ifdef _WIN32
+    char* searchPath = ASPL_MALLOC(strlen(pathStr) + 3);
+    strcpy(searchPath, pathStr);
+    strcat(searchPath, "\\*");
+    WIN32_FIND_DATA data;
+    HANDLE hFind = FindFirstFile(searchPath, &data);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        return ASPL_LIST_LITERAL("list<string>", 12, 0, 0);
+    }
+    int pathCount = 0;
+    ASPL_OBJECT_TYPE* paths = NULL;
+    do
+    {
+        if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
+        {
+            continue;
+        }
+        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            continue;
+        }
+        paths = ASPL_REALLOC(paths, sizeof(ASPL_OBJECT_TYPE) * (pathCount + 1));
+        paths[pathCount] = ASPL_STRING_LITERAL(data.cFileName);
+        pathCount++;
+    } while (FindNextFile(hFind, &data));
+    FindClose(hFind);
+    return ASPL_LIST_LITERAL("list<string>", 12, paths, pathCount);
+#else
     DIR* dir = opendir(pathStr);
     if (dir == NULL)
     {
@@ -188,29 +220,17 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$list(ASPL_OBJECT_TYPE* path)
             {
                 continue;
             }
-#ifdef _WIN32
-            char* fullPath = ASPL_MALLOC(strlen(pathStr) + strlen(entry->d_name) + 2);
-            strcpy(fullPath, pathStr);
-            strcat(fullPath, "/");
-            strcat(fullPath, entry->d_name);
-            DWORD dwAttrib = GetFileAttributes(fullPath);
-            if (!(dwAttrib & FILE_ATTRIBUTE_DIRECTORY)) {
-                continue;
-            }
-#else
             if (entry->d_type != DT_DIR) {
                 continue;
             }
-#endif
-            char* p = ASPL_MALLOC(ASPL_ACCESS(*path).value.string->length + strlen(entry->d_name) + 2);
-            strcat(p, entry->d_name);
             paths = ASPL_REALLOC(paths, sizeof(ASPL_OBJECT_TYPE) * (pathCount + 1));
-            paths[pathCount] = ASPL_STRING_LITERAL(p);
+            paths[pathCount] = ASPL_STRING_LITERAL(entry->d_name);
             pathCount++;
         }
         closedir(dir);
         return ASPL_LIST_LITERAL("list<string>", 12, paths, pathCount);
     }
+#endif
 }
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$directory$get_home_directory()
@@ -369,6 +389,35 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$delete(ASPL_OBJECT_TYPE* path)
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$list(ASPL_OBJECT_TYPE* path)
 {
     char* pathStr = aspl_util_io$osify_path(*path);
+#ifdef _WIN32
+    char* searchPath = ASPL_MALLOC(strlen(pathStr) + 3);
+    strcpy(searchPath, pathStr);
+    strcat(searchPath, "\\*");
+    WIN32_FIND_DATA data;
+    HANDLE hFind = FindFirstFile(searchPath, &data);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        return ASPL_LIST_LITERAL("list<string>", 12, 0, 0);
+    }
+    int pathCount = 0;
+    ASPL_OBJECT_TYPE* paths = NULL;
+    do
+    {
+        if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
+        {
+            continue;
+        }
+        if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            continue;
+        }
+        paths = ASPL_REALLOC(paths, sizeof(ASPL_OBJECT_TYPE) * (pathCount + 1));
+        paths[pathCount] = ASPL_STRING_LITERAL(data.cFileName);
+        pathCount++;
+    } while (FindNextFile(hFind, &data));
+    FindClose(hFind);
+    return ASPL_LIST_LITERAL("list<string>", 12, paths, pathCount);
+#else
     DIR* dir = opendir(pathStr);
     if (dir == NULL)
     {
@@ -385,20 +434,9 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$list(ASPL_OBJECT_TYPE* path)
             {
                 continue;
             }
-#ifdef _WIN32
-            char* fullPath = ASPL_MALLOC(strlen(pathStr) + strlen(entry->d_name) + 2);
-            strcpy(fullPath, pathStr);
-            strcat(fullPath, "/");
-            strcat(fullPath, entry->d_name);
-            DWORD dwAttrib = GetFileAttributes(fullPath);
-            if (dwAttrib & FILE_ATTRIBUTE_DIRECTORY) {
-                continue;
-            }
-#else
             if (entry->d_type == DT_DIR) {
                 continue;
             }
-#endif
             paths = ASPL_REALLOC(paths, sizeof(ASPL_OBJECT_TYPE) * (pathCount + 1));
             paths[pathCount] = ASPL_STRING_LITERAL(entry->d_name);
             pathCount++;
@@ -406,6 +444,7 @@ ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$file$list(ASPL_OBJECT_TYPE* path)
         closedir(dir);
         return ASPL_LIST_LITERAL("list<string>", 12, paths, pathCount);
     }
+#endif
 }
 
 ASPL_OBJECT_TYPE ASPL_IMPLEMENT_io$glob$search(ASPL_OBJECT_TYPE* pattern)
