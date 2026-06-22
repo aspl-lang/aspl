@@ -41,6 +41,7 @@ function gather_implementation_calls(){
     // The following libraries are required for the internet module
     if(Options:targetOs == "windows"){
         LinkUtils:libraries.add("ws2_32")
+        LinkUtils:libraries.add("advapi32")
     }
 }
 

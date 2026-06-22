@@ -49,6 +49,21 @@
 #undef TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
 #undef TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
 
+#ifdef __clang__
+// Note: This implementation is very inefficient.
+// It is only here as a fallback since Clang does not automatically link to its own implementation in `compiler_rt` on Windows.
+// TODO: Find a better solution for this.
+__attribute__((weak)) unsigned __int128 __udivti3(unsigned __int128 a, unsigned __int128 b) {
+    if (b == 0) __builtin_trap();
+    unsigned __int128 q = 0, r = 0;
+    for (int i = 127; i >= 0; i--) {
+        r = (r << 1) | ((a >> i) & 1);
+        if (r >= b) { r -= b; q |= (unsigned __int128)1 << i; }
+    }
+    return q;
+}
+#endif
+
 void aspl_callback_invoke(ASPL_OBJECT_TYPE closure);
 void aspl_callback_string__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* message);
 void aspl_callback_integer_string__invoke(ASPL_OBJECT_TYPE closure, ASPL_OBJECT_TYPE* code, ASPL_OBJECT_TYPE* message);
