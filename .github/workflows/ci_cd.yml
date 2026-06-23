@@ -78,7 +78,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           aspl -os windows -cc clang build-minimal-template
           mv -f Template.exe templates/windows/x86_64/minimal
-          aspl -os windows -cc gcc build-full-template
+          aspl -os windows -cc clang build-full-template
           mv -f Template.exe templates/windows/x86_64/full/cli
         shell: cmd
       - name: Upload template artifact (Windows x86_64 minimal)
