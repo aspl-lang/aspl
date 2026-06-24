@@ -84,17 +84,20 @@ class Options {
     property string cCompiler{
         get{
             if(self:_cCompiler == null){
-                var result = os.execute("zig cc --version")
-                if (result.exitCode == 0) {
-                    self:_cCompiler = "zig cc"
-                } else {
-                    result = os.execute("gcc --version")
-                    if (result.exitCode == 0) {
-                        self:_cCompiler = "gcc"
-                    } else {
-                        self:_cCompiler = "cc"
+                // TODO: Clean this up
+                var void = "/dev/null 2>&1"
+                $if windows{
+                    void = "NUL 2>&1"
+                }
+                foreach(["zig cc", "gcc", "clang"] as cc){
+                    var exitCode = os.system(cc + " --version > " + void)
+                    if (exitCode == 0) {
+                        self:_cCompiler = cc
+                        return self:_cCompiler
                     }
                 }
+                self:_cCompiler = "cc"
+                return self:_cCompiler
             }
             return self:_cCompiler
         }
