@@ -1099,8 +1099,7 @@ One of the central motivations behind creating ASPL was and still is the ease of
 Nonetheless, every computer, and every person using one, is different, and even if they weren't, there will always be at least some bugs in a project as big as a programming language. So, if you're facing any issues while installing or using ASPL, you might find some helpful information below:
 
 ### `libwinpthread-1.dll` not found
-You might receive this error message when running a program compiled using the (default) AIL backend on a computer without a MinGW-w64 installation.
-In a nutshell: this is a "bug" in the ASPL toolchain and these libraries should not be required on the target computer. Nonetheless, they currently are needed, so you can fix this issue either by compiling your code using the C backend or by installing [MinGW-w64 **with MCF threads**](https://winlibs.com/#download-release) on the computer where the problem occurs.
+This bug was recently fixed (see issue #5), so please update your ASPL installation (`aspl update`) and recompile your code. If the problem persists, please open an issue and report it.
 
 ### Namespace `aspl.parser`, `aspl.compiler`, ... not found
 These error messages are probably due to the fact that you've placed your own ASPL code inside the same folder where your ASPL installation is stored; that causes the `aspl run` command to actually compile the whole compiler alongside your own code, which is not what you want (and since it's also not the proper way to do it, you get these error messages).
