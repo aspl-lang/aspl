@@ -160,14 +160,25 @@ if(subcommand == "compile" || subcommand == "build"){
         exit(2)
     }
     Options:outputFile = ".aspl_run" // TODO: Use a random name
-    var outputFile = Options:outputFile
+    var string outputFile = Options:outputFile
     if(Options:targetOs == "windows"){
         outputFile += ".exe"
     }
     outputFile = io.join_path([os.getwd(), outputFile])
     aspl.compiler.compile(os.args()[i])
-    print(os.execute(outputFile).output, false)
+    var exitCode = os.system(outputFile)
     io.delete_file(outputFile)
+    $if windows{
+        if(!Options:keepTemporary){
+            if(io.exists_file(outputFile.replace(".exe", ".pdb"))){
+                io.delete_file(outputFile.replace(".exe", ".pdb"))
+            }
+            if(io.exists_file(outputFile.replace(".exe", ".exe.lib"))){
+                io.delete_file(outputFile.replace(".exe", ".exe.lib"))
+            }
+        }
+    }
+    exit(exitCode)
 }elseif(subcommand == "test-all"){
     test_all()
 }elseif(subcommand == "format"){
