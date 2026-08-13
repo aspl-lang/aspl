@@ -3,9 +3,9 @@ import console
 [public]
 function notice(string message, Location? location = null){
     if(location == null){
-        print(console.yellow("Notice: ") + console.reset(message))
+        print(console.bright_cyan("Notice: ") + console.reset(message))
     }else{
-        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.yellow("Notice: ") + console.reset(message))
+        print(console.gray("[" + location?!.file + ":" + location?!.startLine + ":" + location?!.startColumn + "] ") + console.bright_cyan("Notice: ") + console.reset(message))
     }
 }
 
