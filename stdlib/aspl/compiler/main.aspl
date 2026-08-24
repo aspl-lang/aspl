@@ -253,6 +253,9 @@ function build_ccmd(string sourceFile, string outputFile) returns string{
             ccmd += " -Wl,--stack," + Options:stackSize
         }
     }
+    if(Options:useAddressSanitizer){
+        ccmd += " -fsanitize=address"
+    }
     if(Options:useSsl){
         ccmd += " -DASPL_USE_SSL"
         ccmd += " -lssl"

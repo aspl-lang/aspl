@@ -124,6 +124,10 @@ class Options {
     [public]
     [static]
     [threadlocal]
+    property bool useAddressSanitizer = false
+    [public]
+    [static]
+    [threadlocal]
     property bool useSsl = false
     [public]
     [static]
