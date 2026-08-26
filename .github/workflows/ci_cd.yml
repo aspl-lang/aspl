@@ -80,17 +80,24 @@ jobs:
           mv -f Template.exe templates/windows/x86_64/minimal
           aspl -os windows -cc clang build-full-template
           mv -f Template.exe templates/windows/x86_64/full/cli
+          aspl -os windows -cc clang -gui build-full-template
+          mv -f Template.exe templates/windows/x86_64/full/gui
         shell: cmd
       - name: Upload template artifact (Windows x86_64 minimal)
         uses: actions/upload-artifact@v4
         with:
           name: template_windows_x86_64_minimal
           path: templates/windows/x86_64/minimal/Template.exe
-      - name: Upload template artifact (Windows x86_64 full)
+      - name: Upload template artifact (Windows x86_64 full CLI)
         uses: actions/upload-artifact@v4
         with:
-          name: template_windows_x86_64_full
+          name: template_windows_x86_64_full_cli
           path: templates/windows/x86_64/full/cli/Template.exe
+      - name: Upload template artifact (Windows x86_64 full GUI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: template_windows_x86_64_full_gui
+          path: templates/windows/x86_64/full/gui/Template.exe
   build-runtime-macos:
     runs-on: macos-15-intel
     steps:
@@ -229,18 +236,30 @@ jobs:
         uses: geekyeggo/delete-artifact@v5
         with:
           name: template_windows_x86_64_minimal
-      - name: Delete template (Windows x86_64 full)
+      - name: Delete template (Windows x86_64 full CLI)
         run: |
           rm -rf templates/windows/x86_64/full/cli/Template.exe
-      - name: Download template artifact (Windows x86_64 full)
+      - name: Download template artifact (Windows x86_64 full CLI)
         uses: actions/download-artifact@v4
         with:
-          name: template_windows_x86_64_full
+          name: template_windows_x86_64_full_cli
           path: templates/windows/x86_64/full/cli
-      - name: Delete template artifact (Windows x86_64 full)
+      - name: Delete template artifact (Windows x86_64 full CLI)
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: template_windows_x86_64_full
+          name: template_windows_x86_64_full_cli
+      - name: Delete template (Windows x86_64 full GUI)
+        run: |
+          rm -rf templates/windows/x86_64/full/gui/Template.exe
+      - name: Download template artifact (Windows x86_64 full GUI)
+        uses: actions/download-artifact@v4
+        with:
+          name: template_windows_x86_64_full_gui
+          path: templates/windows/x86_64/full/gui
+      - name: Delete template artifact (Windows x86_64 full GUI)
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: template_windows_x86_64_full_gui
       - name: Delete template (macOS x86_64 minimal)
         run: |
           rm -rf templates/macos/x86_64/minimal/Template
