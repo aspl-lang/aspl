@@ -80,7 +80,7 @@ jobs:
           mv -f Template.exe templates/windows/x86_64/minimal
           aspl -os windows -cc clang build-full-template
           mv -f Template.exe templates/windows/x86_64/full/cli
-          aspl -os windows -cc clang build-full-template # TODO: Use the GUI flag for this again when fixed
+          aspl -os windows -cc clang -gui build-full-template
           mv -f Template.exe templates/windows/x86_64/full/gui
         shell: cmd
       - name: Upload template artifact (Windows x86_64 minimal)
