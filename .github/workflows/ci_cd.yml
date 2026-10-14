@@ -38,7 +38,7 @@ jobs:
           apt-get update
           apt-get install --quiet -y build-essential
           apt-get install --quiet -y libglfw3-dev libxi-dev libxcursor-dev # for the graphics module
-          apt-get install --quiet -y gcc-arm-linux-gnueabi # for ARM32 cross-compilation
+          # apt-get install --quiet -y gcc-arm-linux-gnueabi # for ARM32 cross-compilation
           apt-get install --quiet -y lib32z1 # for ARM32 cross-compilation
       - name: Build ASPL runtime templates
         run: |
