@@ -266,7 +266,11 @@ function build_ccmd(string sourceFile, string outputFile) returns string{
         ccmd += " -ld3d11"
     }
     if(Options:targetOs == "windows" && Options:guiApp){
-        ccmd += " -Wl,--subsystem,windows"
+        if(Options:cCompiler == "clang"){
+            ccmd += " -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup" // TODO: This might fail when cross-compiling from another OS to Windows using Clang and the GUI submodule
+        }else{
+            ccmd += " -Wl,--subsystem,windows"
+        }
     }
     ccmd += " -Wno-return-type" // TODO: Remove this once return statements are enforced in all control flow paths
     if(Options:cCompiler == "gcc"){
