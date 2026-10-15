@@ -1,9 +1,13 @@
+#include <string.h>
+
 #ifdef _WIN32
 #include <winsock2.h>
+#define NETUTILS_TLSE_SOCKT SOCKET
 #else
 #include <sys/socket.h>
+#include <sys/types.h>
+#define NETUTILS_TLSE_SOCKT int
 #endif
-#include <string.h>
 
 #ifdef NETUTILS_TLSE_IMPLEMENTATION
 #define TLS_AMALGAMATION
@@ -18,7 +22,7 @@
 #include "tlse.h"
 #endif
 
-int netutils_tlse_adapter_send_pending(int client_sock, struct TLSContext* context)
+int netutils_tlse_adapter_send_pending(NETUTILS_TLSE_SOCKT client_sock, struct TLSContext* context)
 {
     unsigned int out_buffer_len = 0;
     const unsigned char* out_buffer = tls_get_write_buffer(context, &out_buffer_len);
@@ -56,7 +60,7 @@ int netutils_tlse_adapter_validate_certificate(struct TLSContext* context, struc
     return no_error;
 }
 
-int netutils_tlse_adapter_connect_tls(int sockfd, struct TLSContext* context)
+int netutils_tlse_adapter_connect_tls(NETUTILS_TLSE_SOCKT sockfd, struct TLSContext* context)
 {
     int res = tls_client_connect(context);
     netutils_tlse_adapter_send_pending(sockfd, context);
@@ -74,21 +78,21 @@ int netutils_tlse_adapter_connect_tls(int sockfd, struct TLSContext* context)
     return res;
 }
 
-int netutils_tlse_adapter_read_tls(int sockfd, struct TLSContext* context, void* buffer, int len)
+int netutils_tlse_adapter_read_tls(NETUTILS_TLSE_SOCKT sockfd, struct TLSContext* context, void* buffer, int len)
 {
     unsigned char client_message[0xFFFF];
     int read_res;
     int read_size;
     int read = 0;
+    unsigned char* read_buffer = (unsigned char*)NETUTILS_MALLOC(sizeof(unsigned char) * len);
     for (;;)
     {
         if (tls_established(context))
         {
-            unsigned char read_buffer[len];
-            read_res = tls_read(context, read_buffer, sizeof(read_buffer) - read);
+            read_res = tls_read(context, read_buffer, len - read);
             if (read_res > 0)
             {
-                memcpy(buffer + read, read_buffer, read_res);
+                memcpy((unsigned char*)buffer + read, read_buffer, read_res);
                 read += read_res;
             }
         }
@@ -104,10 +108,11 @@ int netutils_tlse_adapter_read_tls(int sockfd, struct TLSContext* context, void*
         tls_consume_stream(context, (const unsigned char*)client_message, read_size, netutils_tlse_adapter_validate_certificate);
         netutils_tlse_adapter_send_pending(sockfd, context);
     }
+    NETUTILS_FREE(read_buffer);
     return read;
 }
 
-int netutils_tlse_adapter_write_tls(int sockfd, struct TLSContext* context, const unsigned char* data, int len)
+int netutils_tlse_adapter_write_tls(NETUTILS_TLSE_SOCKT sockfd, struct TLSContext* context, const unsigned char* data, int len)
 {
     int write_res = tls_write(context, data, len);
     if (write_res > 0)
