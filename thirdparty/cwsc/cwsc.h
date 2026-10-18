@@ -85,21 +85,43 @@ void cwsc_listen(cwsc_WebSocket* ws);
 cwsc_Url cwsc_parse_url(const char* input) {
     cwsc_Url toReturn;
     memset(&toReturn, 0, sizeof(cwsc_Url));
+
+    if (input == NULL) {
+        return toReturn; // Invalid URL
+    }
+
     const char* protocolEnd = strstr(input, "://");
     if (protocolEnd == NULL) {
         return toReturn; // Invalid URL
     }
-    strncpy(toReturn.protocol, input, protocolEnd - input);
+
+    size_t protocolLen = (size_t)(protocolEnd - input);
+    if (protocolLen == 0 || protocolLen >= sizeof(toReturn.protocol)) {
+        return toReturn; // Invalid URL
+    }
+    memcpy(toReturn.protocol, input, protocolLen);
+    toReturn.protocol[protocolLen] = '\0';
+
     protocolEnd += 3;
 
     const char* hostEnd = strchr(protocolEnd, '/');
-    if (hostEnd == NULL) {
-        strcpy(toReturn.host, protocolEnd);
+    size_t hostLen = (hostEnd == NULL) ? strlen(protocolEnd) : (size_t)(hostEnd - protocolEnd);
+
+    if (hostLen == 0 || hostLen >= sizeof(toReturn.host)) {
+        return toReturn; // Invalid URL
     }
-    else {
-        strncpy(toReturn.host, protocolEnd, hostEnd - protocolEnd);
-        strcpy(toReturn.path, hostEnd);
+    memcpy(toReturn.host, protocolEnd, hostLen);
+    toReturn.host[hostLen] = '\0';
+
+    if (hostEnd != NULL) {
+        size_t pathLen = strlen(hostEnd);
+        if (pathLen >= sizeof(toReturn.path)) {
+            return toReturn; // Invalid URL
+        }
+        memcpy(toReturn.path, hostEnd, pathLen);
+        toReturn.path[pathLen] = '\0';
     }
+
     return toReturn;
 }
 
