@@ -5,9 +5,9 @@
 
 typedef struct echttp_Header
 {
-    char const* name;
+    char* name;
     size_t value_count;
-    char const** values;
+    char** values;
 } echttp_Header;
 
 typedef struct echttp_Response
@@ -246,6 +246,7 @@ echttp_internal_Request* echttp_build_request(char const* method, char const* ur
     }
     uppercase_method[strlen(method)] = '\0';
     sprintf(request_header, "%s %s HTTP/1.0\r\nHost: %s%s%s\r\nContent-Length: %d\r\n", uppercase_method, resource, address, default_http_port ? "" : ":", default_http_port ? "" : port, (int)size);
+    ECHTTP_FREE(uppercase_method);
     for (size_t i = 0; i < header_count; i++)
     {
         sprintf(request_header + strlen(request_header), "%s: ", headers[i].name);
@@ -417,13 +418,13 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
                         echttp_Header header = *(request->response_headers + request->response_header_count);
                         size_t name_len = 0;
                         while (name_len < header_len && status_line[name_len] != ':') ++name_len;
-                        header.name = (char const*)ECHTTP_MALLOC(name_len + 1);
+                        header.name = (char*)ECHTTP_MALLOC(name_len + 1);
                         memcpy((void*)header.name, status_line, name_len);
                         ((char*)header.name)[name_len] = 0;
                         status_line += name_len + 2;
                         size_t value_len = header_len - name_len - 2;
 
-                        header.values = (char const**)ECHTTP_MALLOC(sizeof(char const*));
+                        header.values = (char**)ECHTTP_MALLOC(sizeof(char const*));
                         header.value_count = 0;
 
                         char const* value_start = status_line;
@@ -438,8 +439,8 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
                                 single_value_len = remaining_len;
                             }
 
-                            header.values = (char const**)ECHTTP_REALLOC(header.values, sizeof(char const*) * (header.value_count + 1));
-                            header.values[header.value_count] = (char const*)ECHTTP_MALLOC(single_value_len + 1);
+                            header.values = (char**)ECHTTP_REALLOC(header.values, sizeof(char*) * (header.value_count + 1));
+                            header.values[header.value_count] = (char*)ECHTTP_MALLOC(single_value_len + 1);
                             memcpy((void*)header.values[header.value_count], value_start, single_value_len);
                             ((char*)header.values[header.value_count])[single_value_len] = 0;
                             header.value_count++;
@@ -478,6 +479,26 @@ echttp_internal_Status echttp_process_request(echttp_internal_Request* request)
     return request->status;
 }
 
+void echttp_release_request(echttp_internal_Request request)
+{
+    ECHTTP_close(request.socket);
+    if (request.request_header_large) ECHTTP_FREE(request.request_header_large);
+    ECHTTP_FREE(request.full_response_data);
+    for (int i = 0; i < request.response_header_count; i++) {
+        echttp_Header header = request.response_headers[i];
+        ECHTTP_FREE(header.name);
+        for (int j = 0; j < header.value_count; j++) {
+            ECHTTP_FREE(header.values[j]);
+        }
+        ECHTTP_FREE(header.values);
+    }
+    ECHTTP_FREE(request.response_headers);
+    tls_destroy_context(request.tls_context);
+#ifdef _WIN32
+    WSACleanup();
+#endif
+}
+
 echttp_Response echttp_request(char const* method, char const* url, char const* data, size_t data_size, echttp_Header* headers, size_t header_count)
 {
     echttp_Response response = { 0 };
@@ -505,7 +526,13 @@ echttp_Response echttp_request(char const* method, char const* url, char const* 
             {
                 if (strcmp(request->response_headers[i].name, "Location") == 0)
                 {
-                    return echttp_request(method, request->response_headers[i].values[0], data, data_size, headers, header_count); // TODO: Limit the number of redirects
+                    char* url = ECHTTP_MALLOC(strlen(request->response_headers[i].values[0]) + 1);
+                    strcpy(url, request->response_headers[i].values[0]);
+                    echttp_release_request(*request);
+                    ECHTTP_FREE(request);
+                    echttp_Response response = echttp_request(method, url, data, data_size, headers, header_count); // TODO: Limit the number of redirects
+                    ECHTTP_FREE(url);
+                    return response;
                 }
             }
         }
@@ -576,9 +603,7 @@ void echttp_release(echttp_Response response)
     if (response.status_code != -1)
     {
         echttp_internal_Request* request = (echttp_internal_Request*)response._handle;
-        ECHTTP_close(request->socket);
-        if (request->request_header_large) ECHTTP_FREE(request->request_header_large);
-        ECHTTP_FREE(request->full_response_data);
+        echttp_release_request(*request);
         ECHTTP_FREE(request);
 #ifdef _WIN32
         WSACleanup();
