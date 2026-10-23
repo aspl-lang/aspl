@@ -1,7 +1,10 @@
 # Introduction to ASPL
-ASPL is a simple yet powerful modern cross-platform programming language.
-<br>It is especially suited for people who are just getting into programming, but can also be a powerful tool for more experienced programmers.
-<br>ASPL has (obviously) been influenced by multiple different other languages, most notably C# and V.
+ASPL is a simple, high-level, general-purpose programming language for building modern, safe, and portable software.
+<br>It is particularly well-suited for people who are just getting into coding, but can also be a powerful tool for more experienced programmers.
+<br>ASPL has (obviously) been influenced by multiple different other languages, most notably C# and V, and in earlier versions also PHP.
+
+> [!WARNING]
+> ASPL is beta software. While it has been maturing a lot over the past years, there will still be breaking changes in the near future, and no security guarantees can be made so far. If this is a no-go for you, we advise you to choose a different language for now; however, for educational purposes, pet projects and helping shape the language's future, using ASPL can already be a reasonable choice today.
 
 Going through this introduction will take you under an hour, but you will learn the most important skills for developing software with ASPL.
 <br>Please keep in mind that this document is not (yet) a complete walkthrough of the language and there is still a lot of information missing.

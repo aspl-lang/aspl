@@ -31,7 +31,7 @@ ASPL is a high-level, general-purpose programming language for building modern, 
 <br>ASPL has a great and simple modular library system that helps you reuse any kind of third-party code in your projects, including even the ASPL compiler itself.
 
 > [!IMPORTANT]
-> ASPL is still in early development. Even though the language is already quite stable and very practical, it is not yet recommended for production use. Contributions are always welcome!
+> ASPL is still in beta. The language and its tooling are already fairly practical and stabilizing, but more breaking changes are to come. Parts of the standard library currently have known security vulnerabilities. ASPL is not yet recommended for production use. There will be more detailed documentation on the current state of ASPL regarding stability and safety soon. Contributions to this project are always welcome.
 
 # Installing
 Please have a look at <a href="install.md">the installation guide</a>.
