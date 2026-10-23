@@ -12,7 +12,7 @@ class Method {
     [static]
     [threadlocal]
     property map<string, map<string, Method>> methods = {}
-    
+
     [readpublic]
     property Type type
     [readpublic]
@@ -234,5 +234,5 @@ class Method {
 
         return newMethod
     }
-    
+
 }

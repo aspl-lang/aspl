@@ -11,7 +11,7 @@ class Property {
     [static]
     [threadlocal]
     property map<string, map<string, Property>> properties = {}
-    
+
     [readpublic]
     property Type type
     [readpublic]
@@ -177,5 +177,5 @@ class Property {
 
         return newProperty
     }
-    
+
 }

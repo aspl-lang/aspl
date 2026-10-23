@@ -40,7 +40,7 @@ class Lexer{
 		this.file = file
 		contents = io.read_file(file)
 	}
-	
+
 	[public]
 	method lex() returns list<Token>{
 		var list<Token> tokens = list<Token>[]
@@ -59,7 +59,7 @@ class Lexer{
 		}
 		return tokens
 	}
-	
+
 	[public]
 	method forward(int amount){
 		contents = contents.after(amount - 1)
@@ -71,7 +71,7 @@ class Lexer{
 		line++
 		lineStartPosition = position
 	}
-	
+
 	[public]
 	method lexToken() returns Token?{
 		while(true){

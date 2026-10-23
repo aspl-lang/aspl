@@ -13,21 +13,21 @@ class TokenList{
 			return (*tokens).length - position
 		}
 	}
-	
+
 	method construct(list<Token> tokens){
 		this.tokens = &tokens
 	}
-	
+
 	[public]
 	method peek(int offset = 0) returns Token{
 		return (*tokens)[offset + position]
 	}
-	
+
 	[public]
 	method shift(int amount = 1){
 		position += amount
 	}
-	
+
 	[public]
 	method next(int offset = 0) returns Token{
 		var token = (*tokens)[offset + position]
@@ -57,5 +57,5 @@ class TokenList{
 		tokens = other.tokens
 		position = other.position
 	}
-	
+
 }

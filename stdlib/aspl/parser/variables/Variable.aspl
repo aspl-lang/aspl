@@ -3,7 +3,7 @@ import aspl.parser.utils
 
 [public]
 class Variable {
-    
+
     [readpublic]
     property string identifier
     [readpublic]
