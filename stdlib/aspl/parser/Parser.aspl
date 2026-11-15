@@ -18,7 +18,7 @@ import io
 
 [public]
 class Parser{
-	
+
 	[public]
 	property Module module
 	[public]
@@ -80,7 +80,7 @@ class Parser{
 
 	[readpublic]
 	property ParseMode? currentParseMode = null
-	
+
     [public]
 	method construct(Module module, string file){
 		if(!Module:initialized){
@@ -97,7 +97,7 @@ class Parser{
 			Property:init()
 		}
 	}
-	
+
 	[public]
 	method parse(ParseMode parseMode = ParseMode.Normal) returns ParseFileResult{
 		currentParseMode = parseMode
@@ -2985,7 +2985,7 @@ class Parser{
 		}
 		return new IdentifierResult(identifier, i, Token(first).location)
 	}
-	
+
 	method parseTypesIfAny(TokenList tokens, Token? first = null) returns Types{
 		var Location location = tokens.peek().location
 		if(first != null){
