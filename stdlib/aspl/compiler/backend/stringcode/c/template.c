@@ -4030,7 +4030,7 @@ ASPL_OBJECT_TYPE aspl_method_list_insert(ASPL_OBJECT_TYPE* obj, ASPL_OBJECT_TYPE
             l->capacity *= 2;
             l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
         }
-        for (int i = l->length - 1; i > ASPL_ACCESS(objB).value.integer32; i--)
+        for (int i = (int)l->length - 1; i > ASPL_ACCESS(objB).value.integer32; i--)
         {
             l->value[i] = l->value[i - 1];
         }
@@ -4057,7 +4057,7 @@ ASPL_OBJECT_TYPE aspl_method_list_insertElements(ASPL_OBJECT_TYPE* obj, ASPL_OBJ
             l->capacity *= 2;
             l->value = ASPL_REALLOC(l->value, sizeof(ASPL_OBJECT_TYPE) * l->capacity);
         }
-        for (int i = l->length - 1; i >= ASPL_ACCESS(objB).value.integer32 + ASPL_ACCESS(objC).value.list->length; i--)
+        for (int i = (int)l->length - 1; i >= ASPL_ACCESS(objB).value.integer32 + (int)ASPL_ACCESS(objC).value.list->length; i--)
         {
             l->value[i] = l->value[i - ASPL_ACCESS(objC).value.list->length];
         }
