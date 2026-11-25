@@ -662,7 +662,7 @@ class Parser{
 						aspl.parser.utils.type_error("Cannot assign a value of type '" + value.getType().toString() + "' to a variable of type '" + types.toString() + "'", value.location)
 					}
 				}
-				var v = Variable:register(identifier.value, types, token.location)
+				var v = Variable:register(identifier.value, types, token.location, this)
 				return applyOperators(new VariableDeclareExpression(v, value, token.location), tokens, standalone, precedenceLevel)
 			}elseif(token.value == "function"){
 				if(tokens.peek().type != TokenType.Identifier){
@@ -695,7 +695,7 @@ class Parser{
 				Scope:getCurrentBundle().func = f
 				Scope:push()
 				foreach(parameters as parameter){
-					Variable:register(parameter.name, parameter.types, parameter.location)
+					Variable:register(parameter.name, parameter.types, parameter.location, this)
 				}
 				var statements = parseBlock(tokens, null, false)
 				Scope:pop()
@@ -743,7 +743,7 @@ class Parser{
 				Scope:getCurrentBundle().func = m
 				Scope:push()
 				foreach(parameters as parameter){
-					Variable:register(parameter.name, parameter.types, parameter.location)
+					Variable:register(parameter.name, parameter.types, parameter.location, this)
 				}
 				var list<Node> statements = []
 				if(tokens.peek().type == TokenType.BraceOpen){
@@ -888,7 +888,7 @@ class Parser{
 				Scope:getCurrentBundle().func = c
 				Scope:push(true)
 				foreach(parameters as parameter){
-					Variable:register(parameter.name, parameter.types, parameter.location)
+					Variable:register(parameter.name, parameter.types, parameter.location, this)
 				}
 				var statements = parseBlock(tokens, null, false)
 				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()
@@ -999,7 +999,7 @@ class Parser{
 				}
 				Scope:push()
 				if(variable != null){
-					Variable:register(string(variable), new Types([Type:fromString("integer")]), token.location)
+					Variable:register(string(variable), new Types([Type:fromString("integer")]), token.location, this)
 				}
 				if(tokens.peek().type != TokenType.ParenthesisClose){
 					aspl.parser.utils.syntax_error("Expected ')' after iterations in repeat statement", tokens.peek().location)
@@ -1050,33 +1050,33 @@ class Parser{
 					}else{
 						key = first.value
 						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
-							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location)
+							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location, this)
 						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
 							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
-								Variable:register(string(key), new Types([]), token.location) // map<void> (due to a previous non-fatal error)
+								Variable:register(string(key), new Types([]), token.location, this) // map<void> (due to a previous non-fatal error)
 							}else{
-								Variable:register(string(key), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+								Variable:register(string(key), Type:getGenericTypes(collection.getType().toString())[0], token.location, this)
 							}
 						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
-							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location)
+							Variable:register(string(key), new Types([Type:fromString("integer")]), token.location, this)
 						}
 					}
 					if(Token(second).value != "_"){
 						value = Token(second).value
 						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
 							if(Type:getGenericTypes(collection.getType().toString()).length < 1){
-								Variable:register(string(value), new Types([]), token.location) // list<void> (due to a previous non-fatal error)
+								Variable:register(string(value), new Types([]), token.location, this) // list<void> (due to a previous non-fatal error)
 							}else{
-								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location, this)
 							}
 						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
 							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
-								Variable:register(string(value), new Types([]), token.location) // map<void> (due to a previous non-fatal error)
+								Variable:register(string(value), new Types([]), token.location, this) // map<void> (due to a previous non-fatal error)
 							}else{
-								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location)
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location, this)
 							}
 						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
-							Variable:register(string(value), new Types([Type:fromString("string")]), token.location)
+							Variable:register(string(value), new Types([Type:fromString("string")]), token.location, this)
 						}
 					}
 				}else{
@@ -1086,18 +1086,18 @@ class Parser{
 						value = first.value
 						if(Type:matches(new Types([Type:fromString("list")]), collection.getType(), true)){
 							if(Type:getGenericTypes(collection.getType().toString()).length < 1){
-								Variable:register(string(value), new Types([]), token.location)
+								Variable:register(string(value), new Types([]), token.location, this)
 							}else{
-								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location)
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[0], token.location, this)
 							}
 						}elseif(Type:matches(new Types([Type:fromString("map")]), collection.getType(), true)){
 							if(Type:getGenericTypes(collection.getType().toString()).length < 2){
-								Variable:register(string(value), new Types([]), token.location)
+								Variable:register(string(value), new Types([]), token.location, this)
 							}else{
-								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location)
+								Variable:register(string(value), Type:getGenericTypes(collection.getType().toString())[1], token.location, this)
 							}
 						}elseif(Type:matches(new Types([Type:fromString("string")]), collection.getType())){
-							Variable:register(string(value), new Types([Type:fromString("string")]), token.location)
+							Variable:register(string(value), new Types([Type:fromString("string")]), token.location, this)
 						}
 					}
 				}
@@ -1439,7 +1439,7 @@ class Parser{
 							tokens.shift()
 							Scope:pushBundle(new ReactivePropertyCallback(p, new Types([])))
 							Scope:push()
-							Variable:register("value", types, token.location)
+							Variable:register("value", types, token.location, this)
 							var oldStaticContextState = inStaticContext
 							inStaticContext = p.isStatic
 							setCode = parseBlock(tokens)
@@ -1594,7 +1594,7 @@ class Parser{
 				}
 				Scope:push(true)
 				if(variable != null){
-					Variable:register(variable?!, new Types([Type:fromString("any")]), token.location)
+					Variable:register(variable?!, new Types([Type:fromString("any")]), token.location, this)
 				}
 				var code = parseBlock(tokens)
 				var capturedVariables = Scope:getCurrent().capturedVariables.cloneShallow()

@@ -8,6 +8,12 @@ class Variable {
     property string identifier
     [readpublic]
     property Types types
+    [static]
+    property list<string> reservedWords =
+                list<string>["import", "null", "true", "false",
+                "assert", "var", "function", "method", "return", "fallback", "escape", "callback",
+                "if", "elseif", "else", "while", "repeat", "foreach", "implement", "oftype", "break",
+                "continue", "class", "enum", "new", "property", "this", "throw", "catch", "list", "map"]
 
     [public]
     method construct(string identifier, Types types) {
@@ -17,9 +23,12 @@ class Variable {
 
     [public]
     [static]
-    method register(string identifier, Types types, Location? location) returns Variable{
-        if(self:exists(identifier)){
-            aspl.parser.utils.generic_error("Variable '" + identifier + "' already defined somewhere else", location)
+     method register(string identifier, Types types, Location? location, Parser parser) returns Variable{
+        if(reservedWords.contains(identifier)){
+            aspl.parser.utils.generic_error("'" + identifier + "' is a reserved word and cannot be used as a variable name (try '" + identifier + "_')", location)
+        }
+        if(Type:existsByName(parser, identifier)){
+            aspl.parser.utils.generic_error("'" + identifier + "' is a type name and cannot be used as a variable name (try '" + identifier + "_')", location)
         }
         var v = new Variable(identifier, types)
         Scope:getCurrent().variables[identifier] = v
